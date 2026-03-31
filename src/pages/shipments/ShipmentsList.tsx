@@ -190,7 +190,7 @@ export default function ShipmentsList() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => navigate(`/shipments/${s.id}`)}>
-                                <Eye size={14} className="mr-2" />Voir detail
+                                <Eye size={14} className="mr-2" />Voir détail
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(String(tracking || '')); toast.success('Copie') }}>
                                 <Copy size={14} className="mr-2" />Copier tracking

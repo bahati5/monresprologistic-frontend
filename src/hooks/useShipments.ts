@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
 import { toast } from 'sonner'
-import type { Shipment, ShipmentCreatePayload, ShipmentListFilters } from '@/types/shipment'
+import type { Shipment, ShipmentListFilters } from '@/types/shipment'
 import type { PaginatedData } from '@/types'
 
 export function useShipments(filters: ShipmentListFilters = {}) {
@@ -21,10 +21,18 @@ export function useShipment(id: number | string | undefined) {
   })
 }
 
+/** Options assistant (modes, bureaux, % défaut facturation, etc.) — GET /api/shipments/create */
+export function useShipmentCreateOptions() {
+  return useQuery({
+    queryKey: ['shipments', 'create-options'],
+    queryFn: () => api.get('/api/shipments/create').then((r) => r.data),
+  })
+}
+
 export function useCreateShipment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: ShipmentCreatePayload) =>
+    mutationFn: (payload: Record<string, unknown>) =>
       api.post('/api/shipments', payload).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['shipments'] })
@@ -36,7 +44,7 @@ export function useCreateShipment() {
 
 export function usePreviewQuote() {
   return useMutation({
-    mutationFn: (payload: Partial<ShipmentCreatePayload>) =>
+    mutationFn: (payload: Record<string, unknown>) =>
       api.post('/api/shipments/preview-quote', payload).then(r => r.data),
   })
 }
@@ -125,18 +133,23 @@ export function useShipmentAcceptance(id: number | string | undefined) {
 
 // ── Wizard helpers ──
 export function useSearchClients(search: string) {
+  const q = search.trim()
   return useQuery({
-    queryKey: ['wizard', 'clients', search],
-    queryFn: () => api.get('/api/shipment-wizard/search-clients', { params: { search } }).then(r => r.data),
-    enabled: search.length >= 2,
+    queryKey: ['wizard', 'clients', q],
+    queryFn: () => api.get('/api/shipment-wizard/search-clients', { params: { q } }).then(r => r.data),
+    enabled: q.length >= 2,
   })
 }
 
 export function useSearchRecipients(search: string, clientId?: number) {
+  const q = search.trim()
   return useQuery({
-    queryKey: ['wizard', 'recipients', search, clientId],
-    queryFn: () => api.get('/api/shipment-wizard/search-recipients', { params: { search, client_id: clientId } }).then(r => r.data),
-    enabled: search.length >= 2,
+    queryKey: ['wizard', 'recipients', q, clientId],
+    queryFn: () =>
+      api
+        .get('/api/shipment-wizard/search-recipients', { params: { q, client_id: clientId } })
+        .then(r => r.data),
+    enabled: q.length >= 2 && clientId != null && clientId > 0,
   })
 }
 

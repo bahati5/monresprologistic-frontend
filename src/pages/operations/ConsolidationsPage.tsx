@@ -10,7 +10,9 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -147,7 +149,10 @@ export default function ConsolidationsPage() {
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nouvelle consolidation</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Nouvelle consolidation</DialogTitle>
+            <DialogDescription className="sr-only">Créer une consolidation de colis.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Type</Label>
@@ -173,7 +178,10 @@ export default function ConsolidationsPage() {
       {/* Status Dialog */}
       <Dialog open={!!statusDialog} onOpenChange={() => setStatusDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Changer le statut</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Changer le statut</DialogTitle>
+            <DialogDescription className="sr-only">Sélectionner le nouveau statut de la consolidation.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger><SelectValue placeholder="Nouveau statut..." /></SelectTrigger>

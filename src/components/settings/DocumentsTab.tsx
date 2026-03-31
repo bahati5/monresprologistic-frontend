@@ -17,7 +17,12 @@ export default function DocumentsTab() {
 
   useEffect(() => { if (templates) setForm(templates) }, [templates])
 
-  const handleSave = () => update.mutate(form)
+  const handleSave = () => {
+    const y = window.scrollY
+    update.mutate(form, {
+      onSettled: () => requestAnimationFrame(() => window.scrollTo(0, y)),
+    })
+  }
 
   const templateList = Array.isArray(form?.templates) ? form.templates : []
 

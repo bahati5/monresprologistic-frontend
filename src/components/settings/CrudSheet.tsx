@@ -31,7 +31,11 @@ export function CrudSheet({
       <SheetContent className="sm:max-w-lg flex flex-col">
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
-          {description && <SheetDescription>{description}</SheetDescription>}
+          {description ? (
+            <SheetDescription>{description}</SheetDescription>
+          ) : (
+            <SheetDescription className="sr-only">Formulaire de saisie</SheetDescription>
+          )}
         </SheetHeader>
         <ScrollArea className="flex-1 -mx-6 px-6 py-4">
           {children}

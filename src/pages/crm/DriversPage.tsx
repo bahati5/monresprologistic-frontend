@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -136,7 +138,12 @@ export default function DriversPage() {
       {/* Create/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editItem ? 'Modifier le chauffeur' : 'Nouveau chauffeur'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editItem ? 'Modifier le chauffeur' : 'Nouveau chauffeur'}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {editItem ? 'Mettre à jour le profil chauffeur.' : 'Ajouter un chauffeur au CRM.'}
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2"><Label>Nom *</Label><Input value={form.name || ''} onChange={e => set('name', e.target.value)} /></div>

@@ -27,14 +27,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
 import { ISO_4217_CURRENCIES } from '@/lib/iso4217'
+import { CountryFlag } from '@/components/CountryFlag'
+import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { Settings, MapPin, UserCheck, Globe, DollarSign, Image } from 'lucide-react'
-
-const BASE_LANGUAGES: { code: string; label: string }[] = [
-  { code: 'fr', label: 'Français' },
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Español' },
-  { code: 'ar', label: 'العربية' },
-]
 
 const CLEAR = '__clear'
 
@@ -59,20 +54,24 @@ export default function GeneralTab() {
   const [curSymbol, setCurSymbol] = useState('')
   const [curName, setCurName] = useState('')
 
-  const [languageDlg, setLanguageDlg] = useState(false)
-  const [langCode, setLangCode] = useState('')
-  const [langLabel, setLangLabel] = useState('')
-
   const [timezoneDlg, setTimezoneDlg] = useState(false)
   const [tzManual, setTzManual] = useState('')
 
   useEffect(() => {
-    if (settings) setForm(settings)
+    if (settings) setForm({ ...settings, language: 'fr' })
   }, [settings])
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }))
 
-  const handleSave = () => updateSettings.mutate(form as Record<string, any>)
+  const handleSave = () => {
+    const y = window.scrollY
+    updateSettings.mutate(
+      { ...(form as Record<string, any>), language: 'fr' },
+      {
+        onSettled: () => requestAnimationFrame(() => window.scrollTo(0, y)),
+      }
+    )
+  }
 
   const countryOptions: SearchableOption[] = useMemo(() => {
     const rows = countries ?? []
@@ -86,7 +85,7 @@ export default function GeneralTab() {
         value: String(c.id),
         label: (
           <span className="flex items-center gap-2">
-            {c.emoji ? <span className="text-lg leading-none">{c.emoji}</span> : null}
+            <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} />
             <span>{c.name}</span>
             <span className="text-xs text-muted-foreground">
               {(c.iso2 || c.code || '').toString().toUpperCase()}
@@ -101,23 +100,6 @@ export default function GeneralTab() {
 
   const countrySelectValue =
     form.country_id === '' || form.country_id == null ? CLEAR : String(form.country_id)
-
-  const languageOptions: SearchableOption[] = useMemo(() => {
-    const extra = (form.extra_languages as { code: string; label: string }[]) ?? []
-    const seen = new Set<string>()
-    const list: { code: string; label: string }[] = []
-    for (const l of [...BASE_LANGUAGES, ...extra]) {
-      const c = l.code.toLowerCase()
-      if (seen.has(c)) continue
-      seen.add(c)
-      list.push(l)
-    }
-    return list.map((l) => ({
-      value: l.code,
-      label: `${l.label} (${l.code})`,
-      keywords: [l.code, l.label],
-    }))
-  }, [form.extra_languages])
 
   const currencyOptions: SearchableOption[] = useMemo(() => {
     const custom = (form.custom_currencies as { code: string; symbol: string; name: string }[]) ?? []
@@ -212,18 +194,6 @@ export default function GeneralTab() {
     setCurCode('')
     setCurSymbol('')
     setCurName('')
-  }
-
-  const submitLanguage = () => {
-    const code = langCode.trim().toLowerCase()
-    if (!code || !langLabel.trim()) return
-    const row = { code, label: langLabel.trim() }
-    const prev = (form.extra_languages as typeof row[]) ?? []
-    const next = [...prev.filter((x) => x.code.toLowerCase() !== code), row]
-    setForm((f) => ({ ...f, extra_languages: next, language: code }))
-    setLanguageDlg(false)
-    setLangCode('')
-    setLangLabel('')
   }
 
   const submitTimezoneManual = () => {
@@ -329,9 +299,6 @@ export default function GeneralTab() {
                   onAdd={() => setCountryDlg(true)}
                   addLabel="Ajouter un pays"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Drapeau et code issus de la table <code className="text-[11px]">countries</code>.
-                </p>
               </div>
               <div className="space-y-2">
                 <Label>Ville</Label>
@@ -421,15 +388,10 @@ export default function GeneralTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Langue</Label>
-                <SearchableSelectWithAdd
-                  value={String(form.language ?? 'fr')}
-                  onValueChange={(v) => set('language', v)}
-                  options={languageOptions}
-                  placeholder="Langue…"
-                  searchPlaceholder="Rechercher une langue…"
-                  onAdd={() => setLanguageDlg(true)}
-                  addLabel="Ajouter une langue"
-                />
+                <p className="text-sm text-muted-foreground">
+                  Application en français uniquement (paramètre enregistré sur <code className="text-xs">fr</code>).
+                </p>
+                <Input value="Français (fr)" disabled className="bg-muted max-w-md" readOnly />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Fuseau horaire (IANA)</Label>
@@ -513,7 +475,7 @@ export default function GeneralTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Logo</Label>
-                {form.logo_url && <img src={String(form.logo_url)} alt="Logo" className="h-12 mb-2 rounded" />}
+                {form.logo_url && <img src={resolveImageUrl(String(form.logo_url))} alt="Logo" className="h-12 mb-2 rounded" />}
                 <Input
                   type="file"
                   accept="image/*"
@@ -525,7 +487,7 @@ export default function GeneralTab() {
               </div>
               <div className="space-y-2">
                 <Label>Favicon</Label>
-                {form.favicon_url && <img src={String(form.favicon_url)} alt="Favicon" className="h-8 mb-2" />}
+                {form.favicon_url && <img src={resolveImageUrl(String(form.favicon_url))} alt="Favicon" className="h-8 mb-2" />}
                 <Input
                   type="file"
                   accept="image/png,image/x-icon,image/vnd.microsoft.icon"
@@ -602,33 +564,6 @@ export default function GeneralTab() {
               Annuler
             </Button>
             <Button type="button" onClick={submitCurrency}>
-              Ajouter et selectionner
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={languageDlg} onOpenChange={setLanguageDlg}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nouvelle langue</DialogTitle>
-            <DialogDescription>Code BCP47 court (ex. de, pt) et libelle affiche.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div className="space-y-2">
-              <Label>Code</Label>
-              <Input value={langCode} onChange={(e) => setLangCode(e.target.value)} placeholder="de" maxLength={16} />
-            </div>
-            <div className="space-y-2">
-              <Label>Libelle</Label>
-              <Input value={langLabel} onChange={(e) => setLangLabel(e.target.value)} placeholder="Deutsch" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => setLanguageDlg(false)}>
-              Annuler
-            </Button>
-            <Button type="button" onClick={submitLanguage}>
               Ajouter et selectionner
             </Button>
           </DialogFooter>

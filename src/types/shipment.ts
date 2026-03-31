@@ -7,12 +7,16 @@ export interface ShipmentItem {
   description: string
   quantity: number
   weight: number
+  weight_kg?: number | null
   length: number | null
   width: number | null
   height: number | null
   declared_value: number | null
+  value?: number | null
   category_id: number | null
+  origin_country_id?: number | null
   category?: { id: number; name: string }
+  origin_country?: { id: number; name: string; iso2?: string | null; code?: string | null }
 }
 
 export interface ShipmentCharge {
@@ -67,7 +71,6 @@ export interface Shipment {
   packaging_type: string | null
   transport_company: string | null
   ship_line: string | null
-  incoterm: string | null
   delivery_time: string | null
 
   origin_office_id: number | null
@@ -86,6 +89,8 @@ export interface Shipment {
   total: number
   amount_paid: number
   balance_due: number
+  payment_status?: string
+  paid_at?: string | null
 
   items: ShipmentItem[]
   charges: ShipmentCharge[]
@@ -123,7 +128,6 @@ export interface ShipmentCreatePayload {
   packaging_type_id?: number
   transport_company_id?: number
   ship_line_id?: number
-  incoterm_id?: number
   delivery_time_id?: number
   origin_office_id?: number
   destination_office_id?: number

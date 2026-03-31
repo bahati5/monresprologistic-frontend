@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { openApiPdf } from '@/lib/openPdf'
+import { openApiPdf, fetchPdfBlob, printApiPdf, downloadApiPdf } from '@/lib/openPdf'
 import { useShipment, useUpdateShipmentStatus, useAssignDriver, useRecordPayment, useDeliverShipment } from '@/hooks/useShipments'
-import { useDrivers } from '@/hooks/useCrm'
+import { useAssignableDrivers } from '@/hooks/useCrm'
 import { statusHooks } from '@/hooks/useSettings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import { WorkflowStepper, type WorkflowStep } from '@/components/workflow/WorkflowStepper'
 import { TimelineLog, type TimelineEvent } from '@/components/workflow/TimelineLog'
 import { staggerContainer, fadeInUp } from '@/lib/animations'
@@ -27,7 +29,7 @@ import {
   ArrowLeft, Package, MapPin, User, Phone, Mail,
   Calendar, Weight, Ruler, DollarSign, FileText, Truck,
   Copy, Printer, MoreHorizontal, RefreshCw, UserPlus, CreditCard,
-  Download, CheckCircle, Tag,
+  Download, CheckCircle, Tag, Loader2,
 } from 'lucide-react'
 
 const SHIPMENT_STEPS: WorkflowStep[] = [
@@ -47,6 +49,13 @@ function getCompletedSteps(currentStatusCode: string): string[] {
   const idx = stepOrder.indexOf(currentStatusCode)
   if (idx <= 0) return []
   return stepOrder.slice(0, idx)
+}
+
+function paymentStatusBadge(paymentStatus: string | undefined) {
+  const ps = paymentStatus || 'unpaid'
+  if (ps === 'paid') return { label: 'Payé', style: { backgroundColor: '#16a34a20', color: '#16a34a', borderColor: '#16a34a40' } }
+  if (ps === 'partial') return { label: 'Paiement partiel', style: { backgroundColor: '#d9770620', color: '#d97706', borderColor: '#d9770640' } }
+  return { label: 'Impayé', style: { backgroundColor: '#64748b20', color: '#64748b', borderColor: '#64748b40' } }
 }
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | number | null }) {
@@ -69,7 +78,7 @@ export default function ShipmentDetail() {
   const assignDriver = useAssignDriver()
   const recordPayment = useRecordPayment()
   const deliverShipment = useDeliverShipment()
-  const { data: drivers } = useDrivers()
+  const { data: drivers } = useAssignableDrivers()
   const { data: allStatuses } = statusHooks.useList()
 
   const [statusDialog, setStatusDialog] = useState(false)
@@ -79,6 +88,53 @@ export default function ShipmentDetail() {
   const [statusNote, setStatusNote] = useState('')
   const [selectedDriverId, setSelectedDriverId] = useState('')
   const [paymentForm, setPaymentForm] = useState({ amount: '', method: '', reference: '', note: '' })
+
+  const [detailTab, setDetailTab] = useState('items')
+  const [invoicePdfUrl, setInvoicePdfUrl] = useState<string | null>(null)
+  const [labelPdfUrl, setLabelPdfUrl] = useState<string | null>(null)
+  const [docFetchState, setDocFetchState] = useState({ invoice: true, label: true })
+  const [docDownloadKind, setDocDownloadKind] = useState<'invoice' | 'label' | null>(null)
+  const pdfUrlsRef = useRef<string[]>([])
+
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    pdfUrlsRef.current.forEach(URL.revokeObjectURL)
+    pdfUrlsRef.current = []
+    setInvoicePdfUrl(null)
+    setLabelPdfUrl(null)
+    setDocFetchState({ invoice: true, label: true })
+
+    const trackUrl = (u: string) => {
+      pdfUrlsRef.current.push(u)
+    }
+
+    void (async () => {
+      const inv = await fetchPdfBlob(`/api/shipments/${id}/pdf/invoice`)
+      if (cancelled) return
+      if (inv) {
+        const u = URL.createObjectURL(inv)
+        trackUrl(u)
+        setInvoicePdfUrl(u)
+      }
+      setDocFetchState((s) => ({ ...s, invoice: false }))
+
+      const lab = await fetchPdfBlob(`/api/shipments/${id}/pdf/label`)
+      if (cancelled) return
+      if (lab) {
+        const u = URL.createObjectURL(lab)
+        trackUrl(u)
+        setLabelPdfUrl(u)
+      }
+      setDocFetchState((s) => ({ ...s, label: false }))
+    })()
+
+    return () => {
+      cancelled = true
+      pdfUrlsRef.current.forEach(URL.revokeObjectURL)
+      pdfUrlsRef.current = []
+    }
+  }, [id])
 
   if (isLoading) {
     return (
@@ -97,9 +153,10 @@ export default function ShipmentDetail() {
   const statusCode = s.status?.code || 'created'
   const statusName = resolveLocalized(s.status?.name) || statusCode
   const statusColor = STATUS_COLORS[statusCode] || '#64748B'
+  const payBadge = paymentStatusBadge(s.payment_status)
   const completedSteps = getCompletedSteps(statusCode)
   const shipmentStatuses = (allStatuses || []).filter((st: any) => st.entity_type === 'shipment')
-  const driverList = Array.isArray(drivers) ? drivers : (drivers as any)?.data || []
+  const driverList = drivers ?? []
 
   const timelineEvents: TimelineEvent[] = (s.logs || []).map((log: any, i: number) => ({
     id: String(log.id || i),
@@ -116,11 +173,11 @@ export default function ShipmentDetail() {
   }
 
   const handlePrintInvoice = () => {
-    if (id) void openApiPdf(`/api/shipments/${id}/pdf/invoice`)
+    if (id) void printApiPdf(`/api/shipments/${id}/pdf/invoice`)
   }
 
   const handlePrintLabel = () => {
-    if (id) void openApiPdf(`/api/shipments/${id}/pdf/label`)
+    if (id) void printApiPdf(`/api/shipments/${id}/pdf/label`)
   }
 
   const handleStatusChange = () => {
@@ -156,10 +213,13 @@ export default function ShipmentDetail() {
             <Button variant="ghost" size="icon" className="shrink-0"><ArrowLeft size={18} /></Button>
           </Link>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
               <h1 className="text-xl md:text-2xl font-bold tracking-tight">{s.tracking_number || `EXP-${id}`}</h1>
-              <Badge className="text-xs font-semibold px-2.5 py-0.5" style={{ backgroundColor: statusColor + '20', color: statusColor, borderColor: statusColor + '40' }}>
+              <Badge className="text-xs font-semibold px-2.5 py-0.5 border" style={{ backgroundColor: statusColor + '20', color: statusColor, borderColor: statusColor + '40' }}>
                 {statusName}
+              </Badge>
+              <Badge className="text-xs font-semibold px-2.5 py-0.5 border" style={payBadge.style}>
+                {payBadge.label}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
@@ -174,14 +234,25 @@ export default function ShipmentDetail() {
           <Button variant="outline" size="sm" onClick={handleCopyTracking}><Copy size={14} className="mr-1.5" />Copier tracking</Button>
           <Button variant="outline" size="sm" onClick={() => setStatusDialog(true)}><RefreshCw size={14} className="mr-1.5" />Changer statut</Button>
           <Button variant="outline" size="sm" onClick={() => setDriverDialog(true)}><UserPlus size={14} className="mr-1.5" />Assigner chauffeur</Button>
-          <Button variant="outline" size="sm" onClick={() => setPaymentDialog(true)}><CreditCard size={14} className="mr-1.5" />Paiement</Button>
+          <Button
+            variant={s.payment_status === 'paid' ? 'outline' : 'default'}
+            size="sm"
+            onClick={() => setPaymentDialog(true)}
+          >
+            <CreditCard size={14} className="mr-1.5" />
+            Caisse / paiement
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="h-9 w-9"><MoreHorizontal size={16} /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handlePrintInvoice}><FileText size={14} className="mr-2" />PDF Facture</DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrintLabel}><Printer size={14} className="mr-2" />PDF Etiquette</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => id && void openApiPdf(`/api/shipments/${id}/pdf/invoice`)}>
+                <FileText size={14} className="mr-2" />Ouvrir facture (PDF)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => id && void openApiPdf(`/api/shipments/${id}/pdf/label`)}>
+                <Printer size={14} className="mr-2" />Ouvrir étiquette (PDF)
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => id && void openApiPdf(`/api/shipments/${id}/pdf/tracking`)}>
                 <Download size={14} className="mr-2" />Rapport de suivi
@@ -241,14 +312,22 @@ export default function ShipmentDetail() {
         </Card>
       </motion.div>
 
-      {/* Tabs */}
+      {/* Tabs : articles, finance, documents PDF sur la même ligne */}
       <motion.div variants={fadeInUp}>
-        <Tabs defaultValue="items" className="w-full">
-          <TabsList>
+        <Tabs value={detailTab} onValueChange={setDetailTab} className="w-full">
+          <TabsList className="flex h-auto min-h-9 w-full flex-wrap justify-start gap-1">
             <TabsTrigger value="items">Articles ({s.items?.length || 0})</TabsTrigger>
             <TabsTrigger value="finance">Finance</TabsTrigger>
             <TabsTrigger value="payments">Paiements ({s.payments?.length || 0})</TabsTrigger>
             <TabsTrigger value="history">Historique</TabsTrigger>
+            <TabsTrigger value="invoice" className="gap-1">
+              <FileText size={14} className="shrink-0 opacity-70" />
+              Facture
+            </TabsTrigger>
+            <TabsTrigger value="label" className="gap-1">
+              <Tag size={14} className="shrink-0 opacity-70" />
+              Étiquette
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="items" className="mt-4">
@@ -259,6 +338,7 @@ export default function ShipmentDetail() {
                     <table className="w-full text-sm">
                       <thead><tr className="border-b bg-muted/50">
                         <th className="px-4 py-3 text-left font-medium">Description</th>
+                        <th className="px-4 py-3 text-left font-medium">Origine</th>
                         <th className="px-4 py-3 text-right font-medium">Qte</th>
                         <th className="px-4 py-3 text-right font-medium">Poids (kg)</th>
                         <th className="px-4 py-3 text-right font-medium">Valeur</th>
@@ -267,9 +347,14 @@ export default function ShipmentDetail() {
                         {s.items.map((item: any, i: number) => (
                           <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                             <td className="px-4 py-3">{item.description}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
+                              {item.origin_country?.name
+                                ? `${item.origin_country.name}${item.origin_country.iso2 ? ` (${item.origin_country.iso2})` : ''}`
+                                : '—'}
+                            </td>
                             <td className="px-4 py-3 text-right">{item.quantity}</td>
-                            <td className="px-4 py-3 text-right">{item.weight ?? '-'}</td>
-                            <td className="px-4 py-3 text-right font-medium">{item.declared_value ?? '-'}</td>
+                            <td className="px-4 py-3 text-right">{item.weight_kg ?? item.weight ?? '—'}</td>
+                            <td className="px-4 py-3 text-right font-medium">{item.value ?? item.declared_value ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -364,13 +449,140 @@ export default function ShipmentDetail() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="invoice" className="mt-4 space-y-3">
+            <Card>
+              <CardContent className="space-y-3 pt-6">
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={handlePrintInvoice}>
+                    <Printer size={14} className="mr-1.5" />
+                    Imprimer
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!!docDownloadKind}
+                    onClick={async () => {
+                      if (!id) return
+                      setDocDownloadKind('invoice')
+                      try {
+                        await downloadApiPdf(
+                          `/api/shipments/${id}/pdf/invoice`,
+                          `facture-${s.tracking_number || id}.pdf`
+                        )
+                      } finally {
+                        setDocDownloadKind(null)
+                      }
+                    }}
+                  >
+                    {docDownloadKind === 'invoice' ? (
+                      <Loader2 size={14} className="mr-1.5 animate-spin" />
+                    ) : (
+                      <Download size={14} className="mr-1.5" />
+                    )}
+                    Télécharger
+                  </Button>
+                </div>
+                <div className="relative min-h-[320px] rounded-lg border bg-muted/10 overflow-hidden">
+                  {docFetchState.invoice && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {invoicePdfUrl ? (
+                    <object
+                      data={invoicePdfUrl}
+                      type="application/pdf"
+                      className="block h-[min(70vh,720px)] w-full"
+                      aria-label="Aperçu facture"
+                    >
+                      <p className="p-8 text-center text-sm text-muted-foreground">
+                        <a href={invoicePdfUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+                          Ouvrir le PDF dans un nouvel onglet
+                        </a>
+                      </p>
+                    </object>
+                  ) : (
+                    !docFetchState.invoice && (
+                      <p className="p-8 text-center text-sm text-muted-foreground">Impossible de charger l&apos;aperçu PDF.</p>
+                    )
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="label" className="mt-4 space-y-3">
+            <Card>
+              <CardContent className="space-y-3 pt-6">
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={handlePrintLabel}>
+                    <Printer size={14} className="mr-1.5" />
+                    Imprimer
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!!docDownloadKind}
+                    onClick={async () => {
+                      if (!id) return
+                      setDocDownloadKind('label')
+                      try {
+                        await downloadApiPdf(
+                          `/api/shipments/${id}/pdf/label`,
+                          `etiquette-${s.tracking_number || id}.pdf`
+                        )
+                      } finally {
+                        setDocDownloadKind(null)
+                      }
+                    }}
+                  >
+                    {docDownloadKind === 'label' ? (
+                      <Loader2 size={14} className="mr-1.5 animate-spin" />
+                    ) : (
+                      <Download size={14} className="mr-1.5" />
+                    )}
+                    Télécharger
+                  </Button>
+                </div>
+                <div className="relative min-h-[320px] rounded-lg border bg-muted/10 overflow-hidden">
+                  {docFetchState.label && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {labelPdfUrl ? (
+                    <object
+                      data={labelPdfUrl}
+                      type="application/pdf"
+                      className="block h-[min(70vh,720px)] w-full"
+                      aria-label="Aperçu étiquette"
+                    >
+                      <p className="p-8 text-center text-sm text-muted-foreground">
+                        <a href={labelPdfUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+                          Ouvrir le PDF dans un nouvel onglet
+                        </a>
+                      </p>
+                    </object>
+                  ) : (
+                    !docFetchState.label && (
+                      <p className="p-8 text-center text-sm text-muted-foreground">Impossible de charger l&apos;aperçu PDF.</p>
+                    )
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </motion.div>
 
       {/* Status Change Dialog */}
       <Dialog open={statusDialog} onOpenChange={setStatusDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Changer le statut</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Changer le statut</DialogTitle>
+            <DialogDescription className="sr-only">Mettre à jour le statut de l&apos;expédition.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Nouveau statut</Label>
@@ -405,7 +617,10 @@ export default function ShipmentDetail() {
       {/* Assign Driver Dialog */}
       <Dialog open={driverDialog} onOpenChange={setDriverDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Assigner un chauffeur</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Assigner un chauffeur</DialogTitle>
+            <DialogDescription className="sr-only">Assigner ou retirer le chauffeur sur cette expédition.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Chauffeur</Label>
@@ -431,7 +646,10 @@ export default function ShipmentDetail() {
       {/* Record Payment Dialog */}
       <Dialog open={paymentDialog} onOpenChange={setPaymentDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Enregistrer un paiement</DialogTitle>
+            <DialogDescription className="sr-only">Saisir le montant et le mode de paiement reçu.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Montant</Label>

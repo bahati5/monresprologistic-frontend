@@ -7,6 +7,25 @@ import { toast } from 'sonner'
 
 const S = '/api/settings'
 
+/** Réponses Laravel camelCase (`shippingModes`) vs clé interne snake (`shipping_modes`). */
+const SETTINGS_LIST_EXTRA_KEYS: Record<string, string[]> = {
+  shipping_rates: ['rates'],
+}
+
+function listFromSettingsPayload(data: unknown, snakeKey: string): unknown[] {
+  if (data == null) return []
+  if (Array.isArray(data)) return data
+  if (typeof data !== 'object') return []
+  const o = data as Record<string, unknown>
+  const camelKey = snakeKey.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+  const tryKeys = [snakeKey, camelKey, ...(SETTINGS_LIST_EXTRA_KEYS[snakeKey] ?? [])]
+  for (const k of tryKeys) {
+    const v = o[k]
+    if (Array.isArray(v)) return v
+  }
+  return Array.isArray(o.data) ? o.data : []
+}
+
 // ─── Generic CRUD factory ───
 function useCrudHooks<T>(
   key: string,
@@ -18,10 +37,7 @@ function useCrudHooks<T>(
   function useList(enabled = true) {
     return useQuery<T[]>({
       queryKey: ['settings', key],
-      queryFn: () => api.get(basePath).then(r => {
-        const d = r.data
-        return d?.[key] ?? d?.data ?? (Array.isArray(d) ? d : [])
-      }),
+      queryFn: () => api.get(basePath).then(r => listFromSettingsPayload(r.data, key) as T[]),
       enabled,
     })
   }
@@ -74,6 +90,19 @@ export type ApiCountryRow = {
   iso2?: string | null
   phonecode?: string | null
   emoji?: string | null
+}
+
+function normalizeCountryRow(raw: Record<string, unknown>): ApiCountryRow {
+  const isoVal = raw.iso2 ?? raw.iso_2
+  const phoneVal = raw.phonecode ?? raw.phone_code
+  return {
+    id: Number(raw.id),
+    name: String(raw.name ?? ''),
+    code: raw.code != null && raw.code !== '' ? String(raw.code) : '',
+    iso2: isoVal != null && isoVal !== '' ? String(isoVal) : null,
+    phonecode: phoneVal != null && phoneVal !== '' ? String(phoneVal) : null,
+    emoji: raw.emoji != null && raw.emoji !== '' ? String(raw.emoji) : null,
+  }
 }
 
 export function useAppSettings() {
@@ -129,7 +158,11 @@ export function useUploadFavicon() {
 export function useCountriesList() {
   return useQuery({
     queryKey: ['locations', 'countries'],
-    queryFn: () => api.get<ApiCountryRow[]>('/api/locations/countries').then((r) => r.data),
+    queryFn: () =>
+      api.get<Record<string, unknown>[]>('/api/locations/countries').then((r) => {
+        const rows = r.data
+        return Array.isArray(rows) ? rows.map(normalizeCountryRow) : []
+      }),
   })
 }
 
@@ -165,22 +198,40 @@ export function useSettingsHub() {
 
 // ─── CRUD Hooks per entity ───
 import type {
-  Agency, Office, ShippingMode, PackagingType, DeliveryTime,
+  Agency, Office, ShippingMode, PackagingType,
   TransportCompany, ShipLine, ArticleCategory, Tax, ShippingRate,
   PricingRule, Zone, Status, PaymentMethod, AgencyPaymentCoordinate,
-  NotificationTemplate, DocumentTemplate,
+  NotificationTemplate, DocumentTemplate, ShippingRatesIndexPayload,
 } from '@/types/settings'
 
 export const agencyHooks    = useCrudHooks<Agency>('agencies', `${S}/agencies`)
 export const officeHooks    = useCrudHooks<Office>('offices', `${S}/offices`)
 export const shippingModeHooks   = useCrudHooks<ShippingMode>('shipping_modes', `${S}/shipping-modes`)
 export const packagingTypeHooks  = useCrudHooks<PackagingType>('packaging_types', `${S}/packaging-types`)
-export const deliveryTimeHooks   = useCrudHooks<DeliveryTime>('delivery_times', `${S}/delivery-times`)
 export const transportCompanyHooks = useCrudHooks<TransportCompany>('transport_companies', `${S}/transport-companies`)
 export const shipLineHooks       = useCrudHooks<ShipLine>('ship_lines', `${S}/ship-lines`)
 export const articleCategoryHooks = useCrudHooks<ArticleCategory>('article_categories', `${S}/article-categories`)
 export const taxHooks            = useCrudHooks<Tax>('taxes', `${S}/taxes`)
 export const shippingRateHooks   = useCrudHooks<ShippingRate>('shipping_rates', `${S}/shipping-rates`)
+
+/** Index complet tarifs (lignes + pays + modes + agences) pour l’éditeur multi-sélection. */
+export function useShippingRatesIndex(enabled = true) {
+  return useQuery<ShippingRatesIndexPayload>({
+    queryKey: ['settings', 'shipping_rates', 'index'],
+    queryFn: async () => {
+      const r = await api.get(`${S}/shipping-rates`)
+      const d = r.data as Record<string, unknown>
+      const modes = d.shipping_modes ?? d.shippingModes
+      return {
+        rates: (Array.isArray(d.rates) ? d.rates : []) as ShippingRate[],
+        countries: (Array.isArray(d.countries) ? d.countries : []) as ShippingRatesIndexPayload['countries'],
+        shippingModes: (Array.isArray(modes) ? modes : []) as ShippingRatesIndexPayload['shippingModes'],
+        agencies: (Array.isArray(d.agencies) ? d.agencies : []) as ShippingRatesIndexPayload['agencies'],
+      }
+    },
+    enabled,
+  })
+}
 export const pricingRuleHooks    = useCrudHooks<PricingRule>('pricing_rules', `${S}/pricing-rules`)
 export const zoneHooks           = useCrudHooks<Zone>('zones', `${S}/zones`)
 export const statusHooks         = useCrudHooks<Status>('statuses', `${S}/statuses`)

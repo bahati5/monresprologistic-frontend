@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { usePickups, useCreatePickup, useAssignPickupDriver, useUpdatePickupStatus } from '@/hooks/useOperations'
-import { useDrivers } from '@/hooks/useCrm'
+import { useAssignableDrivers } from '@/hooks/useCrm'
 import { useSearchClients } from '@/hooks/useShipments'
 import { STATUS_COLORS } from '@/lib/animations'
 import { displayLocalized } from '@/lib/localizedString'
@@ -12,7 +12,9 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -27,7 +29,7 @@ export default function PickupsPage() {
   const createPickup = useCreatePickup()
   const assignDriver = useAssignPickupDriver()
   const updateStatus = useUpdatePickupStatus()
-  const { data: driversRaw } = useDrivers()
+  const { data: driversRaw } = useAssignableDrivers()
   const { data: clientsRaw } = useSearchClients('')
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -39,7 +41,7 @@ export default function PickupsPage() {
 
   const pickups = data?.data || []
   const pagination = data || {}
-  const driverList = Array.isArray(driversRaw) ? driversRaw : (driversRaw as any)?.data || []
+  const driverList = driversRaw ?? []
   const clientList = Array.isArray(clientsRaw) ? clientsRaw : (clientsRaw as any)?.clients || []
 
   const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
@@ -198,7 +200,10 @@ export default function PickupsPage() {
       {/* Assign Driver Dialog */}
       <Dialog open={!!driverDialog} onOpenChange={() => setDriverDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Assigner un chauffeur</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Assigner un chauffeur</DialogTitle>
+            <DialogDescription className="sr-only">Choisissez le chauffeur à assigner à ce ramassage.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
               <SelectTrigger><SelectValue placeholder="Choisir un chauffeur..." /></SelectTrigger>
@@ -215,7 +220,10 @@ export default function PickupsPage() {
       {/* Update Status Dialog */}
       <Dialog open={!!statusDialog} onOpenChange={() => setStatusDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Changer le statut</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Changer le statut</DialogTitle>
+            <DialogDescription className="sr-only">Sélectionnez le nouveau statut du ramassage.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger><SelectValue placeholder="Nouveau statut..." /></SelectTrigger>

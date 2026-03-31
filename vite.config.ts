@@ -17,9 +17,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true,
+      // /storage : exiger `php artisan storage:link` + fichiers sous storage/app/public (ex. branding).
       proxy: {
         '/api': { target: apiTarget, changeOrigin: true, secure: false },
         '/sanctum': { target: apiTarget, changeOrigin: true, secure: false },
+        '/storage': { target: apiTarget, changeOrigin: true, secure: false },
       },
     },
     preview: {
@@ -27,6 +29,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': { target: apiTarget, changeOrigin: true, secure: false },
         '/sanctum': { target: apiTarget, changeOrigin: true, secure: false },
+        '/storage': { target: apiTarget, changeOrigin: true, secure: false },
       },
     },
   }

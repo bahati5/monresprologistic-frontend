@@ -185,7 +185,8 @@ function NotFound() {
   )
 }
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
   {
     element: <GuestOnly />,
     children: [
@@ -242,4 +243,10 @@ export const router = createBrowserRouter([
   },
   { path: '/', element: <Login /> },
   { path: '*', element: <NotFound /> },
-])
+  ],
+  {
+    future: {
+      v7_startTransition: true,
+    },
+  }
+)

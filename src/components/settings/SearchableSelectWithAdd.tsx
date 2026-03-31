@@ -1,3 +1,7 @@
+/**
+ * Combobox recherche + bouton « Ajouter » (paramètres).
+ * Pour les listes BDD sans bouton d’ajout, préférer `DbCombobox` dans `@/components/ui/DbCombobox`.
+ */
 import * as React from 'react'
 import { Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'

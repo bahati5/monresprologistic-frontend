@@ -190,6 +190,16 @@ export function useDrivers(params: Record<string, any> = {}) {
   })
 }
 
+/** Liste chauffeurs pour assignation (sans permission manage_drivers). */
+export function useAssignableDrivers() {
+  return useQuery<Pick<Driver, 'id' | 'name' | 'email'>[]>({
+    queryKey: ['drivers', 'assignable'],
+    queryFn: () =>
+      api.get('/api/shipments/assignable-drivers').then((r) => r.data?.drivers ?? []),
+    staleTime: 60_000,
+  })
+}
+
 export function useCreateDriver() {
   const qc = useQueryClient()
   return useMutation({
@@ -197,6 +207,7 @@ export function useCreateDriver() {
       api.post('/api/drivers', payload).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drivers'] })
+      qc.invalidateQueries({ queryKey: ['drivers', 'assignable'] })
       toast.success('Chauffeur cree')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
@@ -210,6 +221,7 @@ export function useUpdateDriver() {
       api.patch(`/api/drivers/${id}`, data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drivers'] })
+      qc.invalidateQueries({ queryKey: ['drivers', 'assignable'] })
       toast.success('Chauffeur mis a jour')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
@@ -223,6 +235,7 @@ export function useToggleDriverActive() {
       api.post(`/api/drivers/${id}/toggle-active`).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drivers'] })
+      qc.invalidateQueries({ queryKey: ['drivers', 'assignable'] })
       toast.success('Statut modifie')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),

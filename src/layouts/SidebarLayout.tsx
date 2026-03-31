@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
@@ -21,6 +21,8 @@ import {
   User,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useAppSettings } from '@/hooks/useSettings'
+import { resolveImageUrl } from '@/lib/resolveImageUrl'
 
 function SidebarGroupItem({
   group,
@@ -180,6 +182,27 @@ export default function SidebarLayout() {
   const { theme, setTheme } = useThemeStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const { data: appSettings } = useAppSettings()
+
+  const rawSettings = appSettings as Record<string, unknown> | undefined
+  const brandName = (() => {
+    const n = String(rawSettings?.app_name ?? rawSettings?.site_name ?? '').trim()
+    return n || 'Monrespro'
+  })()
+
+  const logoUrl = resolveImageUrl(rawSettings?.logo_url as string | undefined)
+  const faviconUrl = resolveImageUrl(rawSettings?.favicon_url as string | undefined)
+
+  useEffect(() => {
+    if (!faviconUrl) return
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
+    }
+    link.href = faviconUrl
+  }, [faviconUrl])
 
   const navGroups = useMemo(
     () => getNavGroups(user?.roles || [], user?.permissions || []),
@@ -204,17 +227,25 @@ export default function SidebarLayout() {
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center border-b border-sidebar-border px-4">
-        <Link to="/dashboard" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary">
-            <Package size={20} className="text-white" />
-          </div>
+        <Link to="/dashboard" className="flex min-w-0 items-center gap-3">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={brandName}
+              className="h-9 max-h-9 w-auto max-w-[160px] shrink-0 object-contain object-left"
+            />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary">
+              <Package size={20} className="text-white" />
+            </div>
+          )}
           {!collapsed && (
             <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-lg font-bold text-sidebar-foreground tracking-tight"
+              className="truncate text-lg font-bold text-sidebar-foreground tracking-tight"
             >
-              Monrespro
+              {brandName}
             </motion.span>
           )}
         </Link>
