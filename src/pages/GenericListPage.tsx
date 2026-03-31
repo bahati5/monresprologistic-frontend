@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
+import { displayLocalized } from '@/lib/localizedString'
 
 interface Column {
   key: string
@@ -87,7 +88,15 @@ export default function GenericListPage({ title, apiPath, dataKey, columns, crea
                     <tr key={row.id} className="border-b hover:bg-muted/50">
                       {columns.map((col) => (
                         <td key={col.key} className="px-4 py-3">
-                          {col.render ? col.render(row) : (row[col.key] ?? '-')}
+                          {col.render
+                          ? col.render(row)
+                          : (() => {
+                              const v = row[col.key]
+                              if (v != null && typeof v === 'object' && !Array.isArray(v)) {
+                                return displayLocalized(v) || displayLocalized((v as Record<string, unknown>).name)
+                              }
+                              return v ?? '-'
+                            })()}
                         </td>
                       ))}
                       {detailPath && (

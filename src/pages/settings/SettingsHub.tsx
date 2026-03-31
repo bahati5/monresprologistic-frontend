@@ -1,327 +1,150 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import api from '@/api/client'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { toast } from 'sonner'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import {
-  Settings,
-  Building2,
-  Truck,
-  CreditCard,
-  Bell,
-  Mail,
-  Globe,
-  Package,
-  FileText,
-  Users,
-  MapPin,
-  DollarSign,
-  Workflow,
-  Paintbrush,
+  Settings, Building2, Truck, DollarSign, Workflow, CreditCard, Bell, FileText,
 } from 'lucide-react'
+import {
+  GeneralTab, AgenciesTab, ShippingTab, PricingTab,
+  WorkflowsTab, PaymentsTab, NotificationsTab, DocumentsTab,
+} from '@/components/settings'
+
+type TabValue = 'general' | 'agencies' | 'shipping' | 'pricing' | 'workflows' | 'payments' | 'notifications' | 'documents'
+
+const tabs: { value: TabValue; label: string; icon: typeof Settings; description: string }[] = [
+  { value: 'general',       label: 'General',           icon: Settings,   description: 'Identite, devise, langue' },
+  { value: 'agencies',      label: 'Agences & Bureaux', icon: Building2,  description: 'Succursales et points' },
+  { value: 'shipping',      label: 'Transport',         icon: Truck,      description: 'Modes, emballages, delais' },
+  { value: 'pricing',       label: 'Tarifs & Taxes',    icon: DollarSign, description: 'Grilles et regles' },
+  { value: 'workflows',     label: 'Statuts & Workflows', icon: Workflow, description: 'Etapes et transitions' },
+  { value: 'payments',      label: 'Paiements',         icon: CreditCard, description: 'Methodes et passerelles' },
+  { value: 'notifications', label: 'Notifications',     icon: Bell,       description: 'Templates, SMTP, Twilio' },
+  { value: 'documents',     label: 'Documents',         icon: FileText,   description: 'Templates PDF' },
+]
 
 export default function SettingsHub() {
-  const [activeTab, setActiveTab] = useState('general')
+  const [activeTab, setActiveTab] = useState<TabValue>('general')
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => api.get('/api/settings').then(r => r.data),
-  })
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Parametres</h1>
-        <div className="grid gap-4 md:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse h-32" />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Parametres</h1>
-        <Badge variant="outline">Admin</Badge>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="flex flex-wrap justify-start h-auto gap-2">
-          <TabsTrigger value="general" className="gap-2"><Settings size={16} /> General</TabsTrigger>
-          <TabsTrigger value="agencies" className="gap-2"><Building2 size={16} /> Agences</TabsTrigger>
-          <TabsTrigger value="shipping" className="gap-2"><Truck size={16} /> Transport</TabsTrigger>
-          <TabsTrigger value="finance" className="gap-2"><DollarSign size={16} /> Finance</TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2"><Bell size={16} /> Notifications</TabsTrigger>
-          <TabsTrigger value="email" className="gap-2"><Mail size={16} /> Email/SMS</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="general" className="space-y-4">
-          <GeneralSettings settings={settings?.app} />
-        </TabsContent>
-
-        <TabsContent value="agencies" className="space-y-4">
-          <AgenciesSettings />
-        </TabsContent>
-
-        <TabsContent value="shipping" className="space-y-4">
-          <ShippingSettings />
-        </TabsContent>
-
-        <TabsContent value="finance" className="space-y-4">
-          <FinanceSettings />
-        </TabsContent>
-
-        <TabsContent value="notifications" className="space-y-4">
-          <NotificationsSettings />
-        </TabsContent>
-
-        <TabsContent value="email" className="space-y-4">
-          <EmailSettings />
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
-
-function GeneralSettings({ settings }: { settings?: any }) {
-  const [appName, setAppName] = useState(settings?.app_name || 'Monrespro')
-  const [currency, setCurrency] = useState(settings?.currency || 'USD')
-
-  const handleSave = async () => {
-    try {
-      await api.put('/api/settings/app', { app_name: appName, currency })
-      toast.success('Parametres enregistres')
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur')
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'general':       return <GeneralTab />
+      case 'agencies':      return <AgenciesTab />
+      case 'shipping':      return <ShippingTab />
+      case 'pricing':       return <PricingTab />
+      case 'workflows':     return <WorkflowsTab />
+      case 'payments':      return <PaymentsTab />
+      case 'notifications': return <NotificationsTab />
+      case 'documents':     return <DocumentsTab />
+      default:              return null
     }
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings size={20} /> Parametres generaux
-        </CardTitle>
-        <CardDescription>Configuration de base de l'application</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Nom de l'application</Label>
-          <Input value={appName} onChange={e => setAppName(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Devise par defaut</Label>
-          <Input value={currency} onChange={e => setCurrency(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Logo</Label>
-          <Input type="file" accept="image/*" />
-        </div>
-        <Button onClick={handleSave}>Enregistrer</Button>
-      </CardContent>
-    </Card>
-  )
-}
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-zinc-50/50 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.015]"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.5) 1px, transparent 0)',
+          backgroundSize: '24px 24px',
+        }}
+      />
 
-function AgenciesSettings() {
-  const { data: agencies } = useQuery({
-    queryKey: ['settings', 'agencies'],
-    queryFn: () => api.get('/api/settings/agencies').then(r => r.data),
-  })
+      {/* Header */}
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="relative border-b border-zinc-200/80 bg-white/80 backdrop-blur-xl z-10"
+      >
+        <div className="flex h-20 items-center px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-[#0c4a6e] to-[#0e7490] shadow-lg shadow-[#0c4a6e]/20">
+              <Settings className="h-6 w-6 text-white" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Configuration</h1>
+              <p className="text-sm text-zinc-500 tracking-tight">Parametres generaux, transport, tarifs, workflows et integrations</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 size={20} /> Agences
-          </CardTitle>
-          <CardDescription>Gestion des agences et bureaux</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {agencies?.agencies?.map((a: any) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <p className="font-medium">{a.name}</p>
-                  <p className="text-sm text-muted-foreground">{a.city}, {a.country}</p>
-                </div>
-                <Button variant="ghost" size="sm">Modifier</Button>
+      {/* Layout */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar Glassmorphism */}
+        <motion.div
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="w-72 relative flex-shrink-0"
+        >
+          <div className="h-full p-6">
+            <div className="h-full bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-2xl shadow-xl shadow-zinc-900/5 p-4">
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-wider text-zinc-500 font-semibold px-3 mb-3">Navigation</p>
               </div>
-            ))}
-          </div>
-          <Button className="mt-4" variant="outline">Ajouter une agence</Button>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
 
-function ShippingSettings() {
-  const { data: modes } = useQuery({
-    queryKey: ['settings', 'shipping-modes'],
-    queryFn: () => api.get('/api/settings/shipping-modes').then(r => r.data),
-  })
+              <LayoutGroup>
+                <nav className="space-y-1">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon
+                    const isActive = activeTab === tab.value
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Truck size={20} /> Modes de transport
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {modes?.shipping_modes?.map((m: any) => (
-              <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <p className="font-medium">{m.name}</p>
-                  <p className="text-sm text-muted-foreground">{m.code}</p>
-                </div>
-                <Button variant="ghost" size="sm">Modifier</Button>
-              </div>
-            ))}
-          </div>
-          <Button className="mt-4" variant="outline">Ajouter un mode</Button>
-        </CardContent>
-      </Card>
+                    return (
+                      <motion.button
+                        key={tab.value}
+                        onClick={() => setActiveTab(tab.value)}
+                        className="w-full relative"
+                        whileHover={{ x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeSettingsTab"
+                            className="absolute inset-0 bg-gradient-to-r from-[#0c4a6e] to-[#0e7490] rounded-xl shadow-lg shadow-[#0c4a6e]/30"
+                            transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                          />
+                        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package size={20} /> Types d'emballage
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline">Gerer les types d'emballage</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin size={20} /> Zones geographiques
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline">Gerer les zones</Button>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function FinanceSettings() {
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign size={20} /> Methodes de paiement
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline">Configurer les paiements</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard size={20} /> Taxes et tarifs
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline">Gerer les regles de tarification</Button>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function NotificationsSettings() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell size={20} /> Templates de notification
-        </CardTitle>
-        <CardDescription>Configurer les modeles d'emails et SMS</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {['Nouvelle expedition', 'Changement de statut', 'Livraison effectuee', 'Paiement recu'].map((template) => (
-            <div key={template} className="flex items-center justify-between rounded-lg border p-3">
-              <span>{template}</span>
-              <Button variant="ghost" size="sm">Editer</Button>
+                        <div className={`
+                          relative flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors
+                          ${isActive ? 'text-white' : 'text-zinc-700 hover:bg-zinc-100/80'}
+                        `}>
+                          <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+                          <div className="flex-1 text-left">
+                            <div className={`font-medium text-sm ${isActive ? 'text-white' : 'text-zinc-900'}`}>
+                              {tab.label}
+                            </div>
+                            <div className={`text-xs ${isActive ? 'text-white/70' : 'text-zinc-500'}`}>
+                              {tab.description}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.button>
+                    )
+                  })}
+                </nav>
+              </LayoutGroup>
             </div>
-          ))}
+          </div>
+        </motion.div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto relative">
+          <div className="p-8 pb-24">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function EmailSettings() {
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail size={20} /> Configuration SMTP
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Serveur SMTP</Label>
-              <Input placeholder="smtp.example.com" />
-            </div>
-            <div className="space-y-2">
-              <Label>Port</Label>
-              <Input placeholder="587" />
-            </div>
-            <div className="space-y-2">
-              <Label>Utilisateur</Label>
-              <Input placeholder="email@example.com" />
-            </div>
-            <div className="space-y-2">
-              <Label>Mot de passe</Label>
-              <Input type="password" />
-            </div>
-          </div>
-          <Button>Tester et sauvegarder</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe size={20} /> Configuration Twilio (SMS)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>SID de compte</Label>
-            <Input placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-          </div>
-          <div className="space-y-2">
-            <Label>Auth Token</Label>
-            <Input type="password" />
-          </div>
-          <Button>Sauvegarder</Button>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   )
 }

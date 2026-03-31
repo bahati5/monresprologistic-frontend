@@ -30,7 +30,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email: string, password: string) => {
     await api.get('/sanctum/csrf-cookie')
-    const { data } = await api.post('/api/auth/login', { email, password })
+    const { data } = await api.post('/api/auth/login', {
+      email: email.trim().toLowerCase(),
+      password,
+    })
     set({ user: data.user, isAuthenticated: true })
   },
 

@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom'
+import { displayLocalized } from '@/lib/localizedString'
 import { lazy, Suspense } from 'react'
 import RequireAuth from '@/components/auth/RequireAuth'
 import GuestOnly from '@/components/auth/GuestOnly'
@@ -20,14 +21,39 @@ function lazily(factory: () => Promise<{ default: React.ComponentType }>) {
   )
 }
 
+// Auth
 const Login = () => lazily(() => import('@/pages/auth/Login'))
 const Register = () => lazily(() => import('@/pages/auth/Register'))
+
+// Core
 const Dashboard = () => lazily(() => import('@/pages/Dashboard'))
 const Profile = () => lazily(() => import('@/pages/Profile'))
+
+// Shipments
 const ShipmentsList = () => lazily(() => import('@/pages/shipments/ShipmentsList'))
 const ShipmentDetail = () => lazily(() => import('@/pages/shipments/ShipmentDetail'))
 const ShipmentCreate = () => lazily(() => import('@/pages/shipments/ShipmentCreate'))
 
+// Operations
+const PickupsPage = () => lazily(() => import('@/pages/operations/PickupsPage'))
+const ConsolidationsPage = () => lazily(() => import('@/pages/operations/ConsolidationsPage'))
+
+// Finance
+const FinanceDashboardPage = () => lazily(() => import('@/pages/finance/FinanceDashboardPage'))
+
+// CRM
+const ClientsPage = () => lazily(() => import('@/pages/crm/ClientsPage'))
+const UsersPage = () => lazily(() => import('@/pages/crm/UsersPage'))
+const DriversPage = () => lazily(() => import('@/pages/crm/DriversPage'))
+const RecipientsPage = () => lazily(() => import('@/pages/crm/RecipientsPage'))
+
+// Reports
+const ReportsHub = () => lazily(() => import('@/pages/reports/ReportsHub'))
+
+// Settings
+const SettingsHub = () => lazily(() => import('@/pages/settings/SettingsHub'))
+
+// Inbound — still using GenericListPage (will get dedicated pages in Phase 4)
 function ShipmentNotices() {
   return (
     <GenericListPage
@@ -38,7 +64,7 @@ function ShipmentNotices() {
         { key: 'reference_code', label: 'Reference' },
         { key: 'carrier_name', label: 'Transporteur' },
         { key: 'tracking_number', label: 'Tracking' },
-        { key: 'status', label: 'Statut', render: (r: any) => r.status?.name || '-' },
+        { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
         { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
       ]}
       createPath="/shipment-notices/create"
@@ -56,9 +82,9 @@ function PurchaseOrders() {
       dataKey="orders"
       columns={[
         { key: 'reference_code', label: 'Reference' },
-        { key: 'user', label: 'Client', render: (r: any) => r.user?.name || '-' },
+        { key: 'user', label: 'Client', render: (r: any) => displayLocalized(r.user?.name) },
         { key: 'total_amount', label: 'Total' },
-        { key: 'status', label: 'Statut', render: (r: any) => r.status?.name || '-' },
+        { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
         { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
       ]}
       createPath="/purchase-orders/create"
@@ -76,8 +102,8 @@ function CustomerPackages() {
       dataKey="packages"
       columns={[
         { key: 'reference_code', label: 'Reference' },
-        { key: 'user', label: 'Client', render: (r: any) => r.user?.name || '-' },
-        { key: 'status', label: 'Statut', render: (r: any) => r.status?.name || '-' },
+        { key: 'user', label: 'Client', render: (r: any) => displayLocalized(r.user?.name) },
+        { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
         { key: 'received_at', label: 'Recu le', render: (r: any) => r.received_at ? new Date(r.received_at).toLocaleDateString('fr-FR') : '-' },
       ]}
       detailPath={(r: any) => `/customer-packages/${r.id}`}
@@ -85,127 +111,7 @@ function CustomerPackages() {
   )
 }
 
-function Pickups() {
-  return (
-    <GenericListPage
-      title="Ramassages"
-      apiPath="/api/pickups"
-      dataKey="pickups"
-      columns={[
-        { key: 'id', label: '#' },
-        { key: 'client', label: 'Client', render: (r: any) => r.client?.name || r.user?.name || '-' },
-        { key: 'status', label: 'Statut', render: (r: any) => r.status?.name || '-' },
-        { key: 'scheduled_at', label: 'Prevu le', render: (r: any) => r.scheduled_at ? new Date(r.scheduled_at).toLocaleDateString('fr-FR') : '-' },
-      ]}
-      createPath="/pickups/create"
-      createLabel="Nouveau ramassage"
-    />
-  )
-}
-
-function Consolidations() {
-  return (
-    <GenericListPage
-      title="Consolidations"
-      apiPath="/api/consolidations"
-      dataKey="consolidations"
-      columns={[
-        { key: 'id', label: '#' },
-        { key: 'shipments_count', label: 'Expeditions' },
-        { key: 'status', label: 'Statut', render: (r: any) => r.status?.name || '-' },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
-      ]}
-    />
-  )
-}
-
-function Clients() {
-  return (
-    <GenericListPage
-      title="Clients"
-      apiPath="/api/clients"
-      dataKey="clients"
-      columns={[
-        { key: 'name', label: 'Nom' },
-        { key: 'email', label: 'Email' },
-        { key: 'phone', label: 'Telephone' },
-        { key: 'is_active', label: 'Actif', render: (r: any) => r.is_active ? 'Oui' : 'Non' },
-      ]}
-      detailPath={(r: any) => `/clients/${r.id}`}
-    />
-  )
-}
-
-function Recipients() {
-  return (
-    <GenericListPage
-      title="Destinataires"
-      apiPath="/api/recipients"
-      dataKey="recipients"
-      columns={[
-        { key: 'name', label: 'Nom' },
-        { key: 'email', label: 'Email' },
-        { key: 'phone', label: 'Telephone' },
-        { key: 'city', label: 'Ville' },
-        { key: 'country', label: 'Pays' },
-      ]}
-      createPath="/recipients/create"
-      createLabel="Nouveau destinataire"
-    />
-  )
-}
-
-function UsersManagement() {
-  return (
-    <GenericListPage
-      title="Utilisateurs"
-      apiPath="/api/users"
-      dataKey="users"
-      columns={[
-        { key: 'name', label: 'Nom' },
-        { key: 'email', label: 'Email' },
-        { key: 'roles', label: 'Roles', render: (r: any) => (r.roles || []).join(', ') },
-        { key: 'is_active', label: 'Actif', render: (r: any) => r.is_active ? 'Oui' : 'Non' },
-      ]}
-    />
-  )
-}
-
-function Drivers() {
-  return (
-    <GenericListPage
-      title="Chauffeurs"
-      apiPath="/api/drivers"
-      dataKey="drivers"
-      columns={[
-        { key: 'name', label: 'Nom' },
-        { key: 'email', label: 'Email' },
-        { key: 'phone', label: 'Telephone' },
-        { key: 'is_active', label: 'Actif', render: (r: any) => r.is_active ? 'Oui' : 'Non' },
-      ]}
-    />
-  )
-}
-
-function Notifications() {
-  return (
-    <GenericListPage
-      title="Notifications"
-      apiPath="/api/notifications"
-      dataKey="notifications"
-      columns={[
-        { key: 'title', label: 'Titre', render: (r: any) => r.data?.title || r.title || '-' },
-        { key: 'read_at', label: 'Lu', render: (r: any) => r.read_at ? 'Oui' : 'Non' },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
-      ]}
-    />
-  )
-}
-
-function FinanceDashboard() {
-  return <div className="text-muted-foreground">Finance dashboard - a implementer</div>
-}
-
+// Finance sub-pages still using GenericListPage
 function Invoices() {
   return (
     <GenericListPage
@@ -245,20 +151,29 @@ function Wallets() {
       apiPath="/api/finance/wallets"
       dataKey="wallets"
       columns={[
-        { key: 'user', label: 'Client', render: (r: any) => r.user?.name || '-' },
+        { key: 'user', label: 'Client', render: (r: any) => displayLocalized(r.user?.name) },
         { key: 'balance', label: 'Solde' },
       ]}
     />
   )
 }
 
-function Reports() {
-  return <div className="text-muted-foreground">Rapports - a implementer</div>
+function Notifications() {
+  return (
+    <GenericListPage
+      title="Notifications"
+      apiPath="/api/notifications"
+      dataKey="notifications"
+      columns={[
+        { key: 'title', label: 'Titre', render: (r: any) => displayLocalized(r.data?.title || r.title) },
+        { key: 'read_at', label: 'Lu', render: (r: any) => r.read_at ? 'Oui' : 'Non' },
+        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
+      ]}
+    />
+  )
 }
 
-function SettingsHub() {
-  return lazily(() => import('@/pages/settings/SettingsHub'))
-}
+// Reports placeholder removed — using dedicated ReportsHub page
 
 function NotFound() {
   return (
@@ -299,23 +214,24 @@ export const router = createBrowserRouter([
           { path: '/customer-packages', element: <CustomerPackages /> },
 
           // Operations
-          { path: '/pickups', element: <Pickups /> },
-          { path: '/consolidations', element: <Consolidations /> },
+          { path: '/pickups', element: <PickupsPage /> },
+          { path: '/consolidations', element: <ConsolidationsPage /> },
 
           // Finance
-          { path: '/finance/dashboard', element: <FinanceDashboard /> },
+          { path: '/finance', element: <FinanceDashboardPage /> },
+          { path: '/finance/dashboard', element: <FinanceDashboardPage /> },
           { path: '/finance/invoices', element: <Invoices /> },
           { path: '/finance/payment-proofs', element: <PaymentProofs /> },
           { path: '/finance/wallets', element: <Wallets /> },
 
           // Reports
-          { path: '/reports', element: <Reports /> },
+          { path: '/reports', element: <ReportsHub /> },
 
-          // Management
-          { path: '/clients', element: <Clients /> },
-          { path: '/users', element: <UsersManagement /> },
-          { path: '/drivers', element: <Drivers /> },
-          { path: '/recipients', element: <Recipients /> },
+          // CRM Management
+          { path: '/clients', element: <ClientsPage /> },
+          { path: '/users', element: <UsersPage /> },
+          { path: '/drivers', element: <DriversPage /> },
+          { path: '/recipients', element: <RecipientsPage /> },
 
           // Settings
           { path: '/settings', element: <SettingsHub /> },

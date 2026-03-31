@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import api from '@/api/client'
+import { useCreateShipment, useWizardAgencies, useSearchClients, useSearchRecipients, useQuickCreateClient, useQuickCreateRecipient } from '@/hooks/useShipments'
+import { shippingModeHooks, deliveryTimeHooks } from '@/hooks/useSettings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,6 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Plus, Trash2, AlertCircle, ChevronLeft, ChevronRight, Package } from 'lucide-react'
 import { toast } from 'sonner'
+import { displayLocalized } from '@/lib/localizedString'
 
 interface ShipmentItem {
   description: string
@@ -51,43 +53,19 @@ export default function ShipmentCreate() {
   const [deliveryTimeId, setDeliveryTimeId] = useState('')
   const [notes, setNotes] = useState('')
 
-  // Data fetching
-  const { data: clients } = useQuery({
-    queryKey: ['shipment-wizard', 'clients'],
-    queryFn: () => api.get('/api/shipment-wizard/search-clients?q=').then(r => r.data),
-  })
+  // Data fetching via hooks
+  const { data: clientsRaw } = useSearchClients('')
+  const { data: recipientsRaw } = useSearchRecipients('', clientId ? Number(clientId) : undefined)
+  const { data: agenciesRaw } = useWizardAgencies()
+  const { data: modesRaw } = shippingModeHooks.useList()
+  const { data: timesRaw } = deliveryTimeHooks.useList()
+  const createMutation = useCreateShipment()
 
-  const { data: recipients } = useQuery({
-    queryKey: ['shipment-wizard', 'recipients', clientId],
-    enabled: !!clientId,
-    queryFn: () => api.get(`/api/shipment-wizard/search-recipients?client_id=${clientId}`).then(r => r.data),
-  })
-
-  const { data: agencies } = useQuery({
-    queryKey: ['shipment-wizard', 'agencies'],
-    queryFn: () => api.get('/api/shipment-wizard/agencies').then(r => r.data),
-  })
-
-  const { data: shippingModes } = useQuery({
-    queryKey: ['settings', 'shipping-modes'],
-    queryFn: () => api.get('/api/settings/shipping-modes').then(r => r.data),
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (data: any) => api.post('/api/shipments', data),
-    onSuccess: (response) => {
-      toast.success('Expedition creee avec succes')
-      navigate(`/shipments/${response.data.shipment.id}`)
-    },
-    onError: (err: any) => {
-      if (err.response?.status === 422) {
-        setErrors(err.response.data.errors)
-        toast.error('Veuillez corriger les erreurs')
-      } else {
-        toast.error(err.response?.data?.message || 'Erreur lors de la creation')
-      }
-    },
-  })
+  const clientList = Array.isArray(clientsRaw) ? clientsRaw : clientsRaw?.clients || []
+  const recipientList = Array.isArray(recipientsRaw) ? recipientsRaw : recipientsRaw?.recipients || []
+  const agencyList = Array.isArray(agenciesRaw) ? agenciesRaw : agenciesRaw?.agencies || []
+  const modeList = Array.isArray(modesRaw) ? modesRaw : []
+  const timeList = Array.isArray(timesRaw) ? timesRaw : []
 
   const addItem = () => {
     setItems([...items, { description: '', quantity: 1, weight_kg: 0, value: 0 }])
@@ -105,21 +83,42 @@ export default function ShipmentCreate() {
 
   const handleSubmit = () => {
     const payload: any = {
-      sender_id: parseInt(clientId),
-      items: items,
-      shipping_mode_id: shippingModeId ? parseInt(shippingModeId) : null,
-      agency_id: agencyId ? parseInt(agencyId) : null,
-      delivery_time_id: deliveryTimeId ? parseInt(deliveryTimeId) : null,
-      notes,
+      client_id: parseInt(clientId),
+      items: items.map(i => ({
+        description: i.description,
+        quantity: i.quantity,
+        weight: i.weight_kg,
+        declared_value: i.value || undefined,
+      })),
+      shipping_mode_id: shippingModeId ? parseInt(shippingModeId) : undefined,
+      origin_office_id: agencyId ? parseInt(agencyId) : undefined,
+      delivery_time_id: deliveryTimeId ? parseInt(deliveryTimeId) : undefined,
+      notes: notes || undefined,
     }
 
     if (recipientId === 'new') {
-      payload.new_recipient = newRecipient
+      payload.recipient_name = newRecipient.name
+      payload.recipient_phone = newRecipient.phone
+      payload.recipient_email = newRecipient.email || undefined
+      payload.recipient_address = newRecipient.address || undefined
+      payload.recipient_city = newRecipient.city || undefined
+      payload.recipient_country = newRecipient.country || undefined
     } else {
       payload.recipient_id = parseInt(recipientId)
     }
 
-    createMutation.mutate(payload)
+    createMutation.mutate(payload, {
+      onSuccess: (data: any) => {
+        const newId = data?.shipment?.id || data?.id
+        if (newId) navigate(`/shipments/${newId}`)
+        else navigate('/shipments')
+      },
+      onError: (err: any) => {
+        if (err.response?.status === 422) {
+          setErrors(err.response.data.errors || {})
+        }
+      },
+    })
   }
 
   const canProceedStep1 = clientId && recipientId && (recipientId !== 'new' || (newRecipient.name && newRecipient.phone))
@@ -157,8 +156,8 @@ export default function ShipmentCreate() {
                     <SelectValue placeholder="Choisir un client..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients?.clients?.map((c: any) => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.name} ({c.email})</SelectItem>
+                    {clientList.map((c: any) => (
+                      <SelectItem key={c.id} value={String(c.id)}>{displayLocalized(c.name)} ({c.email})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -180,8 +179,8 @@ export default function ShipmentCreate() {
                       <SelectValue placeholder="Choisir un destinataire..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {recipients?.recipients?.map((r: Recipient) => (
-                        <SelectItem key={r.id} value={String(r.id)}>{r.name} - {r.city}, {r.country}</SelectItem>
+                      {recipientList.map((r: any) => (
+                        <SelectItem key={r.id} value={String(r.id)}>{displayLocalized(r.name)} - {r.city}, {r.country}</SelectItem>
                       ))}
                       <SelectItem value="new">+ Nouveau destinataire</SelectItem>
                     </SelectContent>
@@ -322,8 +321,8 @@ export default function ShipmentCreate() {
                       <SelectValue placeholder="Selectionner..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {shippingModes?.shipping_modes?.map((m: any) => (
-                        <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                      {modeList.map((m: any) => (
+                        <SelectItem key={m.id} value={String(m.id)}>{displayLocalized(m.name)}{m.code ? ` (${m.code})` : ''}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -337,26 +336,31 @@ export default function ShipmentCreate() {
                       <SelectValue placeholder="Selectionner..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {agencies?.agencies?.map((a: any) => (
-                        <SelectItem key={a.id} value={String(a.id)}>{a.name} - {a.city}</SelectItem>
+                      {agencyList.map((a: any) => (
+                        <SelectItem key={a.id} value={String(a.id)}>{displayLocalized(a.name)} - {a.city}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Delai de livraison</Label>
+                <Select value={deliveryTimeId} onValueChange={setDeliveryTimeId}>
+                  <SelectTrigger><SelectValue placeholder="Selectionner..." /></SelectTrigger>
+                  <SelectContent>
+                    {timeList.map((t: any) => (
+                      <SelectItem key={t.id} value={String(t.id)}>{displayLocalized(t.label || t.name)}{t.min_days ? ` (${t.min_days}-${t.max_days}j)` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Separator />
 
               <div className="space-y-2">
                 <Label>Notes / Instructions</Label>
-                <Input as-child>
-                  <textarea
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder="Instructions speciales..."
-                    className="min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </Input>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Instructions speciales..." rows={4} />
               </div>
             </CardContent>
           </Card>
