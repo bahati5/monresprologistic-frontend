@@ -3,28 +3,43 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   useCreateShipment,
-  useSearchClients,
-  useSearchRecipients,
   useShipmentCreateOptions,
   usePreviewQuote,
+  useShipLinesForRoute,
   useUpdateShipmentStatus,
 } from '@/hooks/useShipments'
+import { useAppSettings } from '@/hooks/useSettings'
+import { useClient } from '@/hooks/useCrm'
+import { CountryFlag } from '@/components/CountryFlag'
+import { profileCountryIdFromApi } from '@/lib/profileCountry'
 import api from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DbCombobox, DbComboboxAsync } from '@/components/ui/DbCombobox'
+import { DbCombobox } from '@/components/ui/DbCombobox'
 import { ShipmentWizardStepper } from '@/components/workflow/ShipmentWizardStepper'
 import { ShipmentWorkflowProvider, useShipmentWorkflow } from '@/contexts/ShipmentWorkflowContext'
 import { ShipmentProcessSteps } from '@/components/workflow/ShipmentProcessSteps'
 import { DocumentPreviewStep } from '@/components/workflow/DocumentPreviewStep'
 import { CheckoutStep } from '@/components/workflow/CheckoutStep'
 import { DispatchStep } from '@/components/workflow/DispatchStep'
+import { Step1Actors } from '@/components/workflow/Step1Actors'
+import {
+  WizardAgencyCreateDialog,
+  WizardCountryCreateDialog,
+  WizardDeliveryTimeCreateDialog,
+  WizardOfficeCreateDialog,
+  WizardPackagingCreateDialog,
+  WizardShipLineCreateDialog,
+  WizardTransportCreateDialog,
+} from '@/components/workflow/ShipmentWizardCreateDialogs'
+import { useAuthStore } from '@/stores/authStore'
+import { userCan } from '@/lib/permissions'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Plus, Trash2, AlertCircle, ChevronLeft, ChevronRight, Package } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { displayLocalized } from '@/lib/localizedString'
 import { cn } from '@/lib/utils'
 
@@ -35,6 +50,16 @@ interface ShipmentItem {
   value: number
   origin_country_id: string
 }
+
+type LogisticsModal =
+  | null
+  | { k: 'country'; line: number; hint?: string }
+  | { k: 'agency'; hint?: string }
+  | { k: 'office'; hint?: string }
+  | { k: 'packaging'; hint?: string }
+  | { k: 'deliveryTime'; hint?: string }
+  | { k: 'transport'; hint?: string }
+  | { k: 'shipLine'; hint?: string }
 
 function ShipmentCreateContent() {
   const navigate = useNavigate()
@@ -51,8 +76,6 @@ function ShipmentCreateContent() {
   const [step, setStep] = useState(1)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
 
-  const [clientQuery, setClientQuery] = useState('')
-  const [recipientQuery, setRecipientQuery] = useState('')
   const [clientId, setClientId] = useState('')
   const [recipientId, setRecipientId] = useState('')
   const [items, setItems] = useState<ShipmentItem[]>([
@@ -66,7 +89,14 @@ function ShipmentCreateContent() {
   const [transportCompanyId, setTransportCompanyId] = useState('')
   const [shipLineId, setShipLineId] = useState('')
   const [shippingModeFilter, setShippingModeFilter] = useState('')
+  const [deliveryTimeFilter, setDeliveryTimeFilter] = useState('')
+  const [logisticsModal, setLogisticsModal] = useState<LogisticsModal>(null)
+  const [shipLineWizardOpen, setShipLineWizardOpen] = useState(false)
   const [notes, setNotes] = useState('')
+  const { user } = useAuthStore()
+  const [wizardRouteOriginId, setWizardRouteOriginId] = useState('')
+  const [wizardRouteDestId, setWizardRouteDestId] = useState('')
+  const [shipLineRateId, setShipLineRateId] = useState('')
 
   const [insurancePct, setInsurancePct] = useState('0')
   const [customsDutyPct, setCustomsDutyPct] = useState('0')
@@ -86,13 +116,13 @@ function ShipmentCreateContent() {
   const updateStatus = useUpdateShipmentStatus()
 
   const { data: options, isLoading: loadingOptions } = useShipmentCreateOptions()
-  const { data: clientsRaw } = useSearchClients(clientQuery)
-  const { data: recipientsRaw } = useSearchRecipients(recipientQuery, clientId ? Number(clientId) : undefined)
+  const { data: appSettings } = useAppSettings()
+  const globalCurrency = String(appSettings?.currency ?? 'USD').toUpperCase()
   const createMutation = useCreateShipment()
   const { mutate: runPreview, data: previewData, isPending: previewPending } = usePreviewQuote()
 
-  const clientList = Array.isArray(clientsRaw) ? clientsRaw : clientsRaw?.clients || []
-  const recipientList = Array.isArray(recipientsRaw) ? recipientsRaw : recipientsRaw?.recipients || []
+  const { data: senderClientDetail } = useClient(clientId || undefined)
+  const { data: recipientClientDetail } = useClient(recipientId || undefined)
 
   const modeList = useMemo(
     () => (Array.isArray(options?.shippingModes) ? options.shippingModes : []),
@@ -122,6 +152,18 @@ function ShipmentCreateContent() {
     () => (Array.isArray(options?.countries) ? options.countries : []),
     [options?.countries]
   )
+
+  const { data: routeLinesData, isFetching: routeLinesLoading } = useShipLinesForRoute(
+    wizardRouteOriginId,
+    wizardRouteDestId
+  )
+  const routeShipLines = useMemo(
+    () =>
+      (Array.isArray(routeLinesData?.ship_lines) ? routeLinesData.ship_lines : []) as Record<string, unknown>[],
+    [routeLinesData?.ship_lines]
+  )
+  const hasRouteLines = routeShipLines.length > 0
+
   const modesFiltered = useMemo(() => {
     const q = shippingModeFilter.trim().toLowerCase()
     if (!q) return modeList
@@ -158,6 +200,10 @@ function ShipmentCreateContent() {
   }, [options])
 
   useEffect(() => {
+    setDeliveryTimeFilter('')
+  }, [shippingModeId])
+
+  useEffect(() => {
     if (!shippingModeId) {
       setDeliveryTimeId('')
       return
@@ -169,8 +215,36 @@ function ShipmentCreateContent() {
 
   useEffect(() => {
     setRecipientId('')
-    setRecipientQuery('')
   }, [clientId])
+
+  useEffect(() => {
+    setShipLineRateId('')
+  }, [wizardRouteOriginId, wizardRouteDestId])
+
+  useEffect(() => {
+    if (!clientId) {
+      setWizardRouteOriginId('')
+      return
+    }
+    const cid = profileCountryIdFromApi(senderClientDetail)
+    if (cid != null) setWizardRouteOriginId(String(cid))
+  }, [clientId, senderClientDetail])
+
+  useEffect(() => {
+    if (!recipientId) {
+      setWizardRouteDestId('')
+      return
+    }
+    const cid = profileCountryIdFromApi(recipientClientDetail)
+    if (cid != null) setWizardRouteDestId(String(cid))
+  }, [recipientId, recipientClientDetail])
+
+  useEffect(() => {
+    if (step !== 2 || !wizardRouteOriginId) return
+    setItems((prev) =>
+      prev.map((i) => (!i.origin_country_id ? { ...i, origin_country_id: wizardRouteOriginId } : i)),
+    )
+  }, [step, wizardRouteOriginId])
 
   const itemsSumValue = useMemo(
     () => items.reduce((s, i) => s + Number(i.value || 0) * Number(i.quantity || 0), 0),
@@ -180,8 +254,8 @@ function ShipmentCreateContent() {
   const buildWizardPayload = useCallback((): Record<string, unknown> | null => {
     if (!clientId || !recipientId) return null
     const body: Record<string, unknown> = {
-      sender_client_id: Number(clientId),
-      recipient_id: Number(recipientId),
+      sender_profile_id: Number(clientId),
+      recipient_profile_id: Number(recipientId),
       items: items.map((i) => ({
         description: i.description,
         quantity: i.quantity,
@@ -196,7 +270,10 @@ function ShipmentCreateContent() {
       packaging_type_id: packagingTypeId ? Number(packagingTypeId) : undefined,
       transport_company_id: transportCompanyId ? Number(transportCompanyId) : undefined,
       ship_line_id: shipLineId ? Number(shipLineId) : undefined,
-      declared_currency: 'USD',
+      origin_country_id: wizardRouteOriginId ? Number(wizardRouteOriginId) : undefined,
+      dest_country_id: wizardRouteDestId ? Number(wizardRouteDestId) : undefined,
+      ship_line_rate_id: shipLineRateId ? Number(shipLineRateId) : undefined,
+      declared_currency: globalCurrency,
       insurance_pct: Number(insurancePct) || 0,
       customs_duty_pct: Number(customsDutyPct) || 0,
       tax_pct: Number(taxPct) || 0,
@@ -220,6 +297,9 @@ function ShipmentCreateContent() {
     packagingTypeId,
     transportCompanyId,
     shipLineId,
+    wizardRouteOriginId,
+    wizardRouteDestId,
+    shipLineRateId,
     declaredOverride,
     insurancePct,
     customsDutyPct,
@@ -227,6 +307,7 @@ function ShipmentCreateContent() {
     discountPct,
     manualFee,
     manualFeeLabel,
+    globalCurrency,
   ])
 
   useEffect(() => {
@@ -241,10 +322,19 @@ function ShipmentCreateContent() {
       })
     }, 450)
     return () => window.clearTimeout(t)
-  }, [step, buildWizardPayload, shippingModeId, runPreview])
+  }, [step, buildWizardPayload, shippingModeId, runPreview, wizardRouteOriginId, wizardRouteDestId, shipLineRateId])
 
   const addItem = () => {
-    setItems([...items, { description: '', quantity: 1, weight_kg: 0, value: 0, origin_country_id: '' }])
+    setItems([
+      ...items,
+      {
+        description: '',
+        quantity: 1,
+        weight_kg: 0,
+        value: 0,
+        origin_country_id: wizardRouteOriginId || '',
+      },
+    ])
   }
 
   const removeItem = (index: number) => {
@@ -344,7 +434,14 @@ function ShipmentCreateContent() {
 
   const canProceedStep1 = Boolean(clientId && recipientId)
   const canProceedStep2 = items.length > 0 && items.every((i) => i.description && i.quantity > 0)
-  const canProceedStep3 = Boolean(shippingModeId)
+  const showModeCards =
+    !wizardRouteOriginId || !wizardRouteDestId || !hasRouteLines
+  const canProceedStep3 = Boolean(
+    wizardRouteOriginId &&
+      wizardRouteDestId &&
+      shippingModeId &&
+      (showModeCards || Boolean(shipLineRateId))
+  )
   const canSubmit =
     canProceedStep1 &&
     canProceedStep2 &&
@@ -352,30 +449,6 @@ function ShipmentCreateContent() {
     step === 4 &&
     legalDeclarationAccepted &&
     !createMutation.isPending
-
-  const clientOptions = useMemo(
-    () =>
-      clientList.map((c: { id: number; name: string; email?: string }) => ({
-        value: String(c.id),
-        label: (
-          <span className="truncate">
-            {displayLocalized(c.name)} ({c.email})
-          </span>
-        ),
-        keywords: [String(displayLocalized(c.name)), c.email ?? ''].filter(Boolean),
-      })),
-    [clientList],
-  )
-
-  const recipientOptions = useMemo(
-    () =>
-      recipientList.map((r: { id: number; name: string }) => ({
-        value: String(r.id),
-        label: r.name,
-        keywords: [r.name],
-      })),
-    [recipientList],
-  )
 
   const agencyOptions = useMemo(
     () =>
@@ -421,14 +494,49 @@ function ShipmentCreateContent() {
     [timeListFiltered],
   )
 
+  const deliveryTimeComboboxOptions = useMemo(() => {
+    const q = deliveryTimeFilter.trim().toLowerCase()
+    const filtered = !q
+      ? deliveryTimeOptions
+      : deliveryTimeOptions.filter((o) => {
+          const hay = (o.keywords?.join(' ') ?? String(o.label)).toLowerCase()
+          return hay.includes(q)
+        })
+    return [{ value: '__none', label: 'Aucun', keywords: ['aucun'] }, ...filtered]
+  }, [deliveryTimeOptions, deliveryTimeFilter])
+
+  const canManageSettings = userCan(user, 'manage_settings')
+  const canManageAgencies = userCan(user, 'manage_agencies')
+
   const countryOptions = useMemo(
     () => [
-      { value: '__none', label: 'Non renseigné', keywords: ['aucun', 'non'] },
-      ...countryList.map((c: { id: number; name: string; iso2?: string | null; code?: string | null }) => {
-        const code = c.iso2 || c.code || ''
-        const label = code ? `${c.name} (${code})` : c.name
-        return { value: String(c.id), label, keywords: [c.name, code].filter(Boolean) as string[] }
-      }),
+      {
+        value: '__none',
+        label: <span className="text-muted-foreground">Non renseigné</span>,
+        keywords: ['aucun', 'non'],
+      },
+      ...countryList.map(
+        (c: {
+          id: number
+          name: string
+          iso2?: string | null
+          code?: string | null
+          emoji?: string | null
+        }) => {
+          const code = c.iso2 || c.code || ''
+          return {
+            value: String(c.id),
+            label: (
+              <span className="flex items-center gap-2">
+                <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-4 !w-5" />
+                <span>{c.name}</span>
+                {code ? <span className="text-muted-foreground text-xs">({code})</span> : null}
+              </span>
+            ),
+            keywords: [c.name, code, String(c.id)].filter(Boolean) as string[],
+          }
+        },
+      ),
     ],
     [countryList],
   )
@@ -495,68 +603,21 @@ function ShipmentCreateContent() {
 
           <div className="space-y-4">
             {step === 1 && (
-          <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" /> Client expediteur (CRM)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Client expéditeur (recherche min. 2 caractères)</Label>
-                <DbComboboxAsync
-                  value={clientId}
-                  onValueChange={setClientId}
-                  filterQuery={clientQuery}
-                  onFilterQueryChange={setClientQuery}
-                  options={clientOptions}
-                  searchMinLength={2}
-                  belowMinText="Saisissez au moins 2 caractères pour lancer la recherche."
-                  emptyText="Aucun client trouvé."
-                  placeholder={clientQuery.length < 2 ? 'Recherchez puis choisissez…' : 'Choisir un client…'}
+              <div className="space-y-4">
+                <Step1Actors
+                  senderId={clientId}
+                  onSenderChange={setClientId}
+                  recipientId={recipientId}
+                  onRecipientChange={setRecipientId}
+                  errors={errors}
                 />
-                {errors.sender_client_id && (
-                  <p className="text-sm text-destructive">{errors.sender_client_id[0]}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {clientId && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Destinataire</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Destinataire (recherche min. 2 caractères)</Label>
-                  <DbComboboxAsync
-                    value={recipientId}
-                    onValueChange={setRecipientId}
-                    filterQuery={recipientQuery}
-                    onFilterQueryChange={setRecipientQuery}
-                    options={recipientOptions}
-                    searchMinLength={2}
-                    belowMinText="Saisissez au moins 2 caractères pour lancer la recherche."
-                    emptyText="Aucun destinataire trouvé."
-                    placeholder={recipientQuery.length < 2 ? 'Recherchez puis choisissez…' : 'Choisir…'}
-                  />
-                  {errors.recipient_id && (
-                    <p className="text-sm text-destructive">{errors.recipient_id[0]}</p>
-                  )}
+                <div className="flex justify-end">
+                  <Button onClick={() => setStep(2)} disabled={!canProceedStep1}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="flex justify-end">
-            <Button onClick={() => setStep(2)} disabled={!canProceedStep1}>
-              Suivant <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-          </div>
-        )}
+              </div>
+            )}
 
         {step === 2 && (
           <div className="space-y-4">
@@ -624,6 +685,12 @@ function ShipmentCreateContent() {
                       options={countryOptions}
                       placeholder="Non renseigné"
                       searchPlaceholder="Rechercher un pays…"
+                      onOpenCreateModal={
+                        canManageSettings
+                          ? (hint) => setLogisticsModal({ k: 'country', line: index, hint })
+                          : undefined
+                      }
+                      createButtonTitle="Nouveau pays"
                     />
                   </div>
                 </div>
@@ -660,6 +727,107 @@ function ShipmentCreateContent() {
               <CardTitle>Logistique</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Pays de départ *</Label>
+                  <DbCombobox
+                    value={wizardRouteOriginId || '__none'}
+                    onValueChange={(v) => setWizardRouteOriginId(v === '__none' ? '' : v)}
+                    options={countryOptions}
+                    placeholder="Choisir le pays de départ"
+                    searchPlaceholder="Rechercher un pays…"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pays d&apos;arrivée *</Label>
+                  <DbCombobox
+                    value={wizardRouteDestId || '__none'}
+                    onValueChange={(v) => setWizardRouteDestId(v === '__none' ? '' : v)}
+                    options={countryOptions}
+                    placeholder="Choisir le pays d&apos;arrivée"
+                    searchPlaceholder="Rechercher un pays…"
+                  />
+                </div>
+              </div>
+
+              {wizardRouteOriginId && wizardRouteDestId ? (
+                <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Tarifs ligne pour cette route</p>
+                    {routeLinesLoading ? (
+                      <span className="text-xs text-muted-foreground">Chargement…</span>
+                    ) : null}
+                  </div>
+                  {hasRouteLines ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Choisissez un tarif : le mode et le délai sont appliqués automatiquement.
+                      </p>
+                      {routeShipLines.map((line) => (
+                        <div key={String(line.id)}>
+                          <p className="text-sm font-semibold">{String(line.name ?? '')}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(Array.isArray(line.rates) ? line.rates : []).map((rate: Record<string, unknown>) => {
+                              const rid = String(rate.id ?? '')
+                              const sel = shipLineRateId === rid
+                              const sm = (rate.shipping_mode as { name?: string } | undefined)?.name ?? ''
+                              const dt = (rate.delivery_time as { label?: string } | null | undefined)?.label
+                              return (
+                                <button
+                                  key={rid}
+                                  type="button"
+                                  onClick={() => {
+                                    setShipLineRateId(rid)
+                                    setShippingModeId(String(rate.shipping_mode_id ?? ''))
+                                    setDeliveryTimeId(
+                                      rate.delivery_time_id ? String(rate.delivery_time_id) : ''
+                                    )
+                                    setShipLineId(String(line.id ?? ''))
+                                  }}
+                                  className={cn(
+                                    'rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                                    sel
+                                      ? 'border-primary bg-primary/5 ring-2 ring-primary'
+                                      : 'hover:bg-muted/60'
+                                  )}
+                                >
+                                  <span className="font-medium">{displayLocalized(sm)}</span>
+                                  {dt ? (
+                                    <span className="block text-muted-foreground">{dt}</span>
+                                  ) : null}
+                                  <span className="block">
+                                    {Number(rate.unit_price ?? 0).toFixed(2)} {globalCurrency}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    !routeLinesLoading && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Aucune ligne ne couvre ce couple de pays. Vous pouvez créer une ligne (paramètres) ou
+                          choisir un mode manuellement ci-dessous.
+                        </p>
+                        {canManageSettings ? (
+                          <Button type="button" variant="secondary" size="sm" onClick={() => setShipLineWizardOpen(true)}>
+                            Créer une ligne pour cette route
+                          </Button>
+                        ) : null}
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Indiquez le pays de départ et d&apos;arrivée pour proposer les tarifs des lignes configurées.
+                </p>
+              )}
+
+              {showModeCards ? (
               <div className="space-y-2">
                 <Label>Mode d&apos;expédition (service) *</Label>
                 {modeList.length > 5 && (
@@ -679,7 +847,10 @@ function ShipmentCreateContent() {
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => setShippingModeId(idStr)}
+                        onClick={() => {
+                          setShippingModeId(idStr)
+                          if (hasRouteLines) setShipLineRateId('')
+                        }}
                         className={cn(
                           'rounded-lg border bg-card p-3 text-left text-sm shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           selected && 'border-primary bg-primary/5 ring-2 ring-primary'
@@ -700,6 +871,11 @@ function ShipmentCreateContent() {
                   <p className="text-sm text-destructive">{errors.shipping_mode_id[0]}</p>
                 )}
               </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Mode et délai issus du tarif ligne sélectionné (modifiable via le délai ci-dessous si besoin).
+                </p>
+              )}
 
               <div className="space-y-2">
                 <Label>Agence</Label>
@@ -709,6 +885,10 @@ function ShipmentCreateContent() {
                   options={agencyOptions}
                   placeholder="Sélectionner…"
                   searchPlaceholder="Filtrer les agences…"
+                  onOpenCreateModal={
+                    canManageAgencies ? (hint) => setLogisticsModal({ k: 'agency', hint }) : undefined
+                  }
+                  createButtonTitle="Nouvelle agence"
                 />
               </div>
 
@@ -720,6 +900,10 @@ function ShipmentCreateContent() {
                   options={officeOptions}
                   placeholder="Aucun"
                   searchPlaceholder="Filtrer…"
+                  onOpenCreateModal={
+                    canManageSettings ? (hint) => setLogisticsModal({ k: 'office', hint }) : undefined
+                  }
+                  createButtonTitle="Nouveau bureau"
                 />
               </div>
 
@@ -731,6 +915,10 @@ function ShipmentCreateContent() {
                   options={packagingOptions}
                   placeholder="Aucun"
                   searchPlaceholder="Filtrer…"
+                  onOpenCreateModal={
+                    canManageSettings ? (hint) => setLogisticsModal({ k: 'packaging', hint }) : undefined
+                  }
+                  createButtonTitle="Nouvel emballage"
                 />
               </div>
 
@@ -739,13 +927,16 @@ function ShipmentCreateContent() {
                 <DbCombobox
                   value={deliveryTimeId || '__none'}
                   onValueChange={(v) => setDeliveryTimeId(v === '__none' ? '' : v)}
-                  options={[
-                    { value: '__none', label: 'Aucun', keywords: ['aucun'] },
-                    ...deliveryTimeOptions,
-                  ]}
+                  options={deliveryTimeComboboxOptions}
+                  filterQuery={deliveryTimeFilter}
+                  onFilterQueryChange={setDeliveryTimeFilter}
                   disabled={!shippingModeId}
                   placeholder={shippingModeId ? 'Sélectionner…' : "Choisir un mode d'abord"}
                   searchPlaceholder="Filtrer les délais…"
+                  onOpenCreateModal={
+                    shippingModeId ? (hint) => setLogisticsModal({ k: 'deliveryTime', hint }) : undefined
+                  }
+                  createButtonTitle="Nouveau délai"
                 />
               </div>
 
@@ -760,6 +951,10 @@ function ShipmentCreateContent() {
                     options={transportCompanyOptions}
                     placeholder="Aucune"
                     searchPlaceholder="Filtrer…"
+                    onOpenCreateModal={
+                      canManageSettings ? (hint) => setLogisticsModal({ k: 'transport', hint }) : undefined
+                    }
+                    createButtonTitle="Nouvelle compagnie"
                   />
                 </div>
                 <div className="space-y-2">
@@ -770,6 +965,10 @@ function ShipmentCreateContent() {
                     options={shipLineOptions}
                     placeholder="Aucune"
                     searchPlaceholder="Filtrer…"
+                    onOpenCreateModal={
+                      canManageSettings ? (hint) => setLogisticsModal({ k: 'shipLine', hint }) : undefined
+                    }
+                    createButtonTitle="Nouvelle ligne"
                   />
                 </div>
               </div>
@@ -929,7 +1128,7 @@ function ShipmentCreateContent() {
                     Remise : <strong>{Number(snap.discount_amount).toFixed(2)}</strong>
                   </li>
                   <li className="sm:col-span-2 text-base font-semibold">
-                    Total : {Number(snap.total).toFixed(2)} {previewData?.currency ?? ''}
+                    Total : {Number(snap.total).toFixed(2)} {previewData?.currency ?? globalCurrency}
                   </li>
                 </ul>
               )}
@@ -947,6 +1146,100 @@ function ShipmentCreateContent() {
           </div>
         )}
       </div>
+
+      <WizardCountryCreateDialog
+        open={logisticsModal?.k === 'country'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        onCreated={(id) => {
+          const m = logisticsModal
+          if (m?.k === 'country') updateItem(m.line, 'origin_country_id', id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardAgencyCreateDialog
+        open={logisticsModal?.k === 'agency'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        onCreated={(id) => {
+          setAgencyId(id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardOfficeCreateDialog
+        open={logisticsModal?.k === 'office'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        agencyId={agencyId}
+        onCreated={(id) => {
+          setOfficeId(id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardPackagingCreateDialog
+        open={logisticsModal?.k === 'packaging'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        onCreated={(id) => {
+          setPackagingTypeId(id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardDeliveryTimeCreateDialog
+        open={logisticsModal?.k === 'deliveryTime'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        shippingModeId={shippingModeId}
+        selectedMode={selectedMode as Record<string, unknown> | undefined}
+        initialLabel={logisticsModal?.k === 'deliveryTime' ? logisticsModal.hint : undefined}
+        onCreated={(id) => {
+          setDeliveryTimeId(id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardTransportCreateDialog
+        open={logisticsModal?.k === 'transport'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        onCreated={(id) => {
+          setTransportCompanyId(id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardShipLineCreateDialog
+        open={logisticsModal?.k === 'shipLine'}
+        onOpenChange={(o) => {
+          if (!o) setLogisticsModal(null)
+        }}
+        user={user}
+        onCreated={(id) => {
+          setShipLineId(id)
+          setLogisticsModal(null)
+        }}
+      />
+      <WizardShipLineCreateDialog
+        open={shipLineWizardOpen}
+        onOpenChange={setShipLineWizardOpen}
+        user={user}
+        prefillOriginCountryId={wizardRouteOriginId || undefined}
+        prefillDestCountryId={wizardRouteDestId || undefined}
+        onCreated={() => {
+          setShipLineWizardOpen(false)
+          toast.success('Ligne créée. Les tarifs pour cette route vont se recharger.')
+        }}
+      />
         </>
       )}
 

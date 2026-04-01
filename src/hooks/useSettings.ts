@@ -106,7 +106,7 @@ function normalizeCountryRow(raw: Record<string, unknown>): ApiCountryRow {
 }
 
 export function useAppSettings() {
-  return useQuery({
+  return useQuery<AppSettings>({
     queryKey: ['settings', 'app'],
     queryFn: () => api.get(`${S}/app`).then((r) => mapAppSettingsFromApi(r.data)),
   })
@@ -174,6 +174,26 @@ export function useTimezonesList() {
   })
 }
 
+export type PhoneCountryApiRow = {
+  id: number
+  name: string
+  iso2?: string | null
+  phonecode: string
+  emoji?: string | null
+}
+
+/** Pays avec indicatif (sélecteur téléphone). */
+export function usePhoneCountries() {
+  return useQuery<PhoneCountryApiRow[]>({
+    queryKey: ['locations', 'phone-countries'],
+    queryFn: () =>
+      api.get<PhoneCountryApiRow[]>('/api/locations/phone-countries').then((r) =>
+        Array.isArray(r.data) ? r.data : [],
+      ),
+    staleTime: 60 * 60 * 1000,
+  })
+}
+
 export function useCreateCountry() {
   const qc = useQueryClient()
   return useMutation({
@@ -198,6 +218,7 @@ export function useSettingsHub() {
 
 // ─── CRUD Hooks per entity ───
 import type {
+  AppSettings,
   Agency, Office, ShippingMode, PackagingType,
   TransportCompany, ShipLine, ArticleCategory, Tax, ShippingRate,
   PricingRule, Zone, Status, PaymentMethod, AgencyPaymentCoordinate,
@@ -210,6 +231,21 @@ export const shippingModeHooks   = useCrudHooks<ShippingMode>('shipping_modes', 
 export const packagingTypeHooks  = useCrudHooks<PackagingType>('packaging_types', `${S}/packaging-types`)
 export const transportCompanyHooks = useCrudHooks<TransportCompany>('transport_companies', `${S}/transport-companies`)
 export const shipLineHooks       = useCrudHooks<ShipLine>('ship_lines', `${S}/ship-lines`)
+
+/** Ajoute pays + tarifs (par mode) à une ou plusieurs lignes existantes — POST /api/settings/ship-lines/merge-route */
+export function useMergeShipLineRoute() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) =>
+      api.post(`${S}/ship-lines/merge-route`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['settings', 'ship_lines'] })
+      toast.success('Lignes mises à jour')
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message || 'Erreur'),
+  })
+}
 export const articleCategoryHooks = useCrudHooks<ArticleCategory>('article_categories', `${S}/article-categories`)
 export const taxHooks            = useCrudHooks<Tax>('taxes', `${S}/taxes`)
 export const shippingRateHooks   = useCrudHooks<ShippingRate>('shipping_rates', `${S}/shipping-rates`)

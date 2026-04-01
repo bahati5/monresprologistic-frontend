@@ -29,6 +29,20 @@ export function useShipmentCreateOptions() {
   })
 }
 
+/** Lignes d'expédition actives couvrant origine + destination (wizard). */
+export function useShipLinesForRoute(originId: string, destId: string) {
+  return useQuery({
+    queryKey: ['shipment-wizard', 'ship-lines-route', originId, destId],
+    queryFn: () =>
+      api
+        .get('/api/shipment-wizard/ship-lines-for-route', {
+          params: { origin_country_id: originId, dest_country_id: destId },
+        })
+        .then((r) => r.data),
+    enabled: Boolean(originId && destId),
+  })
+}
+
 export function useCreateShipment() {
   const qc = useQueryClient()
   return useMutation({
@@ -132,6 +146,40 @@ export function useShipmentAcceptance(id: number | string | undefined) {
 }
 
 // ── Wizard helpers ──
+
+export interface ProfileSearchResult {
+  id: number
+  first_name: string
+  last_name: string
+  full_name: string
+  email: string | null
+  phone: string | null
+  city: string | null
+  country: string | null
+  country_id?: number | null
+  has_account: boolean
+  locker_number: string | null
+  is_related: boolean
+}
+
+export function useSearchProfiles(search: string, excludeId?: number, relatedTo?: number) {
+  const q = search.trim()
+  return useQuery<ProfileSearchResult[]>({
+    queryKey: ['wizard', 'profiles', q, excludeId, relatedTo],
+    queryFn: () =>
+      api
+        .get('/api/shipment-wizard/search-profiles', {
+          params: {
+            q,
+            exclude_id: excludeId || undefined,
+            related_to: relatedTo || undefined,
+          },
+        })
+        .then(r => r.data),
+    enabled: q.length >= 2,
+  })
+}
+
 export function useSearchClients(search: string) {
   const q = search.trim()
   return useQuery({
@@ -160,20 +208,29 @@ export function useWizardAgencies() {
   })
 }
 
-export function useQuickCreateClient() {
+/** Destinataire wizard : carnet du client expéditeur (`client_profile_id`). */
+export function useWizardCreateRecipient() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; email: string; phone?: string }) =>
-      api.post('/api/shipment-wizard/quick-create-client', data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['wizard', 'clients'] }),
+    mutationFn: (data: Record<string, unknown>) =>
+      api.post('/api/shipment-wizard/quick-create-recipient', data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['wizard', 'recipients'] })
+      qc.invalidateQueries({ queryKey: ['wizard', 'profiles'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
   })
 }
 
-export function useQuickCreateRecipient() {
+export function useQuickCreateDeliveryTime() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; phone?: string; email?: string; client_id?: number }) =>
-      api.post('/api/shipment-wizard/quick-create-recipient', data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['wizard', 'recipients'] }),
+    mutationFn: (data: { shipping_mode_id: number; label: string; description?: string }) =>
+      api.post('/api/shipment-wizard/quick-create-delivery-time', data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['shipments', 'create-options'] })
+      qc.invalidateQueries({ queryKey: ['settings', 'shipping_modes'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
   })
 }

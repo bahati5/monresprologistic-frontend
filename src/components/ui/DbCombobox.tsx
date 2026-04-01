@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +29,31 @@ export type DbComboboxProps = {
   isLoading?: boolean
   className?: string
   id?: string
+  /** Filtre contrôlé : le parent filtre `options` ; pas de filtrage cmdk. */
+  filterQuery?: string
+  onFilterQueryChange?: (q: string) => void
+  /** Ouvre le modal de création (parent). `searchHint` = saisie courante si filtre contrôlé. */
+  onOpenCreateModal?: (searchHint?: string) => void
+  createButtonTitle?: string
+  /** Masquer le bouton + tout en gardant le callback (rare). */
+  showCreateButton?: boolean
+  wrapperClassName?: string
+  /** Longueur min. pour le raccourci « Créer » dans la liste vide (filtre contrôlé). */
+  minLengthForCreate?: number
+}
+
+function CreateShortcutButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <Button type="button" variant="secondary" size="sm" className="mt-2 w-full" onClick={onClick}>
+      {label}
+    </Button>
+  )
 }
 
 /**
@@ -45,35 +70,80 @@ export function DbCombobox({
   isLoading,
   className,
   id,
+  filterQuery,
+  onFilterQueryChange,
+  onOpenCreateModal,
+  createButtonTitle = 'Ajouter',
+  showCreateButton = true,
+  wrapperClassName,
+  minLengthForCreate = 2,
 }: DbComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const selected = options.find((o) => o.value === value)
   const display = selected?.label ?? (value ? <span className="text-muted-foreground">{value}</span> : null)
+  const controlledFilter = filterQuery !== undefined && onFilterQueryChange !== undefined
+  const hint = filterQuery?.trim() ?? ''
+  const canShortcutCreate =
+    !!onOpenCreateModal &&
+    controlledFilter &&
+    hint.length >= minLengthForCreate &&
+    options.length === 0
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled || isLoading}
-          className={cn('h-10 w-full justify-between px-3 font-normal', className)}
-        >
-          <span className="truncate text-left">{isLoading ? 'Chargement…' : display ?? placeholder}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+  const handleOpenCreate = (searchHint?: string) => {
+    onOpenCreateModal?.(searchHint)
+    setOpen(false)
+  }
+
+  const trigger = (
+    <Button
+      id={id}
+      type="button"
+      variant="outline"
+      role="combobox"
+      aria-expanded={open}
+      disabled={disabled || isLoading}
+      className={cn('h-10 w-full justify-between px-3 font-normal', className)}
+    >
+      <span className="truncate text-left">{isLoading ? 'Chargement…' : display ?? placeholder}</span>
+      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+    </Button>
+  )
+
+  const popover = (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (!o && controlledFilter) onFilterQueryChange?.('')
+      }}
+    >
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         className="w-[var(--radix-popover-trigger-width)] min-w-[280px] max-w-[min(100vw-2rem,420px)] p-0"
         align="start"
       >
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={controlledFilter ? false : undefined}>
+          {controlledFilter ? (
+            <CommandInput
+              placeholder={searchPlaceholder}
+              value={filterQuery}
+              onValueChange={onFilterQueryChange}
+            />
+          ) : (
+            <CommandInput placeholder={searchPlaceholder} />
+          )}
           <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandEmpty>
+              <div className="px-2 py-3 text-center text-sm">
+                <p className="text-muted-foreground">{emptyText}</p>
+                {canShortcutCreate && (
+                  <CreateShortcutButton
+                    label={`Créer « ${hint} »…`}
+                    onClick={() => handleOpenCreate(hint)}
+                  />
+                )}
+              </div>
+            </CommandEmpty>
             <CommandGroup>
               {options.map((opt) => (
                 <CommandItem
@@ -95,14 +165,34 @@ export function DbCombobox({
       </PopoverContent>
     </Popover>
   )
+
+  if (onOpenCreateModal && showCreateButton !== false) {
+    return (
+      <div className={cn('flex gap-2', wrapperClassName)}>
+        <div className="min-w-0 flex-1">{popover}</div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0"
+          disabled={disabled}
+          title={createButtonTitle}
+          onClick={() => handleOpenCreate(controlledFilter ? hint || undefined : undefined)}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="sr-only">{createButtonTitle}</span>
+        </Button>
+      </div>
+    )
+  }
+
+  return popover
 }
 
-export type DbComboboxAsyncProps = Omit<DbComboboxProps, 'options'> & {
+export type DbComboboxAsyncProps = Omit<DbComboboxProps, 'options' | 'filterQuery' | 'onFilterQueryChange'> & {
   options: DbComboboxOption[]
-  /** Requête affichée dans la zone de recherche (contrôlée par le parent, ex. appels API). */
   filterQuery: string
   onFilterQueryChange: (q: string) => void
-  /** Si > 0, message tant que la longueur est insuffisante. */
   searchMinLength?: number
   belowMinText?: string
 }
@@ -125,29 +215,54 @@ export function DbComboboxAsync({
   id,
   searchMinLength = 0,
   belowMinText,
+  onOpenCreateModal,
+  createButtonTitle = 'Ajouter',
+  showCreateButton,
+  wrapperClassName,
+  minLengthForCreate,
 }: DbComboboxAsyncProps) {
   const [open, setOpen] = React.useState(false)
   const selected = options.find((o) => o.value === value)
   const display = selected?.label ?? (value ? <span className="text-muted-foreground">{value}</span> : null)
   const belowMin = searchMinLength > 0 && filterQuery.trim().length < searchMinLength
   const hint = belowMinText ?? `Saisissez au moins ${searchMinLength} caractères.`
+  const effMin = minLengthForCreate ?? searchMinLength
+  const canEmptyCreate =
+    !!onOpenCreateModal &&
+    !belowMin &&
+    !isLoading &&
+    options.length === 0 &&
+    filterQuery.trim().length >= effMin
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled || isLoading}
-          className={cn('h-10 w-full justify-between px-3 font-normal', className)}
-        >
-          <span className="truncate text-left">{isLoading ? 'Chargement…' : display ?? placeholder}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+  const handleOpenCreate = (searchHint?: string) => {
+    onOpenCreateModal?.(searchHint)
+    setOpen(false)
+  }
+
+  const trigger = (
+    <Button
+      id={id}
+      type="button"
+      variant="outline"
+      role="combobox"
+      aria-expanded={open}
+      disabled={disabled || isLoading}
+      className={cn('h-10 w-full justify-between px-3 font-normal', className)}
+    >
+      <span className="truncate text-left">{isLoading ? 'Chargement…' : display ?? placeholder}</span>
+      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+    </Button>
+  )
+
+  const popover = (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (!o) onFilterQueryChange('')
+      }}
+    >
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         className="w-[var(--radix-popover-trigger-width)] min-w-[280px] max-w-[min(100vw-2rem,420px)] p-0"
         align="start"
@@ -162,7 +277,17 @@ export function DbComboboxAsync({
             {belowMin ? (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">{hint}</div>
             ) : options.length === 0 ? (
-              <CommandEmpty>{emptyText}</CommandEmpty>
+              <CommandEmpty>
+                <div className="px-2 py-3 text-center text-sm">
+                  <p className="text-muted-foreground">{emptyText}</p>
+                  {canEmptyCreate && (
+                    <CreateShortcutButton
+                      label={`Créer « ${filterQuery.trim()} »…`}
+                      onClick={() => handleOpenCreate(filterQuery.trim())}
+                    />
+                  )}
+                </div>
+              </CommandEmpty>
             ) : (
               <CommandGroup>
                 {options.map((opt) => (
@@ -186,4 +311,26 @@ export function DbComboboxAsync({
       </PopoverContent>
     </Popover>
   )
+
+  if (onOpenCreateModal && showCreateButton !== false) {
+    return (
+      <div className={cn('flex gap-2', wrapperClassName)}>
+        <div className="min-w-0 flex-1">{popover}</div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0"
+          disabled={disabled}
+          title={createButtonTitle}
+          onClick={() => handleOpenCreate(filterQuery.trim() || undefined)}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="sr-only">{createButtonTitle}</span>
+        </Button>
+      </div>
+    )
+  }
+
+  return popover
 }

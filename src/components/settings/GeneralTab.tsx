@@ -8,6 +8,7 @@ import {
   useCountriesList,
   useTimezonesList,
   useCreateCountry,
+  usePhoneCountries,
   type ApiCountryRow,
 } from '@/hooks/useSettings'
 import { SettingsCard } from './SettingsCard'
@@ -28,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
 import { ISO_4217_CURRENCIES } from '@/lib/iso4217'
 import { CountryFlag } from '@/components/CountryFlag'
+import { PhoneContactFields } from '@/components/PhoneContactFields'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { Settings, MapPin, UserCheck, Globe, DollarSign, Image } from 'lucide-react'
 
@@ -40,6 +42,7 @@ export default function GeneralTab() {
   const uploadFavicon = useUploadFavicon()
   const { data: countries, isLoading: loadingCountries } = useCountriesList()
   const { data: timezones, isLoading: loadingTz } = useTimezonesList()
+  const { data: phoneCountries = [], isLoading: loadingPhoneCountries } = usePhoneCountries()
   const createCountry = useCreateCountry()
 
   const [form, setForm] = useState<Record<string, unknown>>({})
@@ -263,13 +266,27 @@ export default function GeneralTab() {
                 <Label>N° entreprise / NIT</Label>
                 <Input value={String(form.nit ?? '')} onChange={(e) => set('nit', e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label>Telephone fixe</Label>
-                <Input value={String(form.phone ?? '')} onChange={(e) => set('phone', e.target.value)} />
+              <div className="space-y-2 sm:col-span-2">
+                <PhoneContactFields
+                  label="Téléphone fixe"
+                  primary={String(form.phone ?? '')}
+                  secondary={String(form.phone_secondary ?? '')}
+                  onPrimaryChange={(v) => set('phone', v)}
+                  onSecondaryChange={(v) => set('phone_secondary', v)}
+                  countries={phoneCountries}
+                  isLoadingCountries={loadingPhoneCountries}
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Telephone mobile</Label>
-                <Input value={String(form.mobile ?? '')} onChange={(e) => set('mobile', e.target.value)} />
+              <div className="space-y-2 sm:col-span-2">
+                <PhoneContactFields
+                  label="Téléphone mobile"
+                  primary={String(form.mobile ?? '')}
+                  secondary={String(form.mobile_secondary ?? '')}
+                  onPrimaryChange={(v) => set('mobile', v)}
+                  onSecondaryChange={(v) => set('mobile_secondary', v)}
+                  countries={phoneCountries}
+                  isLoadingCountries={loadingPhoneCountries}
+                />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Adresse postale</Label>
@@ -475,7 +492,9 @@ export default function GeneralTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Logo</Label>
-                {form.logo_url && <img src={resolveImageUrl(String(form.logo_url))} alt="Logo" className="h-12 mb-2 rounded" />}
+                {form.logo_url != null && String(form.logo_url) !== '' ? (
+                  <img src={resolveImageUrl(String(form.logo_url))} alt="Logo" className="h-12 mb-2 rounded" />
+                ) : null}
                 <Input
                   type="file"
                   accept="image/*"
@@ -487,7 +506,9 @@ export default function GeneralTab() {
               </div>
               <div className="space-y-2">
                 <Label>Favicon</Label>
-                {form.favicon_url && <img src={resolveImageUrl(String(form.favicon_url))} alt="Favicon" className="h-8 mb-2" />}
+                {form.favicon_url != null && String(form.favicon_url) !== '' ? (
+                  <img src={resolveImageUrl(String(form.favicon_url))} alt="Favicon" className="h-8 mb-2" />
+                ) : null}
                 <Input
                   type="file"
                   accept="image/png,image/x-icon,image/vnd.microsoft.icon"

@@ -25,10 +25,11 @@ export function useClient(id: number | string | undefined) {
 export function useCreateClient() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: ClientCreatePayload) =>
+    mutationFn: (payload: ClientCreatePayload | Record<string, unknown>) =>
       api.post('/api/clients', payload).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['wizard', 'profiles'] })
       toast.success('Client cree')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),

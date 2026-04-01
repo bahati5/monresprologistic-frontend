@@ -4,7 +4,6 @@ import {
   shippingModeHooks,
   packagingTypeHooks,
   transportCompanyHooks,
-  shipLineHooks,
   articleCategoryHooks,
 } from '@/hooks/useSettings'
 import { SettingsCard } from './SettingsCard'
@@ -15,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Truck, Package, Clock, Building, Ship, Tag, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Truck, Package, Clock, Building, Tag, Plus, Pencil, Trash2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +29,9 @@ import {
 import { displayLocalized } from '@/lib/localizedString'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
+import { ShipLinesCard } from './ShipLinesCard'
 
-type EntityType = 'packaging_type' | 'transport_company' | 'ship_line' | 'article_category'
+type EntityType = 'packaging_type' | 'transport_company' | 'article_category'
 
 type DeliveryTimeFormRow = {
   id?: number
@@ -72,6 +72,7 @@ function ShippingModesWithDelays() {
       description: '',
       is_active: true,
       sort_order: 0,
+      volumetric_divisor: '' as string | number,
       delivery_times: [] as DeliveryTimeFormRow[],
     })
     setSheetOpen(true)
@@ -84,6 +85,10 @@ function ShippingModesWithDelays() {
       description: item.description ?? '',
       is_active: item.is_active !== false,
       sort_order: item.sort_order ?? 0,
+      volumetric_divisor:
+        item.volumetric_divisor != null && item.volumetric_divisor !== ''
+          ? String(item.volumetric_divisor)
+          : '',
       delivery_times: normalizeModeDeliveryTimes(item),
     })
     setSheetOpen(true)
@@ -123,11 +128,19 @@ function ShippingModesWithDelays() {
         sort_order: r.sort_order ?? i,
       }))
 
+    const vd = String(form.volumetric_divisor ?? '').trim()
+    const volumetricDivisor =
+      vd === '' ? null : (() => {
+        const n = parseInt(vd, 10)
+        return Number.isFinite(n) && n >= 1 ? n : null
+      })()
+
     return {
       name: String(form.name ?? '').trim(),
       description: form.description ? String(form.description) : null,
       is_active: form.is_active !== false,
       sort_order: Number(form.sort_order) || 0,
+      volumetric_divisor: volumetricDivisor,
       delivery_times: rows,
     }
   }
@@ -247,6 +260,14 @@ function ShippingModesWithDelays() {
               onChange={(e) => set('sort_order', Number(e.target.value))}
             />
           </div>
+          <div className="space-y-2">
+            <Label>Diviseur volumétrique par défaut (cm³/kg, optionnel)</Label>
+            <Input
+              placeholder="ex. 5000 ou 6000 (IATA)"
+              value={String(form.volumetric_divisor ?? '')}
+              onChange={(e) => set('volumetric_divisor', e.target.value)}
+            />
+          </div>
           <div className="flex items-center justify-between">
             <Label>Actif</Label>
             <Switch checked={form.is_active !== false} onCheckedChange={(v) => set('is_active', v)} />
@@ -319,7 +340,6 @@ function CrudList({
   const hookMap = {
     packaging_type: packagingTypeHooks,
     transport_company: transportCompanyHooks,
-    ship_line: shipLineHooks,
     article_category: articleCategoryHooks,
   }
   const hooks = hookMap[entityType]
@@ -529,16 +549,7 @@ export default function ShippingTab() {
         </TabsContent>
 
         <TabsContent value="lines" className={settingsInnerTabsContent}>
-          <CrudList
-            title="Lignes maritimes / aeriennes"
-            icon={Ship}
-            entityType="ship_line"
-            extraFields={[
-              { key: 'origin', label: 'Origine' },
-              { key: 'destination', label: 'Destination' },
-              { key: 'mode', label: 'Mode' },
-            ]}
-          />
+          <ShipLinesCard />
         </TabsContent>
 
         <TabsContent value="categories" className={settingsInnerTabsContent}>

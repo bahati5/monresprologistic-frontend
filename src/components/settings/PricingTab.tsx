@@ -1,7 +1,14 @@
 import { useState, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { shippingRateHooks, taxHooks, pricingRuleHooks, zoneHooks, useShippingRatesIndex } from '@/hooks/useSettings'
+import {
+  shippingRateHooks,
+  taxHooks,
+  pricingRuleHooks,
+  zoneHooks,
+  useShippingRatesIndex,
+  useAppSettings,
+} from '@/hooks/useSettings'
 import { SettingsCard } from './SettingsCard'
 import { CrudSheet } from './CrudSheet'
 import { Button } from '@/components/ui/button'
@@ -29,7 +36,6 @@ import { displayLocalized } from '@/lib/localizedString'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
 import { CountryFlag } from '@/components/CountryFlag'
-import { DbCombobox } from '@/components/ui/DbCombobox'
 
 export default function PricingTab() {
   return (
@@ -69,8 +75,8 @@ type RateFormState = {
   shipping_mode_ids: number[]
   pricing_type: 'per_kg' | 'per_volume' | 'flat'
   unit_price: number
-  currency: string
-  agency_id: number | '' | null
+  all_agencies: boolean
+  agency_ids: number[]
   weight_tiers_json: string
   is_active: boolean
 }
@@ -204,8 +210,77 @@ function ModePickColumn({
   )
 }
 
+function AgencyPickColumn({
+  agencies,
+  allAgencies,
+  selectedIds,
+  onToggleAll,
+  onToggle,
+  search,
+  onSearchChange,
+}: {
+  agencies: { id: number; name: string }[]
+  allAgencies: boolean
+  selectedIds: number[]
+  onToggleAll: (v: boolean) => void
+  onToggle: (id: number) => void
+  search: string
+  onSearchChange: (s: string) => void
+}) {
+  const q = search.trim().toLowerCase()
+  const filtered = useMemo(
+    () => agencies.filter((a) => !q || a.name.toLowerCase().includes(q)),
+    [agencies, q],
+  )
+  return (
+    <div className="flex min-h-[200px] flex-col gap-2 rounded-md border p-3 md:col-span-2">
+      <p className="text-xs font-medium text-muted-foreground">Agences</p>
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border border-input"
+          checked={allAgencies}
+          onChange={(e) => onToggleAll(e.target.checked)}
+        />
+        Toutes les agences
+      </label>
+      {!allAgencies && (
+        <>
+          <Input
+            placeholder="Filtrer agences…"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="h-8"
+          />
+          <ScrollArea className="h-[180px] pr-2">
+            <div className="space-y-2">
+              {filtered.map((a) => {
+                const checked = selectedIds.includes(a.id)
+                return (
+                  <label key={a.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-input"
+                      checked={checked}
+                      onChange={() => onToggle(a.id)}
+                    />
+                    <span className="truncate">{a.name}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </ScrollArea>
+          <p className="text-muted-foreground text-xs">Cochez une ou plusieurs agences, ou « Toutes les agences ».</p>
+        </>
+      )}
+    </div>
+  )
+}
+
 function ShippingRatesCard() {
   const { data: indexData, isLoading } = useShippingRatesIndex()
+  const { data: appSettings } = useAppSettings()
+  const globalCurrency = String(appSettings?.currency ?? 'USD').toUpperCase()
   const rates = indexData?.rates ?? []
   const countries = indexData?.countries ?? []
   const shippingModes = indexData?.shippingModes ?? []
@@ -220,6 +295,7 @@ function ShippingRatesCard() {
   const [so, setSo] = useState('')
   const [sd, setSd] = useState('')
   const [sm, setSm] = useState('')
+  const [sa, setSa] = useState('')
 
   const set = useCallback((patch: Partial<RateFormState>) => {
     setForm((p) => (p ? { ...p, ...patch } : p))
@@ -231,8 +307,8 @@ function ShippingRatesCard() {
     shipping_mode_ids: [],
     pricing_type: 'per_kg',
     unit_price: 0,
-    currency: 'USD',
-    agency_id: '',
+    all_agencies: true,
+    agency_ids: [],
     weight_tiers_json: '',
     is_active: true,
   }), [])
@@ -243,6 +319,7 @@ function ShippingRatesCard() {
     setSo('')
     setSd('')
     setSm('')
+    setSa('')
     setOpen(true)
   }
 
@@ -255,6 +332,17 @@ function ShippingRatesCard() {
         : typeof wr === 'string'
           ? wr
           : JSON.stringify(wr, null, 2)
+    const pivotAg = Array.isArray(x.agencies) ? (x.agencies as { id: number }[]).map((a) => a.id) : []
+    let all_agencies = true
+    let agency_ids: number[] = []
+    if (pivotAg.length > 0) {
+      all_agencies = false
+      agency_ids = pivotAg
+    } else if (x.agency_id != null && x.agency_id !== '') {
+      all_agencies = false
+      agency_ids = [Number(x.agency_id)]
+    }
+
     setEditItem(r)
     setForm({
       origin_country_ids: originIds(x),
@@ -262,14 +350,15 @@ function ShippingRatesCard() {
       shipping_mode_ids: modeIds(x),
       pricing_type: (x.pricing_type as RateFormState['pricing_type']) ?? 'per_kg',
       unit_price: Number(x.unit_price ?? 0),
-      currency: (x.currency as string) || 'USD',
-      agency_id: x.agency_id != null ? Number(x.agency_id) : '',
+      all_agencies,
+      agency_ids,
       weight_tiers_json: json,
       is_active: x.is_active !== false,
     })
     setSo('')
     setSd('')
     setSm('')
+    setSa('')
     setOpen(true)
   }
 
@@ -304,6 +393,21 @@ function ShippingRatesCard() {
     })
   }
 
+  const toggleAgency = (id: number) => {
+    setForm((p) => {
+      if (!p) return p
+      const has = p.agency_ids.includes(id)
+      return {
+        ...p,
+        agency_ids: has ? p.agency_ids.filter((x) => x !== id) : [...p.agency_ids, id],
+      }
+    })
+  }
+
+  const setAllAgencies = (v: boolean) => {
+    setForm((p) => (p ? { ...p, all_agencies: v, agency_ids: v ? [] : p.agency_ids } : p))
+  }
+
   const handleSubmit = () => {
     if (!form) return
     let parsedTiers: unknown = null
@@ -316,15 +420,20 @@ function ShippingRatesCard() {
         return
       }
     }
+    if (!form.all_agencies && form.agency_ids.length === 0) {
+      toast.error('Cochez « Toutes les agences » ou sélectionnez au moins une agence.')
+      return
+    }
+
     const payload: Record<string, unknown> = {
       origin_country_ids: form.origin_country_ids,
       dest_country_ids: form.dest_country_ids,
       shipping_mode_ids: form.shipping_mode_ids,
       pricing_type: form.pricing_type,
       unit_price: form.unit_price,
-      currency: form.currency || 'USD',
       is_active: form.is_active,
-      agency_id: form.agency_id === '' || form.agency_id == null ? null : Number(form.agency_id),
+      all_agencies: form.all_agencies,
+      agency_ids: form.all_agencies ? [] : form.agency_ids,
     }
     if (parsedTiers != null) payload.weight_tiers = JSON.stringify(parsedTiers)
     else if (editItem) payload.weight_tiers = null
@@ -346,15 +455,17 @@ function ShippingRatesCard() {
     }
   }
 
-  const agencyOptions = useMemo(
-    () => [
-      { value: '__none', label: 'Aucune agence' },
-      ...agencies.map((a) => ({ value: String(a.id), label: a.name })),
-    ],
-    [agencies],
-  )
-
   const countryLabel = (id: number) => countries.find((c) => c.id === id)?.name ?? `#${id}`
+
+  const rateAgencySummary = (x: ShippingRate & Record<string, unknown>) => {
+    const ags = Array.isArray(x.agencies) ? (x.agencies as { id: number; name: string }[]) : []
+    if (ags.length > 0) return ags.map((a) => a.name).join(', ')
+    if (x.agency_id != null && x.agency_id !== '')
+      return x.agency && typeof x.agency === 'object' && 'name' in x.agency
+        ? String((x.agency as { name: string }).name)
+        : `#${x.agency_id}`
+    return 'Toutes'
+  }
 
   return (
     <>
@@ -371,7 +482,7 @@ function ShippingRatesCard() {
         }
       >
         <p className="mb-3 text-xs text-muted-foreground">
-          Multi-pays, multi-modes, prix unitaire et paliers JSON. Les délais par tarif ne sont plus gérés (pivot retiré).
+          Multi-pays, multi-modes, prix en {globalCurrency} (devise globale des paramètres généraux), paliers JSON optionnels.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -381,8 +492,8 @@ function ShippingRatesCard() {
                 <th className="py-2 pr-3 font-medium">Destinations</th>
                 <th className="py-2 pr-3 font-medium">Modes</th>
                 <th className="py-2 pr-3 font-medium">Type</th>
-                <th className="py-2 pr-3 font-medium">Prix</th>
-                <th className="py-2 pr-3 font-medium">Devise</th>
+                <th className="py-2 pr-3 font-medium">Prix ({globalCurrency})</th>
+                <th className="py-2 pr-3 font-medium">Agences</th>
                 <th className="py-2 font-medium text-right">Actions</th>
               </tr>
             </thead>
@@ -439,7 +550,9 @@ function ShippingRatesCard() {
                       <Badge variant="outline">{x.pricing_type}</Badge>
                     </td>
                     <td className="py-2 pr-3 font-medium">{x.unit_price}</td>
-                    <td className="py-2 pr-3">{x.currency ?? '—'}</td>
+                    <td className="max-w-[160px] py-2 pr-3 text-xs text-muted-foreground">
+                      {rateAgencySummary(x)}
+                    </td>
                     <td className="py-2 text-right">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
                         <Pencil size={13} />
@@ -478,7 +591,8 @@ function ShippingRatesCard() {
           <DialogHeader>
             <DialogTitle>{editItem ? 'Modifier le tarif' : 'Nouveau tarif'}</DialogTitle>
             <DialogDescription>
-              Cochez pays d&apos;origine, destinations et modes. Le premier mode sert de référence legacy côté API.
+              Cochez pays d&apos;origine, destinations et modes. Devise des montants : {globalCurrency} (paramètres
+              généraux). Le premier mode sert de référence legacy côté API.
             </DialogDescription>
           </DialogHeader>
           {form && (
@@ -509,7 +623,17 @@ function ShippingRatesCard() {
                 />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+              <AgencyPickColumn
+                agencies={agencies}
+                allAgencies={form.all_agencies}
+                selectedIds={form.agency_ids}
+                onToggleAll={setAllAgencies}
+                onToggle={toggleAgency}
+                search={sa}
+                onSearchChange={setSa}
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Type de prix</Label>
                   <Select
@@ -527,31 +651,13 @@ function ShippingRatesCard() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Prix unitaire</Label>
+                  <Label>Prix unitaire ({globalCurrency})</Label>
                   <Input
                     type="number"
                     step="0.01"
                     min={0}
                     value={form.unit_price}
                     onChange={(e) => set({ unit_price: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Devise</Label>
-                  <Input
-                    value={form.currency}
-                    onChange={(e) => set({ currency: e.target.value.toUpperCase().slice(0, 8) })}
-                    maxLength={8}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Agence</Label>
-                  <DbCombobox
-                    value={form.agency_id === '' || form.agency_id == null ? '__none' : String(form.agency_id)}
-                    onValueChange={(v) => set({ agency_id: v === '__none' ? '' : Number(v) })}
-                    options={agencyOptions}
-                    placeholder="Agence…"
-                    searchPlaceholder="Filtrer agences…"
                   />
                 </div>
               </div>

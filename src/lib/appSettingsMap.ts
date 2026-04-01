@@ -1,3 +1,5 @@
+import type { AppSettings } from '@/types/settings'
+
 /** Champs réservés à l’UI (non envoyés tels quels au backend). */
 const UI_ONLY = new Set([
   'site_name',
@@ -22,6 +24,8 @@ const UI_ONLY = new Set([
   'postal_code',
   'phone',
   'mobile',
+  'phone_secondary',
+  'mobile_secondary',
 ])
 
 function parseJson<T>(raw: unknown, fallback: T): T {
@@ -38,7 +42,9 @@ function truthy(v: unknown): boolean {
   return v === '1' || v === 1 || v === true || v === 'true'
 }
 
-export function mapAppSettingsFromApi(data: { settings?: Record<string, unknown> } | Record<string, unknown>) {
+export function mapAppSettingsFromApi(
+  data: { settings?: Record<string, unknown> } | Record<string, unknown>,
+): AppSettings {
   const raw =
     'settings' in data && data.settings && typeof data.settings === 'object'
       ? (data.settings as Record<string, unknown>)
@@ -51,6 +57,8 @@ export function mapAppSettingsFromApi(data: { settings?: Record<string, unknown>
     app_email: String(raw.site_email ?? ''),
     phone: String(raw.phone_fixed ?? ''),
     mobile: String(raw.phone_mobile ?? ''),
+    phone_secondary: String(raw.phone_fixed_secondary ?? ''),
+    mobile_secondary: String(raw.phone_mobile_secondary ?? ''),
     postal_code: String(raw.zip_code ?? ''),
     locker_address: String(raw.locker_address_template ?? ''),
     currency_position: raw.symbol_position === 'suffix' ? 'after' : 'before',
@@ -63,7 +71,9 @@ export function mapAppSettingsFromApi(data: { settings?: Record<string, unknown>
     custom_currencies: parseJson<{ code: string; symbol: string; name: string }[]>(raw.custom_currencies, []),
     locker_digits: Number(raw.locker_digits ?? 4),
     decimals: Number(raw.decimals ?? 2),
-  }
+    currency: String(raw.currency ?? ''),
+    currency_symbol: String(raw.currency_symbol ?? ''),
+  } as AppSettings
 }
 
 export function mapAppSettingsToApi(form: Record<string, unknown>) {
@@ -81,6 +91,8 @@ export function mapAppSettingsToApi(form: Record<string, unknown>) {
   out.site_email = form.app_email ?? form.site_email ?? ''
   out.phone_fixed = form.phone ?? form.phone_fixed ?? ''
   out.phone_mobile = form.mobile ?? form.phone_mobile ?? ''
+  out.phone_fixed_secondary = form.phone_secondary ?? form.phone_fixed_secondary ?? ''
+  out.phone_mobile_secondary = form.mobile_secondary ?? form.phone_mobile_secondary ?? ''
   out.zip_code = form.postal_code ?? form.zip_code ?? ''
   out.locker_address_template = form.locker_address ?? form.locker_address_template ?? ''
   out.symbol_position = form.currency_position === 'after' ? 'suffix' : 'prefix'

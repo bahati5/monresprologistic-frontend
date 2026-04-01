@@ -7,6 +7,8 @@ export interface AppSettings {
   nit: string
   phone: string
   mobile: string
+  phone_secondary?: string
+  mobile_secondary?: string
   address: string
   country: string
   city: string
@@ -31,15 +33,14 @@ export interface AppSettings {
 
 export interface Agency {
   id: number
+  code: string
   name: string
-  address: string
-  city: string
-  country: string
-  phone: string
-  email: string
+  slug?: string
+  default_currency: string
+  exchange_rates?: Record<string, unknown> | null
   is_active: boolean
-  color: string | null
-  created_at: string
+  users_count?: number
+  created_at?: string
 }
 
 export interface Office {
@@ -48,10 +49,16 @@ export interface Office {
   address: string
   city: string
   country: string
-  phone: string
+  contact_name?: string | null
+  contact_phone?: string | null
+  contact_phone_secondary?: string | null
+  contact_email?: string | null
+  /** @deprecated utiliser contact_phone */
+  phone?: string
   agency_id: number | null
   agency?: Agency
   is_active: boolean
+  type?: 'office' | 'branch'
 }
 
 export interface DeliveryTimeNested {
@@ -70,6 +77,7 @@ export interface ShippingMode {
   description: string | null
   is_active: boolean
   sort_order?: number
+  volumetric_divisor?: number | null
   delivery_times?: DeliveryTimeNested[]
   delivery_times_count?: number
 }
@@ -101,13 +109,40 @@ export interface TransportCompany {
   is_active: boolean
 }
 
+export interface ShipLineRateRow {
+  id?: number
+  ship_line_id?: number
+  shipping_mode_id: number
+  delivery_time_id?: number | null
+  unit_price: number
+  currency: string
+  pricing_type: 'per_kg' | 'per_volume' | 'flat'
+  is_active: boolean
+  volumetric_divisor?: number | null
+  shipping_mode?: { id: number; name: string } | null
+  delivery_time?: { id: number; label: string } | null
+}
+
+export interface ShipLineCountryRef {
+  id: number
+  name: string
+  code?: string | null
+  iso2?: string | null
+  emoji?: string | null
+}
+
 export interface ShipLine {
   id: number
   name: string
-  origin: string
-  destination: string
-  mode: string | null
+  description?: string | null
   is_active: boolean
+  origin_countries?: ShipLineCountryRef[]
+  destination_countries?: ShipLineCountryRef[]
+  rates?: ShipLineRateRow[]
+  /** @deprecated champs texte legacy UI */
+  origin?: string
+  destination?: string
+  mode?: string | null
 }
 
 export interface ArticleCategory {
@@ -146,6 +181,7 @@ export interface ShippingRate {
   weight_tiers?: unknown[] | Record<string, unknown> | null
   is_active: boolean
   agency?: { id: number; name: string }
+  agencies?: { id: number; name: string }[]
   origin_country?: ShippingRateCountryRef
   dest_country?: ShippingRateCountryRef
   shipping_mode?: ShippingMode
