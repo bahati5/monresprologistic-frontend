@@ -1,4 +1,4 @@
-/* ── Operations: Pickups & Consolidations ── */
+/* ── Operations: Pickups & Regroupements ── */
 
 import type { StatusData } from '.'
 
@@ -38,34 +38,16 @@ export interface PickupCreatePayload {
   notes?: string
 }
 
-export interface Consolidation {
+export interface Regroupement {
   id: number
-  reference_code: string
-  type: 'shipments' | 'packages'
-  origin: string | null
-  destination: string | null
-  shipping_mode: string | null
-  status: StatusData
-  driver_id: number | null
-  driver?: { id: number; name: string }
-  total_weight: number | null
-  total_items: number
-  notes: string | null
-  shipment_ids: number[]
-  package_ids: number[]
-  closed_at: string | null
-  shipped_at: string | null
-  arrived_at: string | null
+  batch_number: string
+  agency_id: number | null
+  status: StatusData | string
+  shipments?: Array<{ id: number; public_tracking?: string | null }>
   created_at: string
   updated_at: string
 }
 
-export interface ConsolidationCreatePayload {
-  type: 'shipments' | 'packages'
-  origin?: string
-  destination?: string
-  shipping_mode?: string
-  notes?: string
-  shipment_ids?: number[]
-  package_ids?: number[]
+export interface RegroupementCreatePayload {
+  shipment_ids: number[]
 }

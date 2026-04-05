@@ -6,7 +6,6 @@ import {
   ClipboardList,
   FileText,
   CreditCard,
-  Truck,
   Check,
 } from 'lucide-react'
 import type { ShipmentWorkflowStep } from '@/contexts/ShipmentWorkflowContext'
@@ -21,7 +20,6 @@ const STEPS: { key: ShipmentWorkflowStep; label: string; icon: React.ElementType
   { key: 'registration', label: 'Enregistrement', icon: ClipboardList },
   { key: 'documents', label: 'Documents', icon: FileText },
   { key: 'checkout', label: 'Caisse', icon: CreditCard },
-  { key: 'dispatch', label: 'Expédition', icon: Truck },
 ]
 
 export const ShipmentProcessSteps: React.FC<ShipmentProcessStepsProps> = ({

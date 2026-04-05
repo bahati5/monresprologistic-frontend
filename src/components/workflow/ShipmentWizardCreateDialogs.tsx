@@ -16,17 +16,18 @@ import { Switch } from '@/components/ui/switch'
 import {
   useCreateCountry,
   agencyHooks,
-  officeHooks,
   packagingTypeHooks,
   transportCompanyHooks,
   shipLineHooks,
   shippingModeHooks,
   useAppSettings,
-  useShippingRatesIndex,
+  useCountriesList,
   useMergeShipLineRoute,
 } from '@/hooks/useSettings'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CountryFlag } from '@/components/CountryFlag'
+import { CountryMultiSelect } from '@/components/ui/CountryMultiSelect'
+import { suggestAgencyCodeFromName } from '@/lib/agencyCodeSuggest'
 import {
   Select,
   SelectContent,
@@ -35,8 +36,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { displayLocalized } from '@/lib/localizedString'
-import { useQuickCreateDeliveryTime } from '@/hooks/useShipments'
+import { resolveMoneySymbol } from '@/lib/formatCurrency'
 import { userCan } from '@/lib/permissions'
+import { toast } from 'sonner'
 import type { AuthUser } from '@/types'
 import type { AppSettings } from '@/types/settings'
 
@@ -44,7 +46,7 @@ const CREATE_OPTIONS_KEY = ['shipments', 'create-options'] as const
 
 async function refetchAndPickMaxId(
   qc: ReturnType<typeof useQueryClient>,
-  listPath: 'countries' | 'agencies' | 'offices' | 'packagingTypes' | 'transportCompanies' | 'shipLines',
+  listPath: 'countries' | 'agencies' | 'packagingTypes' | 'transportCompanies' | 'shipLines',
 ): Promise<string | null> {
   await qc.refetchQueries({ queryKey: [...CREATE_OPTIONS_KEY] })
   const opts = qc.getQueryData([...CREATE_OPTIONS_KEY]) as Record<string, unknown> | undefined
@@ -148,27 +150,23 @@ export function WizardAgencyCreateDialog({
 }) {
   const qc = useQueryClient()
   const create = agencyHooks.useCreate()
-  const [code, setCode] = useState('')
   const [name, setName] = useState('')
-  const [currency, setCurrency] = useState('USD')
 
   useEffect(() => {
     if (open) {
-      setCode('')
       setName('')
-      setCurrency('USD')
     }
   }, [open])
 
   if (!userCan(user, 'manage_agencies')) return null
 
   const submit = () => {
-    if (!code.trim() || !name.trim()) return
+    if (!name.trim()) return
+    const code = suggestAgencyCodeFromName(name.trim()) || 'HUB'
     create.mutate(
       {
-        code: code.trim().toUpperCase(),
         name: name.trim(),
-        default_currency: currency.trim().toUpperCase(),
+        code,
       } as Record<string, unknown>,
       {
         onSuccess: async () => {
@@ -188,100 +186,12 @@ export function WizardAgencyCreateDialog({
           <DialogDescription>POST /api/settings/agencies</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
-          <div className="space-y-1.5">
-            <Label>Code unique *</Label>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Nom *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Devise par défaut *</Label>
-            <Input value={currency} onChange={(e) => setCurrency(e.target.value)} maxLength={8} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button onClick={submit} disabled={create.isPending || !code.trim() || !name.trim()}>
-            {create.isPending ? '…' : 'Créer'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-export function WizardOfficeCreateDialog({
-  open,
-  onOpenChange,
-  user,
-  agencyId,
-  onCreated,
-}: {
-  open: boolean
-  onOpenChange: (o: boolean) => void
-  user: AuthUser | null
-  agencyId: string
-  onCreated: (id: string) => void
-}) {
-  const qc = useQueryClient()
-  const create = officeHooks.useCreate()
-  const [name, setName] = useState('')
-  const [type, setType] = useState<'office' | 'branch'>('office')
-
-  useEffect(() => {
-    if (open) {
-      setName('')
-      setType('office')
-    }
-  }, [open])
-
-  if (!userCan(user, 'manage_settings')) return null
-
-  const submit = () => {
-    if (!name.trim()) return
-    create.mutate(
-      {
-        name: name.trim(),
-        type,
-        agency_id: agencyId ? Number(agencyId) : null,
-        is_active: true,
-      } as Record<string, unknown>,
-      {
-        onSuccess: async () => {
-          const id = await refetchAndPickMaxId(qc, 'offices')
-          if (id) onCreated(id)
-          onOpenChange(false)
-        },
-      },
-    )
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nouveau bureau / point</DialogTitle>
-          <DialogDescription>POST /api/settings/offices</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-3 py-2">
+          <p className="text-xs text-muted-foreground">
+            Code attribué automatiquement ; la devise est celle des paramètres généraux.
+          </p>
           <div className="space-y-1.5">
             <Label>Nom *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={type}
-              onChange={(e) => setType(e.target.value as 'office' | 'branch')}
-            >
-              <option value="office">Bureau</option>
-              <option value="branch">Succursale</option>
-            </select>
           </div>
         </div>
         <DialogFooter>
@@ -445,10 +355,10 @@ export function WizardTransportCreateDialog({
   )
 }
 
-function delaysForMode(mode: Record<string, unknown>) {
-  const raw = (mode.delivery_times ?? mode.deliveryTimes) as unknown
+function deliveryOptionsForMode(mode: Record<string, unknown>): string[] {
+  const raw = (mode.delivery_options ?? mode.deliveryOptions) as unknown
   if (!Array.isArray(raw)) return []
-  return raw as { id: number; label: string }[]
+  return raw.map((x) => String(x)).filter((s) => s.trim() !== '')
 }
 
 function shipLineRouteSummary(line: Record<string, unknown>) {
@@ -481,82 +391,79 @@ export function WizardShipLineCreateDialog({
   const mergeRoute = useMergeShipLineRoute()
   const { data: shipLinesRaw = [], isLoading: shipLinesLoading } = shipLineHooks.useList(open)
   const { data: modes } = shippingModeHooks.useList()
-  const { data: indexData } = useShippingRatesIndex(open)
+  const { data: countriesRaw = [] } = useCountriesList(open)
   const { data: appSettings } = useAppSettings()
   const globalCurrency = String((appSettings as AppSettings | undefined)?.currency ?? 'USD').toUpperCase()
+  const currencyUi = resolveMoneySymbol({
+    currency: globalCurrency,
+    currency_symbol: String((appSettings as AppSettings | undefined)?.currency_symbol ?? ''),
+  })
   const [wizardTab, setWizardTab] = useState<'create' | 'extend'>('create')
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([])
-  const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [originIds, setOriginIds] = useState<number[]>([])
   const [destIds, setDestIds] = useState<number[]>([])
   const [modeId, setModeId] = useState(0)
-  const [deliveryId, setDeliveryId] = useState<number | null>(null)
+  const [deliveryLabelOverride, setDeliveryLabelOverride] = useState('')
+  const [delayPickKey, setDelayPickKey] = useState('__pick')
   const [unitPrice, setUnitPrice] = useState('0')
-  const [pricingType, setPricingType] = useState<'per_kg' | 'per_volume' | 'flat'>('per_kg')
-  const [volDiv, setVolDiv] = useState('')
 
-  const countries = Array.isArray(indexData?.countries) ? indexData.countries : []
+  const countries = (countriesRaw ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    code: c.code || null,
+    iso2: c.iso2 ?? null,
+    emoji: c.emoji ?? null,
+  }))
   const shipLines = (shipLinesRaw ?? []) as unknown as Record<string, unknown>[]
   const modeList = Array.isArray(modes) ? (modes as unknown as Record<string, unknown>[]) : []
   const selectedMode = modeList.find((m) => Number(m.id) === modeId)
-  const dts = selectedMode ? delaysForMode(selectedMode) : []
+  const delayOpts = selectedMode ? deliveryOptionsForMode(selectedMode) : []
 
   useEffect(() => {
     if (open) {
       setWizardTab('create')
       setSelectedLineIds([])
-      setName('')
       setDescription('')
       const o = prefillOriginCountryId ? [Number(prefillOriginCountryId)] : []
       const d = prefillDestCountryId ? [Number(prefillDestCountryId)] : []
       setOriginIds(Number.isFinite(o[0]) && o[0] > 0 ? o : [])
       setDestIds(Number.isFinite(d[0]) && d[0] > 0 ? d : [])
       setModeId(0)
-      setDeliveryId(null)
+      setDeliveryLabelOverride('')
+      setDelayPickKey('__pick')
       setUnitPrice('0')
-      setPricingType('per_kg')
-      setVolDiv('')
     }
   }, [open, prefillOriginCountryId, prefillDestCountryId])
 
+  useEffect(() => {
+    setDelayPickKey('__pick')
+  }, [modeId])
+
   if (!userCan(user, 'manage_settings')) return null
 
-  const toggleOrigin = (id: number, on: boolean) => {
-    setOriginIds((p) => (on ? [...new Set([...p, id])] : p.filter((x) => x !== id)))
-  }
-  const toggleDest = (id: number, on: boolean) => {
-    setDestIds((p) => (on ? [...new Set([...p, id])] : p.filter((x) => x !== id)))
-  }
   const toggleLineSelect = (id: number, on: boolean) => {
     setSelectedLineIds((p) => (on ? [...new Set([...p, id])] : p.filter((x) => x !== id)))
   }
 
   const buildRatesPayload = (): Record<string, unknown>[] => {
-    const vd = volDiv.trim()
-    const volumetric_divisor =
-      vd === '' ? null : (() => {
-        const n = parseInt(vd, 10)
-        return Number.isFinite(n) && n >= 1 ? n : null
-      })()
+    const ov = deliveryLabelOverride.trim()
     return [
       {
         shipping_mode_id: modeId,
-        delivery_time_id: deliveryId && deliveryId > 0 ? deliveryId : null,
         unit_price: Number(unitPrice) || 0,
         currency: globalCurrency,
-        pricing_type: pricingType,
         is_active: true,
-        volumetric_divisor,
+        delivery_label_override: ov !== '' ? ov : null,
       },
     ]
   }
 
   const submit = () => {
-    if (!name.trim() || originIds.length === 0 || destIds.length === 0 || modeId <= 0) return
+    if (originIds.length === 0 || destIds.length === 0 || modeId <= 0) return
     create.mutate(
       {
-        name: name.trim(),
+        name: '',
         description: description.trim() || null,
         is_active: true,
         origin_country_ids: originIds,
@@ -603,8 +510,7 @@ export function WizardShipLineCreateDialog({
   }
 
   const pending = create.isPending || mergeRoute.isPending
-  const canSubmitCreate =
-    name.trim().length > 0 && originIds.length > 0 && destIds.length > 0 && modeId > 0
+  const canSubmitCreate = originIds.length > 0 && destIds.length > 0 && modeId > 0
   const canSubmitExtend =
     selectedLineIds.length > 0 && originIds.length > 0 && destIds.length > 0 && modeId > 0
 
@@ -615,7 +521,7 @@ export function WizardShipLineCreateDialog({
           <DialogTitle>Ligne d&apos;expédition</DialogTitle>
           <DialogDescription>
             {wizardTab === 'create'
-              ? 'Créez une nouvelle ligne avec un nom, les pays couverts et au moins un tarif.'
+              ? 'Choisissez les pays, un mode et un prix ; le libellé de la ligne est déduit automatiquement des pays.'
               : 'Ajoutez des pays et un tarif aux lignes cochées. Si un tarif existe déjà pour le même mode, il est mis à jour.'}
           </DialogDescription>
         </DialogHeader>
@@ -628,15 +534,10 @@ export function WizardShipLineCreateDialog({
             <TabsTrigger value="create">Nouvelle ligne</TabsTrigger>
             <TabsTrigger value="extend">Lignes existantes</TabsTrigger>
           </TabsList>
-          <TabsContent value="create" className="mt-3 space-y-3">
-            <div className="space-y-1.5">
-              <Label>Nom *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
-            </div>
+          <TabsContent value="create" className="mt-3 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Pas de nom à saisir : il sera généré à partir des pays d&apos;origine et de destination (ex. BE, FR → CD).
+            </p>
           </TabsContent>
           <TabsContent value="extend" className="mt-3 space-y-2">
             <Label className="text-xs font-semibold">Lignes à enrichir *</Label>
@@ -679,61 +580,31 @@ export function WizardShipLineCreateDialog({
         <div className="grid gap-3 border-t pt-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Pays d&apos;origine *</Label>
-            <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1">
-              {countries.map(
-                (c: {
-                  id: number
-                  name: string
-                  iso2?: string | null
-                  code?: string | null
-                  emoji?: string | null
-                }) => (
-                  <label key={`wo-${c.id}`} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 shrink-0 rounded border border-input"
-                      checked={originIds.includes(c.id)}
-                      onChange={(e) => toggleOrigin(c.id, e.target.checked)}
-                    />
-                    <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-3.5 !w-5" />
-                    <span>{c.name}</span>
-                  </label>
-                ),
-              )}
-            </div>
+            <CountryMultiSelect
+              options={countries}
+              selectedIds={originIds}
+              onChange={setOriginIds}
+              placeholder="Rechercher et sélectionner…"
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Pays de destination *</Label>
-            <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1">
-              {countries.map(
-                (c: {
-                  id: number
-                  name: string
-                  iso2?: string | null
-                  code?: string | null
-                  emoji?: string | null
-                }) => (
-                  <label key={`wd-${c.id}`} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 shrink-0 rounded border border-input"
-                      checked={destIds.includes(c.id)}
-                      onChange={(e) => toggleDest(c.id, e.target.checked)}
-                    />
-                    <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-3.5 !w-5" />
-                    <span>{c.name}</span>
-                  </label>
-                ),
-              )}
-            </div>
+            <CountryMultiSelect
+              options={countries}
+              selectedIds={destIds}
+              onChange={setDestIds}
+              placeholder="Rechercher et sélectionner…"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Mode d&apos;expédition *</Label>
             <Select
               value={modeId ? String(modeId) : ''}
               onValueChange={(v: string) => {
-                setModeId(Number(v))
-                setDeliveryId(null)
+                const mid = Number(v)
+                setModeId(mid)
+                setDeliveryLabelOverride('')
+                setDelayPickKey('__pick')
               }}
             >
               <SelectTrigger>
@@ -747,53 +618,63 @@ export function WizardShipLineCreateDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Le type de prix et le diviseur volumétrique viennent du mode (paramètres).
+            </p>
           </div>
           <div className="space-y-1.5">
-            <Label>Délai (optionnel)</Label>
-            <Select
-              value={deliveryId ? String(deliveryId) : '__none'}
-              onValueChange={(v: string) => setDeliveryId(v === '__none' ? null : Number(v))}
-              disabled={!modeId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Aucun" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">Aucun</SelectItem>
-                {dts.map((dt) => (
-                  <SelectItem key={dt.id} value={String(dt.id)}>
-                    {dt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1.5">
-              <Label>Type de prix</Label>
+            <Label>Surcharge délai (optionnel)</Label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <Input
+                className="flex-1"
+                placeholder="ex. 5–7 jours ouvrés"
+                value={deliveryLabelOverride}
+                onChange={(e) => setDeliveryLabelOverride(e.target.value)}
+                disabled={!modeId}
+              />
               <Select
-                value={pricingType}
-                onValueChange={(v: string) => setPricingType(v as typeof pricingType)}
+                value={delayPickKey}
+                onValueChange={(v) => {
+                  if (v === '__pick') return
+                  if (v === '__clear') {
+                    setDeliveryLabelOverride('')
+                  } else {
+                    setDeliveryLabelOverride(v)
+                  }
+                  setDelayPickKey('__pick')
+                }}
+                disabled={!modeId || delayOpts.length === 0}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="sm:w-[200px]">
+                  <SelectValue placeholder="Depuis le mode" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="per_kg">Par kg</SelectItem>
-                  <SelectItem value="per_volume">Par m³</SelectItem>
-                  <SelectItem value="flat">Forfait</SelectItem>
+                  <SelectItem value="__pick">Insérer un libellé du mode…</SelectItem>
+                  <SelectItem value="__clear">Effacer</SelectItem>
+                  {delayOpts.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {opt}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Prix * ({globalCurrency})</Label>
-              <Input type="number" min={0} step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
-            </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Diviseur volumétrique (optionnel)</Label>
-            <Input placeholder="5000 / 6000 IATA" value={volDiv} onChange={(e) => setVolDiv(e.target.value)} />
+            <Label>Prix * ({currencyUi})</Label>
+            <Input type="number" min={0} step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
           </div>
+          {wizardTab === 'create' ? (
+            <div className="space-y-1.5">
+              <Label>Description (optionnel)</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                placeholder="Notes internes…"
+              />
+            </div>
+          ) : null}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -811,18 +692,6 @@ export function WizardShipLineCreateDialog({
   )
 }
 
-function normalizeModeDeliveryTimes(mode: Record<string, unknown>) {
-  const raw = (mode.delivery_times ?? mode.deliveryTimes) as unknown
-  if (!Array.isArray(raw)) return []
-  return raw.map((r: Record<string, unknown>, i: number) => ({
-    id: r.id != null ? Number(r.id) : undefined,
-    label: String(r.label ?? ''),
-    description: r.description != null ? String(r.description) : '',
-    is_active: r.is_active !== false,
-    sort_order: r.sort_order != null ? Number(r.sort_order) : i,
-  }))
-}
-
 export function WizardDeliveryTimeCreateDialog({
   open,
   onOpenChange,
@@ -838,108 +707,90 @@ export function WizardDeliveryTimeCreateDialog({
   shippingModeId: string
   selectedMode: Record<string, unknown> | undefined
   initialLabel?: string
-  onCreated: (id: string) => void
+  /** Libellé ajouté aux delivery_options du mode */
+  onCreated: (label: string) => void
 }) {
   const qc = useQueryClient()
   const updateMode = shippingModeHooks.useUpdate()
-  const quickCreate = useQuickCreateDeliveryTime()
   const [label, setLabel] = useState('')
-  const [description, setDescription] = useState('')
-  const canSettings = userCan(user, 'manage_settings')
 
   useEffect(() => {
     if (open) {
       setLabel(initialLabel?.trim() ?? '')
-      setDescription('')
     }
   }, [open, initialLabel])
 
+  if (!userCan(user, 'manage_settings')) return null
+
   const submit = () => {
     const mid = Number(shippingModeId)
-    if (!mid || !label.trim()) return
-
-    if (canSettings && selectedMode) {
-      const rows = normalizeModeDeliveryTimes(selectedMode)
-      const maxSort = rows.reduce((m, r) => Math.max(m, r.sort_order ?? 0), -1)
-      const delivery_times = [
-        ...rows.map((r, i) => ({
-          id: r.id,
-          label: r.label,
-          description: r.description || null,
-          is_active: r.is_active,
-          sort_order: r.sort_order ?? i,
-        })),
-        {
-          label: label.trim(),
-          description: description.trim() || null,
-          is_active: true,
-          sort_order: maxSort + 1,
-        },
-      ]
-      const desc = selectedMode.description
-      const payload = {
-        name: String(selectedMode.name ?? ''),
-        description: desc == null || desc === '' ? null : String(desc),
-        is_active: selectedMode.is_active !== false,
-        sort_order: Number(selectedMode.sort_order) || 0,
-        delivery_times,
-      }
-      updateMode.mutate(
-        { id: mid, data: payload as Record<string, unknown> },
-        {
-          onSuccess: async () => {
-            await qc.refetchQueries({ queryKey: [...CREATE_OPTIONS_KEY] })
-            const opts = qc.getQueryData([...CREATE_OPTIONS_KEY]) as Record<string, unknown> | undefined
-            const modes = (opts?.shippingModes as Record<string, unknown>[]) || []
-            const mode = modes.find((m) => Number(m.id) === mid)
-            const dts = normalizeModeDeliveryTimes(mode || {})
-            const matchLabel = label.trim()
-            const withIds = dts.filter((r) => r.id != null) as { id: number; label: string }[]
-            const same = withIds.filter((r) => r.label === matchLabel)
-            let newId = 0
-            if (same.length > 0) newId = Math.max(...same.map((r) => r.id))
-            else if (withIds.length > 0) newId = Math.max(...withIds.map((r) => r.id))
-            if (newId > 0) onCreated(String(newId))
-            onOpenChange(false)
-          },
-        },
+    if (!mid) {
+      toast.error(
+        "Choisissez d'abord un mode d'expédition (étape Logistique ou tarif de ligne).",
       )
-    } else {
-      quickCreate.mutate(
-        { shipping_mode_id: mid, label: label.trim(), description: description.trim() || undefined },
-        {
-          onSuccess: async (data: { id?: number }) => {
-            await qc.refetchQueries({ queryKey: [...CREATE_OPTIONS_KEY] })
-            const id = data?.id
-            if (id != null) onCreated(String(id))
-            onOpenChange(false)
-          },
-        },
-      )
+      return
     }
+    if (!label.trim()) return
+    if (!selectedMode) {
+      toast.error(
+        'Mode introuvable. Rechargez la page ou resélectionnez un mode / tarif.',
+      )
+      return
+    }
+
+    const existing = deliveryOptionsForMode(selectedMode)
+    const next = [...existing, label.trim()]
+    const desc = selectedMode.description
+    const vd = selectedMode.volumetric_divisor ?? selectedMode.volumetricDivisor
+    const vol =
+      vd != null && vd !== ''
+        ? (() => {
+            const n = parseInt(String(vd), 10)
+            return Number.isFinite(n) && n >= 1 ? n : null
+          })()
+        : null
+    const dpt = String(selectedMode.default_pricing_type ?? selectedMode.defaultPricingType ?? '').trim()
+    const default_pricing_type =
+      dpt === 'per_kg' || dpt === 'per_volume' || dpt === 'flat' ? dpt : null
+
+    const payload = {
+      name: String(selectedMode.name ?? ''),
+      description: desc == null || desc === '' ? null : String(desc),
+      is_active: selectedMode.is_active !== false,
+      sort_order: Number(selectedMode.sort_order) || 0,
+      volumetric_divisor: vol,
+      default_pricing_type,
+      delivery_options: next,
+    }
+
+    updateMode.mutate(
+      { id: mid, data: payload as Record<string, unknown> },
+      {
+        onSuccess: async () => {
+          await qc.refetchQueries({ queryKey: [...CREATE_OPTIONS_KEY] })
+          await qc.invalidateQueries({ queryKey: ['settings', 'shipping_modes'] })
+          onCreated(label.trim())
+          onOpenChange(false)
+        },
+      },
+    )
   }
 
-  const pending = updateMode.isPending || quickCreate.isPending
+  const pending = updateMode.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="!z-[200] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau délai de livraison</DialogTitle>
+          <DialogTitle>Nouveau libellé de délai</DialogTitle>
           <DialogDescription>
-            {canSettings
-              ? 'Mise à jour du mode (PATCH) comme dans Paramètres.'
-              : 'Création rapide via l’assistant (API wizard).'}
+            Ajouté à la liste des délais du mode (comme dans Paramètres → Transport).
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="space-y-1.5">
             <Label>Libellé *</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="ex. 3–5 jours ouvrés" />
           </div>
         </div>
         <DialogFooter>
@@ -947,7 +798,7 @@ export function WizardDeliveryTimeCreateDialog({
             Annuler
           </Button>
           <Button onClick={submit} disabled={pending || !label.trim() || !shippingModeId}>
-            {pending ? '…' : 'Créer'}
+            {pending ? '…' : 'Ajouter'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { ListCardsToggle } from '@/components/common/ListCardsToggle'
+import { loadViewMode, saveViewMode, type ListOrCards } from '@/lib/listViewMode'
 import { motion } from 'framer-motion'
 import { useDrivers, useCreateDriver, useUpdateDriver, useToggleDriverActive } from '@/hooks/useCrm'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,6 +20,8 @@ import {
 } from 'lucide-react'
 import { displayLocalized } from '@/lib/localizedString'
 
+const VIEW_KEY = 'drivers-list-view'
+
 export default function DriversPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -29,6 +33,11 @@ export default function DriversPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({})
+  const [viewMode, setViewMode] = useState<ListOrCards>(() => loadViewMode(VIEW_KEY))
+
+  useEffect(() => {
+    saveViewMode(VIEW_KEY, viewMode)
+  }, [viewMode])
 
   const drivers = Array.isArray(data) ? data : data?.data || []
   const pagination = Array.isArray(data) ? {} : data || {}
@@ -56,73 +65,125 @@ export default function DriversPage() {
         <Button onClick={openCreate}><Plus size={16} className="mr-1.5" />Nouveau chauffeur</Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Rechercher..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Rechercher..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <ListCardsToggle mode={viewMode} onModeChange={setViewMode} />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left font-medium">Chauffeur</th>
-                  <th className="px-4 py-3 text-left font-medium">Email</th>
-                  <th className="px-4 py-3 text-left font-medium">Telephone</th>
-                  <th className="px-4 py-3 text-left font-medium">Vehicule</th>
-                  <th className="px-4 py-3 text-left font-medium">Statut</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="border-b">{[...Array(6)].map((_, j) => (
-                      <td key={j} className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded bg-muted" /></td>
-                    ))}</tr>
-                  ))
-                ) : drivers.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center">
-                    <Truck size={40} className="mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="text-muted-foreground">Aucun chauffeur</p>
-                  </td></tr>
-                ) : (
-                  drivers.map((d: any) => (
-                    <tr key={d.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-medium">{displayLocalized(d.name)}</td>
-                      <td className="px-4 py-3 text-sm">{d.email || '-'}</td>
-                      <td className="px-4 py-3 text-sm">
-                        {d.phone ? <span className="flex items-center gap-1"><Phone size={12} />{d.phone}</span> : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm">{d.vehicle_type || d.license_plate || '-'}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={d.is_active !== false ? 'default' : 'secondary'} className="text-xs">
-                          {d.is_active !== false ? 'Actif' : 'Inactif'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal size={14} /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(d)}><Pencil size={14} className="mr-2" />Modifier</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => toggleStatus.mutate(d.id)}>
-                              {d.is_active !== false ? <><UserX size={14} className="mr-2" />Desactiver</> : <><UserCheck size={14} className="mr-2" />Activer</>}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {viewMode === 'list' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium">Chauffeur</th>
+                    <th className="px-4 py-3 text-left font-medium">Email</th>
+                    <th className="px-4 py-3 text-left font-medium">Telephone</th>
+                    <th className="px-4 py-3 text-left font-medium">Vehicule</th>
+                    <th className="px-4 py-3 text-left font-medium">Statut</th>
+                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className="border-b">{[...Array(6)].map((_, j) => (
+                        <td key={j} className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded bg-muted" /></td>
+                      ))}</tr>
+                    ))
+                  ) : drivers.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-12 text-center">
+                      <Truck size={40} className="mx-auto mb-3 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">Aucun chauffeur</p>
+                    </td></tr>
+                  ) : (
+                    drivers.map((d: any) => (
+                      <tr key={d.id} className="border-b hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">{displayLocalized(d.name)}</td>
+                        <td className="px-4 py-3 text-sm">{d.email || '-'}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {d.phone ? <span className="flex items-center gap-1"><Phone size={12} />{d.phone}</span> : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm">{d.vehicle_type || d.license_plate || '-'}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={d.is_active !== false ? 'default' : 'secondary'} className="text-xs">
+                            {d.is_active !== false ? 'Actif' : 'Inactif'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal size={14} /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(d)}><Pencil size={14} className="mr-2" />Modifier</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => toggleStatus.mutate(d.id)}>
+                                {d.is_active !== false ? <><UserX size={14} className="mr-2" />Desactiver</> : <><UserCheck size={14} className="mr-2" />Activer</>}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i}><CardContent className="p-4 space-y-2"><div className="h-4 w-32 animate-pulse rounded bg-muted" /></CardContent></Card>
+              ))}
+            </div>
+          ) : drivers.length === 0 ? (
+            <Card><CardContent className="py-12 text-center">
+              <Truck size={40} className="mx-auto mb-3 text-muted-foreground/30" />
+              <p className="text-muted-foreground">Aucun chauffeur</p>
+            </CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {drivers.map((d: any) => (
+                <Card key={d.id}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{displayLocalized(d.name)}</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreHorizontal size={14} /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(d)}><Pencil size={14} className="mr-2" />Modifier</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => toggleStatus.mutate(d.id)}>
+                            {d.is_active !== false ? <><UserX size={14} className="mr-2" />Desactiver</> : <><UserCheck size={14} className="mr-2" />Activer</>}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    {d.email ? <p className="text-xs text-muted-foreground break-all">{d.email}</p> : null}
+                    {d.phone ? <p className="text-xs flex items-center gap-1 text-muted-foreground"><Phone size={12} />{d.phone}</p> : null}
+                    <p className="text-xs text-muted-foreground">
+                      Véhicule : {d.vehicle_type || d.license_plate || '—'}
+                    </p>
+                    <Badge variant={d.is_active !== false ? 'default' : 'secondary'} className="text-xs w-fit">
+                      {d.is_active !== false ? 'Actif' : 'Inactif'}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {((pagination as any).last_page ?? 1) > 1 && (
         <div className="flex items-center justify-between">

@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
+const normVal = (v: string) => String(v)
+
 export type DbComboboxOption = {
   value: string
   label: React.ReactNode
@@ -37,6 +39,8 @@ export type DbComboboxProps = {
   createButtonTitle?: string
   /** Masquer le bouton + tout en gardant le callback (rare). */
   showCreateButton?: boolean
+  /** Désactive uniquement le « + » (ex. pays non choisi) tout en le laissant visible. */
+  createButtonDisabled?: boolean
   wrapperClassName?: string
   /** Longueur min. pour le raccourci « Créer » dans la liste vide (filtre contrôlé). */
   minLengthForCreate?: number
@@ -75,12 +79,17 @@ export function DbCombobox({
   onOpenCreateModal,
   createButtonTitle = 'Ajouter',
   showCreateButton = true,
+  createButtonDisabled = false,
   wrapperClassName,
   minLengthForCreate = 2,
 }: DbComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const selected = options.find((o) => o.value === value)
-  const display = selected?.label ?? (value ? <span className="text-muted-foreground">{value}</span> : null)
+  const selected = options.find((o) => normVal(o.value) === normVal(value))
+  const display =
+    selected?.label ??
+    (value !== '' && value != null ? (
+      <span className="text-muted-foreground">{String(value)}</span>
+    ) : null)
   const controlledFilter = filterQuery !== undefined && onFilterQueryChange !== undefined
   const hint = filterQuery?.trim() ?? ''
   const canShortcutCreate =
@@ -151,11 +160,16 @@ export function DbCombobox({
                   value={opt.value}
                   keywords={opt.keywords ?? []}
                   onSelect={() => {
-                    onValueChange(opt.value)
+                    onValueChange(String(opt.value))
                     setOpen(false)
                   }}
                 >
-                  <Check className={cn('mr-2 h-4 w-4', value === opt.value ? 'opacity-100' : 'opacity-0')} />
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      normVal(value) === normVal(opt.value) ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
                   {opt.label}
                 </CommandItem>
               ))}
@@ -175,7 +189,7 @@ export function DbCombobox({
           variant="outline"
           size="icon"
           className="h-10 w-10 shrink-0"
-          disabled={disabled}
+          disabled={disabled || createButtonDisabled}
           title={createButtonTitle}
           onClick={() => handleOpenCreate(controlledFilter ? hint || undefined : undefined)}
         >
@@ -218,12 +232,17 @@ export function DbComboboxAsync({
   onOpenCreateModal,
   createButtonTitle = 'Ajouter',
   showCreateButton,
+  createButtonDisabled = false,
   wrapperClassName,
   minLengthForCreate,
 }: DbComboboxAsyncProps) {
   const [open, setOpen] = React.useState(false)
-  const selected = options.find((o) => o.value === value)
-  const display = selected?.label ?? (value ? <span className="text-muted-foreground">{value}</span> : null)
+  const selected = options.find((o) => normVal(o.value) === normVal(value))
+  const display =
+    selected?.label ??
+    (value !== '' && value != null ? (
+      <span className="text-muted-foreground">{String(value)}</span>
+    ) : null)
   const belowMin = searchMinLength > 0 && filterQuery.trim().length < searchMinLength
   const hint = belowMinText ?? `Saisissez au moins ${searchMinLength} caractères.`
   const effMin = minLengthForCreate ?? searchMinLength
@@ -296,11 +315,16 @@ export function DbComboboxAsync({
                     value={opt.value}
                     keywords={opt.keywords ?? []}
                     onSelect={() => {
-                      onValueChange(opt.value)
+                      onValueChange(String(opt.value))
                       setOpen(false)
                     }}
                   >
-                    <Check className={cn('mr-2 h-4 w-4', value === opt.value ? 'opacity-100' : 'opacity-0')} />
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        normVal(value) === normVal(opt.value) ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
                     {opt.label}
                   </CommandItem>
                 ))}
@@ -321,7 +345,7 @@ export function DbComboboxAsync({
           variant="outline"
           size="icon"
           className="h-10 w-10 shrink-0"
-          disabled={disabled}
+          disabled={disabled || createButtonDisabled}
           title={createButtonTitle}
           onClick={() => handleOpenCreate(filterQuery.trim() || undefined)}
         >

@@ -6,6 +6,7 @@ import {
   transportCompanyHooks,
   articleCategoryHooks,
 } from '@/hooks/useSettings'
+import type { ShippingMode } from '@/types/settings'
 import { SettingsCard } from './SettingsCard'
 import { CrudSheet } from './CrudSheet'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Truck, Package, Clock, Building, Tag, Plus, Pencil, Trash2 } from 'lucide-react'
 import {
   AlertDialog,
@@ -29,28 +31,13 @@ import {
 import { displayLocalized } from '@/lib/localizedString'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
-import { ShipLinesCard } from './ShipLinesCard'
 
 type EntityType = 'packaging_type' | 'transport_company' | 'article_category'
 
-type DeliveryTimeFormRow = {
-  id?: number
-  label: string
-  description?: string | null
-  is_active?: boolean
-  sort_order?: number
-}
-
-function normalizeModeDeliveryTimes(mode: Record<string, unknown>): DeliveryTimeFormRow[] {
-  const raw = (mode.delivery_times ?? mode.deliveryTimes) as unknown
+function normalizeModeDeliveryOptions(mode: Record<string, unknown>): string[] {
+  const raw = (mode.delivery_options ?? mode.deliveryOptions) as unknown
   if (!Array.isArray(raw)) return []
-  return raw.map((r: Record<string, unknown>, i: number) => ({
-    id: r.id != null ? Number(r.id) : undefined,
-    label: String(r.label ?? ''),
-    description: r.description != null ? String(r.description) : '',
-    is_active: r.is_active !== false,
-    sort_order: r.sort_order != null ? Number(r.sort_order) : i,
-  }))
+  return raw.map((x) => String(x)).filter((s) => s.trim() !== '')
 }
 
 function ShippingModesWithDelays() {
@@ -73,7 +60,8 @@ function ShippingModesWithDelays() {
       is_active: true,
       sort_order: 0,
       volumetric_divisor: '' as string | number,
-      delivery_times: [] as DeliveryTimeFormRow[],
+      default_pricing_type: '' as string,
+      delivery_options: [] as string[],
     })
     setSheetOpen(true)
   }
@@ -89,44 +77,40 @@ function ShippingModesWithDelays() {
         item.volumetric_divisor != null && item.volumetric_divisor !== ''
           ? String(item.volumetric_divisor)
           : '',
-      delivery_times: normalizeModeDeliveryTimes(item),
+      default_pricing_type: String(
+        (item as Record<string, unknown>).default_pricing_type ??
+          (item as Record<string, unknown>).defaultPricingType ??
+          '',
+      ),
+      delivery_options: normalizeModeDeliveryOptions(item),
     })
     setSheetOpen(true)
   }
 
-  const addDelayRow = () => {
-    const rows = (form.delivery_times as DeliveryTimeFormRow[]) ?? []
+  const addDeliveryOptionRow = () => {
+    const rows = (form.delivery_options as string[]) ?? []
     setForm((p) => ({
       ...p,
-      delivery_times: [
-        ...rows,
-        { label: '', description: '', is_active: true, sort_order: rows.length },
-      ],
+      delivery_options: [...rows, ''],
     }))
   }
 
-  const updateDelayRow = (index: number, patch: Partial<DeliveryTimeFormRow>) => {
-    const rows = [...((form.delivery_times as DeliveryTimeFormRow[]) ?? [])]
-    rows[index] = { ...rows[index], ...patch }
-    set('delivery_times', rows)
+  const updateDeliveryOptionRow = (index: number, value: string) => {
+    const rows = [...((form.delivery_options as string[]) ?? [])]
+    rows[index] = value
+    set('delivery_options', rows)
   }
 
-  const removeDelayRow = (index: number) => {
-    const rows = [...((form.delivery_times as DeliveryTimeFormRow[]) ?? [])]
+  const removeDeliveryOptionRow = (index: number) => {
+    const rows = [...((form.delivery_options as string[]) ?? [])]
     rows.splice(index, 1)
-    set('delivery_times', rows)
+    set('delivery_options', rows)
   }
 
   const buildPayload = () => {
-    const rows = ((form.delivery_times as DeliveryTimeFormRow[]) ?? [])
-      .filter((r) => String(r.label ?? '').trim() !== '')
-      .map((r, i) => ({
-        id: r.id,
-        label: String(r.label).trim(),
-        description: r.description ? String(r.description) : null,
-        is_active: r.is_active !== false,
-        sort_order: r.sort_order ?? i,
-      }))
+    const delivery_options = ((form.delivery_options as string[]) ?? [])
+      .map((s) => String(s).trim())
+      .filter((s) => s !== '')
 
     const vd = String(form.volumetric_divisor ?? '').trim()
     const volumetricDivisor =
@@ -135,13 +119,18 @@ function ShippingModesWithDelays() {
         return Number.isFinite(n) && n >= 1 ? n : null
       })()
 
+    const dpt = String(form.default_pricing_type ?? '').trim()
+    const defaultPricingType: ShippingMode['default_pricing_type'] =
+      dpt === 'per_kg' || dpt === 'per_volume' || dpt === 'flat' ? dpt : null
+
     return {
       name: String(form.name ?? '').trim(),
       description: form.description ? String(form.description) : null,
       is_active: form.is_active !== false,
       sort_order: Number(form.sort_order) || 0,
       volumetric_divisor: volumetricDivisor,
-      delivery_times: rows,
+      default_pricing_type: defaultPricingType,
+      delivery_options,
     }
   }
 
@@ -150,7 +139,7 @@ function ShippingModesWithDelays() {
     if (!payload.name) return
     if (editItem?.id != null) {
       update.mutate(
-        { id: editItem.id as number, data: payload },
+        { id: editItem.id as number, data: payload as Record<string, unknown> },
         { onSuccess: () => setSheetOpen(false) }
       )
     } else {
@@ -167,7 +156,7 @@ function ShippingModesWithDelays() {
         icon={Truck}
         badge={`${modeRows.length}`}
         isLoading={isLoading}
-        description="Les délais de livraison se gèrent ici, par mode (plus de liste globale séparée)."
+        description="Libellés de délai saisis à la main pour chaque mode (assistant et surcharges sur les tarifs ligne)."
         actions={
           <Button size="sm" onClick={openCreate}>
             <Plus size={14} className="mr-1" />
@@ -176,32 +165,33 @@ function ShippingModesWithDelays() {
         }
       >
         <div className="space-y-2">
-          {modeRows.map((item: Record<string, unknown>) => {
-            const dts = normalizeModeDeliveryTimes(item)
+          {modeRows.map((item) => {
+            const row = item as unknown as Record<string, unknown>
+            const dts = normalizeModeDeliveryOptions(row)
             return (
               <div
-                key={String(item.id)}
+                key={String(row.id)}
                 className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="font-medium text-sm">{displayLocalized(String(item.name ?? ''))}</p>
-                  {item.description ? (
+                  <p className="font-medium text-sm">{displayLocalized(String(row.name ?? ''))}</p>
+                  {row.description ? (
                     <p className="text-xs text-muted-foreground line-clamp-2">
-                      {displayLocalized(String(item.description))}
+                      {displayLocalized(String(row.description))}
                     </p>
                   ) : null}
                   <p className="mt-1 text-xs text-muted-foreground">
                     <Clock className="inline h-3 w-3 mr-1 align-middle" />
-                    {dts.length} délai{dts.length !== 1 ? 's' : ''}
+                    {dts.length} libellé{dts.length !== 1 ? 's' : ''} de délai
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {item.is_active !== undefined && (
-                    <Badge variant={item.is_active ? 'default' : 'secondary'} className="text-xs">
-                      {item.is_active ? 'Actif' : 'Inactif'}
+                  {row.is_active !== undefined && (
+                    <Badge variant={row.is_active ? 'default' : 'secondary'} className="text-xs">
+                      {row.is_active ? 'Actif' : 'Inactif'}
                     </Badge>
                   )}
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row)}>
                     <Pencil size={14} />
                   </Button>
                   <AlertDialog>
@@ -213,11 +203,11 @@ function ShippingModesWithDelays() {
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Supprimer ce mode ?</AlertDialogTitle>
-                        <AlertDialogDescription>Les délais associés seront supprimés.</AlertDialogDescription>
+                        <AlertDialogDescription>Les options de délai de ce mode seront supprimées avec lui.</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => del.mutate(item.id as number)}>Supprimer</AlertDialogAction>
+                        <AlertDialogAction onClick={() => del.mutate(row.id as number)}>Supprimer</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -256,7 +246,7 @@ function ShippingModesWithDelays() {
             <Input
               type="number"
               min={0}
-              value={form.sort_order ?? 0}
+              value={Number(form.sort_order) || 0}
               onChange={(e) => set('sort_order', Number(e.target.value))}
             />
           </div>
@@ -268,6 +258,27 @@ function ShippingModesWithDelays() {
               onChange={(e) => set('volumetric_divisor', e.target.value)}
             />
           </div>
+          <div className="space-y-2">
+            <Label>Type de prix (calcul du tarif pour ce mode)</Label>
+            <Select
+              value={
+                form.default_pricing_type != null && String(form.default_pricing_type) !== ''
+                  ? String(form.default_pricing_type)
+                  : '__none'
+              }
+              onValueChange={(v) => set('default_pricing_type', v === '__none' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Aucune préférence" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Aucune préférence</SelectItem>
+                <SelectItem value="per_kg">Par kg</SelectItem>
+                <SelectItem value="per_volume">Par m³</SelectItem>
+                <SelectItem value="flat">Forfait</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center justify-between">
             <Label>Actif</Label>
             <Switch checked={form.is_active !== false} onCheckedChange={(v) => set('is_active', v)} />
@@ -275,44 +286,28 @@ function ShippingModesWithDelays() {
 
           <div className="rounded-lg border p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-sm font-semibold">Délais pour ce mode</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addDelayRow}>
+              <Label className="text-sm font-semibold">Libellés de délai proposés</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addDeliveryOptionRow}>
                 <Plus className="h-3 w-3 mr-1" />
-                Ajouter un délai
+                Ajouter un libellé
               </Button>
             </div>
-            {((form.delivery_times as DeliveryTimeFormRow[]) ?? []).length === 0 ? (
-              <p className="text-xs text-muted-foreground">Aucun délai — vous pouvez en ajouter.</p>
+            {((form.delivery_options as string[]) ?? []).length === 0 ? (
+              <p className="text-xs text-muted-foreground">Aucun libellé — l’assistant pourra saisir un délai librement.</p>
             ) : null}
-            {((form.delivery_times as DeliveryTimeFormRow[]) ?? []).map((row, idx) => (
-              <div key={idx} className="grid gap-2 rounded-md bg-muted/40 p-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                <div className="space-y-1">
+            {((form.delivery_options as string[]) ?? []).map((row, idx) => (
+              <div key={idx} className="flex flex-wrap items-end gap-2 rounded-md bg-muted/40 p-2">
+                <div className="min-w-[200px] flex-1 space-y-1">
                   <Label className="text-xs">Libellé</Label>
                   <Input
-                    value={row.label}
-                    onChange={(e) => updateDelayRow(idx, { label: e.target.value })}
+                    value={row}
+                    onChange={(e) => updateDeliveryOptionRow(idx, e.target.value)}
                     placeholder="ex. 3–5 jours ouvrés"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Description (optionnel)</Label>
-                  <Input
-                    value={String(row.description ?? '')}
-                    onChange={(e) => updateDelayRow(idx, { description: e.target.value })}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-stretch">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={row.is_active !== false}
-                      onCheckedChange={(v) => updateDelayRow(idx, { is_active: v })}
-                    />
-                    <span className="text-xs text-muted-foreground">Actif</span>
-                  </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeDelayRow(idx)}>
-                    Retirer
-                  </Button>
-                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => removeDeliveryOptionRow(idx)}>
+                  Retirer
+                </Button>
               </div>
             ))}
           </div>
@@ -403,6 +398,12 @@ function CrudList({
                 </p>
                 {item.description ? (
                   <p className="text-xs text-muted-foreground">{displayLocalized(String(item.description))}</p>
+                ) : null}
+                {entityType === 'transport_company' &&
+                (item.contact_name || item.contact_phone || item.contact_email) ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {[item.contact_name, item.contact_phone, item.contact_email].filter(Boolean).join(' · ')}
+                  </p>
                 ) : null}
                 {entityType === 'packaging_type' && item.is_billable ? (
                   <p className="text-xs text-muted-foreground mt-1">
@@ -499,7 +500,7 @@ export default function ShippingTab() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <h2 className="text-2xl font-bold tracking-tight mb-1">Transport & Logistique</h2>
-        <p className="text-sm text-muted-foreground">Modes, délais, emballages, transporteurs, lignes et catégories</p>
+        <p className="text-sm text-muted-foreground">Modes, emballages, transporteurs et catégories (lignes & tarifs : Tarifs & extras)</p>
       </motion.div>
 
       <Tabs defaultValue="modes" className="w-full">
@@ -512,9 +513,6 @@ export default function ShippingTab() {
           </TabsTrigger>
           <TabsTrigger value="delivery" className={settingsInnerTabsTrigger}>
             Transporteurs
-          </TabsTrigger>
-          <TabsTrigger value="lines" className={settingsInnerTabsTrigger}>
-            Lignes
           </TabsTrigger>
           <TabsTrigger value="categories" className={settingsInnerTabsTrigger}>
             Catégories
@@ -544,12 +542,12 @@ export default function ShippingTab() {
             title="Transporteurs"
             icon={Building}
             entityType="transport_company"
-            extraFields={[{ key: 'contact', label: 'Contact' }]}
+            extraFields={[
+              { key: 'contact_name', label: 'Contact (nom)' },
+              { key: 'contact_email', label: 'E-mail' },
+              { key: 'contact_phone', label: 'Téléphone' },
+            ]}
           />
-        </TabsContent>
-
-        <TabsContent value="lines" className={settingsInnerTabsContent}>
-          <ShipLinesCard />
         </TabsContent>
 
         <TabsContent value="categories" className={settingsInnerTabsContent}>

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
 import { toast } from 'sonner'
-import type { FinanceDashboardData, Invoice, PaymentProof, Wallet, LedgerEntry } from '@/types/finance'
+import type { FinanceDashboardData, Invoice, PaymentProof, LedgerEntry } from '@/types/finance'
 import type { PaginatedData } from '@/types'
 
 export function useFinanceDashboard() {
@@ -25,8 +25,13 @@ export function useCreateInvoice() {
   return useMutation({
     mutationFn: (payload: Record<string, any>) =>
       api.post('/api/finance/invoices', payload).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (_data, payload) => {
       qc.invalidateQueries({ queryKey: ['finance', 'invoices'] })
+      const sid = payload?.shipment_id
+      if (sid != null) {
+        qc.invalidateQueries({ queryKey: ['shipments', String(sid)] })
+        qc.invalidateQueries({ queryKey: ['shipments'] })
+      }
       toast.success('Facture creee')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
@@ -76,26 +81,6 @@ export function useRejectPaymentProof() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['finance', 'payment-proofs'] })
       toast.success('Paiement rejete')
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-export function useWallets(params: Record<string, any> = {}) {
-  return useQuery({
-    queryKey: ['finance', 'wallets', params],
-    queryFn: () => api.get('/api/finance/wallets', { params }).then(r => r.data),
-  })
-}
-
-export function useDepositWallet() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: { client_id: number; amount: number; note?: string }) =>
-      api.post('/api/finance/wallets/deposit', data).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance', 'wallets'] })
-      toast.success('Depot effectue')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
   })

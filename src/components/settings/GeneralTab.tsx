@@ -5,14 +5,12 @@ import {
   useUpdateAppSettings,
   useUploadLogo,
   useUploadFavicon,
-  useCountriesList,
   useTimezonesList,
-  useCreateCountry,
   usePhoneCountries,
-  type ApiCountryRow,
 } from '@/hooks/useSettings'
 import { SettingsCard } from './SettingsCard'
 import { SearchableSelectWithAdd, type SearchableOption } from './SearchableSelectWithAdd'
+import { LocationCascadeWithEnrichment } from '@/components/location/LocationCascadeWithEnrichment'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -28,10 +26,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
 import { ISO_4217_CURRENCIES } from '@/lib/iso4217'
-import { CountryFlag } from '@/components/CountryFlag'
 import { PhoneContactFields } from '@/components/PhoneContactFields'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
-import { Settings, MapPin, UserCheck, Globe, DollarSign, Image } from 'lucide-react'
+import { Settings, UserCheck, Globe, DollarSign, Image } from 'lucide-react'
 
 const CLEAR = '__clear'
 
@@ -40,17 +37,10 @@ export default function GeneralTab() {
   const updateSettings = useUpdateAppSettings()
   const uploadLogo = useUploadLogo()
   const uploadFavicon = useUploadFavicon()
-  const { data: countries, isLoading: loadingCountries } = useCountriesList()
   const { data: timezones, isLoading: loadingTz } = useTimezonesList()
   const { data: phoneCountries = [], isLoading: loadingPhoneCountries } = usePhoneCountries()
-  const createCountry = useCreateCountry()
 
   const [form, setForm] = useState<Record<string, unknown>>({})
-
-  const [countryDlg, setCountryDlg] = useState(false)
-  const [cName, setCName] = useState('')
-  const [cCode, setCCode] = useState('')
-  const [cEmoji, setCEmoji] = useState('')
 
   const [currencyDlg, setCurrencyDlg] = useState(false)
   const [curCode, setCurCode] = useState('')
@@ -59,10 +49,17 @@ export default function GeneralTab() {
 
   const [timezoneDlg, setTimezoneDlg] = useState(false)
   const [tzManual, setTzManual] = useState('')
+  const [logoPreviewFailed, setLogoPreviewFailed] = useState(false)
+  const [faviconPreviewFailed, setFaviconPreviewFailed] = useState(false)
 
   useEffect(() => {
     if (settings) setForm({ ...settings, language: 'fr' })
   }, [settings])
+
+  useEffect(() => {
+    setLogoPreviewFailed(false)
+    setFaviconPreviewFailed(false)
+  }, [form.logo_url, form.favicon_url])
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -75,34 +72,6 @@ export default function GeneralTab() {
       }
     )
   }
-
-  const countryOptions: SearchableOption[] = useMemo(() => {
-    const rows = countries ?? []
-    const opts: SearchableOption[] = [
-      {
-        value: CLEAR,
-        label: <span className="text-muted-foreground">(Aucun pays)</span>,
-        keywords: ['aucun', 'clear'],
-      },
-      ...rows.map((c: ApiCountryRow) => ({
-        value: String(c.id),
-        label: (
-          <span className="flex items-center gap-2">
-            <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} />
-            <span>{c.name}</span>
-            <span className="text-xs text-muted-foreground">
-              {(c.iso2 || c.code || '').toString().toUpperCase()}
-            </span>
-          </span>
-        ),
-        keywords: [c.name, c.code || '', c.iso2 || '', String(c.id)],
-      })),
-    ]
-    return opts
-  }, [countries])
-
-  const countrySelectValue =
-    form.country_id === '' || form.country_id == null ? CLEAR : String(form.country_id)
 
   const currencyOptions: SearchableOption[] = useMemo(() => {
     const custom = (form.custom_currencies as { code: string; symbol: string; name: string }[]) ?? []
@@ -140,14 +109,6 @@ export default function GeneralTab() {
     }))
   }, [timezones, form.timezone])
 
-  const lockerModeOptions: SearchableOption[] = useMemo(
-    () => [
-      { value: 'random', label: 'Aléatoire', keywords: ['random', 'aleatoire'] },
-      { value: 'sequential', label: 'Séquentiel', keywords: ['sequential', 'sequentiel'] },
-    ],
-    []
-  )
-
   const decimalsOptions: SearchableOption[] = useMemo(
     () => [
       { value: '0', label: '0 (100)', keywords: ['0'] },
@@ -163,22 +124,6 @@ export default function GeneralTab() {
     ],
     []
   )
-
-  const submitCountry = () => {
-    const code = cCode.trim().toUpperCase()
-    if (!cName.trim() || !code) return
-    createCountry.mutate(
-      { name: cName.trim(), code, iso2: code.length === 2 ? code : undefined, emoji: cEmoji.trim() || undefined },
-      {
-        onSuccess: () => {
-          setCountryDlg(false)
-          setCName('')
-          setCCode('')
-          setCEmoji('')
-        },
-      }
-    )
-  }
 
   const submitCurrency = () => {
     const code = curCode.trim().toUpperCase()
@@ -226,9 +171,6 @@ export default function GeneralTab() {
           <TabsTrigger value="identity" className={settingsInnerTabsTrigger}>
             Identite
           </TabsTrigger>
-          <TabsTrigger value="locker" className={settingsInnerTabsTrigger}>
-            Casier
-          </TabsTrigger>
           <TabsTrigger value="accounts" className={settingsInnerTabsTrigger}>
             Inscriptions
           </TabsTrigger>
@@ -247,8 +189,12 @@ export default function GeneralTab() {
           <SettingsCard title="Identite de l'entreprise" icon={Settings} description="Nom, contact et adresse">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Nom de l'application</Label>
+                <Label>Nom de l&apos;application</Label>
                 <Input value={String(form.app_name ?? '')} onChange={(e) => set('app_name', e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  Nom légal / général (factures, PDF…). Le libellé de la barre latérale se règle dans l&apos;onglet
+                  Logo.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>URL du site</Label>
@@ -289,83 +235,44 @@ export default function GeneralTab() {
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Adresse postale</Label>
-                <Input value={String(form.address ?? '')} onChange={(e) => set('address', e.target.value)} />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Pays (base de donnees)</Label>
-                <SearchableSelectWithAdd
-                  value={countrySelectValue}
-                  onValueChange={(v) => {
-                    if (v === CLEAR) {
-                      set('country_id', '')
+                <Label>Localisation (pays, région, ville)</Label>
+                <LocationCascadeWithEnrichment
+                  allowEmpty
+                  value={{
+                    countryId: form.country_id as number | '' | null,
+                    stateId: form.state_id as number | '' | null,
+                    cityId: form.city_id as number | '' | null,
+                  }}
+                  onChange={(loc) => {
+                    set('country_id', loc.countryId)
+                    set('state_id', loc.stateId)
+                    set('city_id', loc.cityId)
+                    if (loc.countryId === '' || loc.countryId == null) {
                       set('country', '')
-                      return
-                    }
-                    const row = (countries ?? []).find((c) => String(c.id) === v)
-                    if (row) {
-                      set('country_id', row.id)
-                      set('country', row.name)
+                      set('city', '')
                     }
                   }}
-                  options={countryOptions}
-                  placeholder="Choisir un pays…"
-                  searchPlaceholder="Rechercher un pays, code…"
-                  emptyText="Aucun pays."
-                  isLoading={loadingCountries}
-                  onAdd={() => setCountryDlg(true)}
-                  addLabel="Ajouter un pays"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Ville</Label>
-                <Input value={String(form.city ?? '')} onChange={(e) => set('city', e.target.value)} />
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Adresse postale</Label>
+                <Input
+                  value={String(form.address ?? '')}
+                  onChange={(e) => set('address', e.target.value)}
+                  placeholder="Rue, numéro, bâtiment, quartier…"
+                  autoComplete="street-address"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Saisissez uniquement la voie et le lieu précis ; pays, région et ville viennent des listes ci-dessus.
+                </p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Code postal</Label>
-                <Input value={String(form.postal_code ?? '')} onChange={(e) => set('postal_code', e.target.value)} />
-              </div>
-            </div>
-          </SettingsCard>
-        </TabsContent>
-
-        <TabsContent value="locker" className={settingsInnerTabsContent}>
-          <SettingsCard title="Casier virtuel (Locker)" icon={MapPin} description="Adresse et format du casier client">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Adresse du locker (entrepot)</Label>
                 <Input
-                  value={String(form.locker_address ?? '')}
-                  onChange={(e) => set('locker_address', e.target.value)}
-                  placeholder="Rue de la Logistique 42, 1000 Bruxelles"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Prefixe du locker</Label>
-                <Input
-                  value={String(form.locker_prefix ?? '')}
-                  onChange={(e) => set('locker_prefix', e.target.value)}
-                  placeholder="MRP"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Nombre de chiffres</Label>
-                <Input
-                  type="number"
-                  min={3}
-                  max={8}
-                  value={Number(form.locker_digits ?? 4)}
-                  onChange={(e) => set('locker_digits', Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Mode de generation</Label>
-                <SearchableSelectWithAdd
-                  value={String(form.locker_mode ?? 'random')}
-                  onValueChange={(v) => set('locker_mode', v)}
-                  options={lockerModeOptions}
-                  placeholder="Mode…"
-                  searchPlaceholder="Rechercher…"
+                  value={String(form.postal_code ?? '')}
+                  onChange={(e) => set('postal_code', e.target.value)}
+                  placeholder="Ex. 1000"
+                  autoComplete="postal-code"
                 />
               </div>
             </div>
@@ -490,10 +397,50 @@ export default function GeneralTab() {
         <TabsContent value="branding" className={settingsInnerTabsContent}>
           <SettingsCard title="Logo et favicon" icon={Image} description="Identite visuelle">
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2 flex flex-col gap-3 rounded-lg border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="sidebar-brand-logo">Afficher le nom à côté du logo</Label>
+                  <p className="text-xs text-muted-foreground max-w-xl">
+                    Lorsqu&apos;un logo est affiché dans la barre latérale, afficher ou masquer le texte à
+                    côté. Sans logo, le nom reste toujours visible.
+                  </p>
+                </div>
+                <Switch
+                  id="sidebar-brand-logo"
+                  checked={form.show_sidebar_brand_with_logo !== false}
+                  onCheckedChange={(v) => set('show_sidebar_brand_with_logo', v)}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="hub-brand-name">Nom dans la barre latérale</Label>
+                <Input
+                  id="hub-brand-name"
+                  value={String(form.hub_brand_name ?? '')}
+                  onChange={(e) => set('hub_brand_name', e.target.value)}
+                  placeholder={String(form.app_name || 'Monrespro')}
+                  maxLength={255}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Texte affiché en haut de la sidebar (à côté du logo si activé). Laisser vide pour réutiliser
+                  le « Nom de l&apos;application » défini dans l&apos;onglet Identité.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label>Logo</Label>
-                {form.logo_url != null && String(form.logo_url) !== '' ? (
-                  <img src={resolveImageUrl(String(form.logo_url))} alt="Logo" className="h-12 mb-2 rounded" />
+                {form.logo_url != null && String(form.logo_url) !== '' && !logoPreviewFailed ? (
+                  <img
+                    src={resolveImageUrl(String(form.logo_url))}
+                    alt=""
+                    className="h-12 mb-2 rounded border border-border/60 bg-background object-contain object-left"
+                    onError={() => setLogoPreviewFailed(true)}
+                  />
+                ) : null}
+                {form.logo_url != null && String(form.logo_url) !== '' && logoPreviewFailed ? (
+                  <p className="text-xs text-destructive mb-2">
+                    Impossible de charger l&apos;aperçu (vérifiez le lien symbolique{' '}
+                    <code className="rounded bg-muted px-1">storage</code> et{' '}
+                    <code className="rounded bg-muted px-1">APP_URL</code> / proxy Vite).
+                  </p>
                 ) : null}
                 <Input
                   type="file"
@@ -506,8 +453,16 @@ export default function GeneralTab() {
               </div>
               <div className="space-y-2">
                 <Label>Favicon</Label>
-                {form.favicon_url != null && String(form.favicon_url) !== '' ? (
-                  <img src={resolveImageUrl(String(form.favicon_url))} alt="Favicon" className="h-8 mb-2" />
+                {form.favicon_url != null && String(form.favicon_url) !== '' && !faviconPreviewFailed ? (
+                  <img
+                    src={resolveImageUrl(String(form.favicon_url))}
+                    alt=""
+                    className="h-8 w-8 mb-2 rounded border border-border/60 bg-background object-contain"
+                    onError={() => setFaviconPreviewFailed(true)}
+                  />
+                ) : null}
+                {form.favicon_url != null && String(form.favicon_url) !== '' && faviconPreviewFailed ? (
+                  <p className="text-xs text-destructive mb-2">Impossible de charger le favicon.</p>
                 ) : null}
                 <Input
                   type="file"
@@ -528,37 +483,6 @@ export default function GeneralTab() {
           {updateSettings.isPending ? 'Enregistrement...' : 'Enregistrer les parametres'}
         </Button>
       </div>
-
-      <Dialog open={countryDlg} onOpenChange={setCountryDlg}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nouveau pays</DialogTitle>
-            <DialogDescription>Ajout rapide dans la base (code ISO2 recommande, ex. FR).</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div className="space-y-2">
-              <Label>Nom</Label>
-              <Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="France" />
-            </div>
-            <div className="space-y-2">
-              <Label>Code pays (ISO2 / unique)</Label>
-              <Input value={cCode} onChange={(e) => setCCode(e.target.value.toUpperCase())} placeholder="FR" maxLength={3} />
-            </div>
-            <div className="space-y-2">
-              <Label>Drapeau (emoji, optionnel)</Label>
-              <Input value={cEmoji} onChange={(e) => setCEmoji(e.target.value)} placeholder="🇫🇷" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => setCountryDlg(false)}>
-              Annuler
-            </Button>
-            <Button type="button" onClick={submitCountry} disabled={createCountry.isPending}>
-              {createCountry.isPending ? 'Creation…' : 'Creer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={currencyDlg} onOpenChange={setCurrencyDlg}>
         <DialogContent>

@@ -69,13 +69,22 @@ export const STATUS_COLORS: Record<string, string> = {
   out_for_delivery: '#F97316',
   delivered: '#10B981',
   cancelled: '#EF4444',
+  /* Flux unifié (enum ShipmentStatus) */
+  draft: '#64748b',
+  pending_drop_off: '#0ea5e9',
+  received_at_hub: '#14b8a6',
+  ready_for_dispatch: '#f59e0b',
+  arrived_at_destination: '#06b6d4',
+  /* Ramassages (PickupStatus) */
+  driver_assigned: '#6366f1',
+  completed: '#10b981',
 }
 
 export const MODULE_COLORS = {
   inbound:        { primary: '#F59E0B', light: '#FEF3C7', gradient: ['#F59E0B', '#D97706'] as const },
   shipments:      { primary: '#3B82F6', light: '#DBEAFE', gradient: ['#3B82F6', '#1D4ED8'] as const },
   pickups:        { primary: '#10B981', light: '#D1FAE5', gradient: ['#10B981', '#059669'] as const },
-  consolidations: { primary: '#6366F1', light: '#E0E7FF', gradient: ['#6366F1', '#4338CA'] as const },
+  regroupements: { primary: '#6366F1', light: '#E0E7FF', gradient: ['#6366F1', '#4338CA'] as const },
   finance:        { primary: '#14B8A6', light: '#CCFBF1', gradient: ['#14B8A6', '#0D9488'] as const },
   crm:            { primary: '#8B5CF6', light: '#EDE9FE', gradient: ['#8B5CF6', '#7C3AED'] as const },
   reports:        { primary: '#06B6D4', light: '#CFFAFE', gradient: ['#06B6D4', '#0891B2'] as const },

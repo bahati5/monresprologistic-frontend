@@ -36,15 +36,6 @@ export interface PaymentProof {
   created_at: string
 }
 
-export interface Wallet {
-  id: number
-  client_id: number
-  client?: { id: number; name: string; email: string }
-  balance: number
-  currency: string
-  last_transaction_at: string | null
-}
-
 export interface LedgerEntry {
   id: number
   type: 'credit' | 'debit'

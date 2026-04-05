@@ -1,9 +1,9 @@
-/* ── React Query hooks for CRM: Clients, Recipients, Users, Drivers, Notifications ── */
+/* ── React Query hooks for CRM: Clients, Users, Drivers, Notifications ── */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
 import { toast } from 'sonner'
-import type { Client, ClientCreatePayload, Recipient, RecipientCreatePayload, User, UserCreatePayload, Driver, DriverCreatePayload, Notification } from '@/types/crm'
+import type { Client, ClientCreatePayload, User, UserCreatePayload, Driver, DriverCreatePayload, Notification } from '@/types/crm'
 import type { PaginatedData } from '@/types'
 
 // ── Clients ──
@@ -58,79 +58,6 @@ export function useToggleClientActive() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       toast.success('Statut modifie')
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-// ── Recipients ──
-export function useRecipients(params: Record<string, any> = {}) {
-  return useQuery<PaginatedData<Recipient>>({
-    queryKey: ['recipients', params],
-    queryFn: () => api.get('/api/recipients', { params }).then(r => r.data?.recipients ?? r.data),
-  })
-}
-
-export function useCreateRecipient() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: RecipientCreatePayload) =>
-      api.post('/api/recipients', payload).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['recipients'] })
-      toast.success('Destinataire cree')
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-export function useUpdateRecipient() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Recipient> }) =>
-      api.patch(`/api/recipients/${id}`, data).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['recipients'] })
-      toast.success('Destinataire mis a jour')
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-export function useDeleteRecipient() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number) =>
-      api.delete(`/api/recipients/${id}`).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['recipients'] })
-      toast.success('Destinataire supprime')
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-export function useAddRecipientAddress() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ recipientId, data }: { recipientId: number; data: Record<string, any> }) =>
-      api.post(`/api/recipients/${recipientId}/addresses`, data).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['recipients'] })
-      toast.success('Adresse ajoutee')
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-export function useDeleteRecipientAddress() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (addressId: number) =>
-      api.delete(`/api/recipient-addresses/${addressId}`).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['recipients'] })
-      toast.success('Adresse supprimee')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
   })

@@ -1,4 +1,4 @@
-/* ── CRM: Clients, Recipients, Users, Drivers ── */
+/* ── CRM: Clients, Users, Drivers ── */
 
 export interface Client {
   id: number
@@ -28,38 +28,6 @@ export interface ClientCreatePayload {
   password: string
   password_confirmation: string
   address?: string
-  city?: string
-  country?: string
-}
-
-export interface RecipientAddress {
-  id: number
-  label: string
-  address: string
-  city: string | null
-  state: string | null
-  country: string | null
-  postal_code: string | null
-  phone: string | null
-  is_default: boolean
-}
-
-export interface Recipient {
-  id: number
-  client_id: number
-  name: string
-  email: string | null
-  phone: string | null
-  city: string | null
-  country: string | null
-  addresses: RecipientAddress[]
-  created_at: string
-}
-
-export interface RecipientCreatePayload {
-  name: string
-  email?: string
-  phone?: string
   city?: string
   country?: string
 }

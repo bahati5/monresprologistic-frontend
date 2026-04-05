@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { displayLocalized } from '@/lib/localizedString'
-import { lazy, Suspense } from 'react'
+import { useFormatMoney } from '@/hooks/useSettings'
+import { lazy, Suspense, type ReactNode } from 'react'
 import RequireAuth from '@/components/auth/RequireAuth'
 import GuestOnly from '@/components/auth/GuestOnly'
 import SidebarLayout from '@/layouts/SidebarLayout'
@@ -36,7 +37,7 @@ const ShipmentCreate = () => lazily(() => import('@/pages/shipments/ShipmentCrea
 
 // Operations
 const PickupsPage = () => lazily(() => import('@/pages/operations/PickupsPage'))
-const ConsolidationsPage = () => lazily(() => import('@/pages/operations/ConsolidationsPage'))
+const RegroupementsPage = () => lazily(() => import('@/pages/operations/RegroupementsPage'))
 
 // Finance
 const FinanceDashboardPage = () => lazily(() => import('@/pages/finance/FinanceDashboardPage'))
@@ -45,7 +46,6 @@ const FinanceDashboardPage = () => lazily(() => import('@/pages/finance/FinanceD
 const ClientsPage = () => lazily(() => import('@/pages/crm/ClientsPage'))
 const UsersPage = () => lazily(() => import('@/pages/crm/UsersPage'))
 const DriversPage = () => lazily(() => import('@/pages/crm/DriversPage'))
-const RecipientsPage = () => lazily(() => import('@/pages/crm/RecipientsPage'))
 
 // Reports
 const ReportsHub = () => lazily(() => import('@/pages/reports/ReportsHub'))
@@ -53,43 +53,33 @@ const ReportsHub = () => lazily(() => import('@/pages/reports/ReportsHub'))
 // Settings
 const SettingsHub = () => lazily(() => import('@/pages/settings/SettingsHub'))
 
+// Shopping assisté & colis attendus (création)
+const AssistedShoppingNewPage = () => lazily(() => import('@/pages/shopping/AssistedShoppingNewPage'))
+const AssistedPurchasesListPage = () => lazily(() => import('@/pages/shopping/AssistedPurchasesListPage'))
+const AssistedPurchaseQuotePage = () => lazily(() => import('@/pages/shopping/AssistedPurchaseQuotePage'))
+const ShipmentNoticeCreatePage = () => lazily(() => import('@/pages/inbound/ShipmentNoticeCreatePage'))
+
 // Inbound — still using GenericListPage (will get dedicated pages in Phase 4)
 function ShipmentNotices() {
   return (
     <GenericListPage
-      title="Avis d'expedition"
+      title="Colis Attendus"
       apiPath="/api/shipment-notices"
       dataKey="notices"
       columns={[
         { key: 'reference_code', label: 'Reference' },
         { key: 'carrier_name', label: 'Transporteur' },
-        { key: 'tracking_number', label: 'Tracking' },
+        {
+          key: 'vendor_tracking_number',
+          label: 'Suivi',
+          render: (r: any) => r.vendor_tracking_number || r.tracking_number || '—',
+        },
         { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
         { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
       ]}
       createPath="/shipment-notices/create"
-      createLabel="Nouvel avis"
+      createLabel="Nouveau Colis Attendu"
       detailPath={(r: any) => `/shipment-notices/${r.id}`}
-    />
-  )
-}
-
-function PurchaseOrders() {
-  return (
-    <GenericListPage
-      title="Ordres d'achat"
-      apiPath="/api/purchase-orders"
-      dataKey="orders"
-      columns={[
-        { key: 'reference_code', label: 'Reference' },
-        { key: 'user', label: 'Client', render: (r: any) => displayLocalized(r.user?.name) },
-        { key: 'total_amount', label: 'Total' },
-        { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
-      ]}
-      createPath="/purchase-orders/create"
-      createLabel="Nouvel ordre"
-      detailPath={(r: any) => `/purchase-orders/${r.id}`}
     />
   )
 }
@@ -111,11 +101,44 @@ function CustomerPackages() {
   )
 }
 
+function LedgerAmountCell({ row }: { row: { amount?: unknown } }) {
+  const { formatMoney } = useFormatMoney()
+  if (row.amount == null || row.amount === '') return '-'
+  const n = typeof row.amount === 'number' ? row.amount : Number(row.amount)
+  if (!Number.isFinite(n)) return String(row.amount)
+  return formatMoney(n)
+}
+
 // Finance sub-pages still using GenericListPage
+function LedgerEntries() {
+  return (
+    <GenericListPage
+      title="Comptabilité — Grand livre"
+      apiPath="/api/finance/ledger"
+      dataKey="entries"
+      columns={[
+        { key: 'id', label: '#' },
+        { key: 'type', label: 'Type' },
+        {
+          key: 'amount',
+          label: 'Montant',
+          render: (r: any) => <LedgerAmountCell row={r} />,
+        },
+        { key: 'description', label: 'Description', render: (r: any) => r.description ?? '-' },
+        {
+          key: 'created_at',
+          label: 'Date',
+          render: (r: any) => (r.created_at ? new Date(r.created_at).toLocaleString('fr-FR') : '-'),
+        },
+      ]}
+    />
+  )
+}
+
 function Invoices() {
   return (
     <GenericListPage
-      title="Factures"
+      title="Facturation"
       apiPath="/api/finance/invoices"
       dataKey="invoices"
       columns={[
@@ -139,20 +162,6 @@ function PaymentProofs() {
         { key: 'amount', label: 'Montant' },
         { key: 'status', label: 'Statut' },
         { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
-      ]}
-    />
-  )
-}
-
-function Wallets() {
-  return (
-    <GenericListPage
-      title="Portefeuilles"
-      apiPath="/api/finance/wallets"
-      dataKey="wallets"
-      columns={[
-        { key: 'user', label: 'Client', render: (r: any) => displayLocalized(r.user?.name) },
-        { key: 'balance', label: 'Solde' },
       ]}
     />
   )
@@ -210,20 +219,23 @@ export const router = createBrowserRouter(
           { path: '/shipments/:id', element: <ShipmentDetail /> },
 
           // Inbound
+          { path: '/shipment-notices/create', element: <ShipmentNoticeCreatePage /> },
           { path: '/shipment-notices', element: <ShipmentNotices /> },
-          { path: '/purchase-orders', element: <PurchaseOrders /> },
+          { path: '/shopping-assiste/nouveau', element: <AssistedShoppingNewPage /> },
+          { path: '/purchase-orders', element: <AssistedPurchasesListPage /> },
+          { path: '/purchase-orders/:id/chiffrage', element: <AssistedPurchaseQuotePage /> },
           { path: '/customer-packages', element: <CustomerPackages /> },
 
           // Operations
           { path: '/pickups', element: <PickupsPage /> },
-          { path: '/consolidations', element: <ConsolidationsPage /> },
+          { path: '/regroupements', element: <RegroupementsPage /> },
 
           // Finance
           { path: '/finance', element: <FinanceDashboardPage /> },
           { path: '/finance/dashboard', element: <FinanceDashboardPage /> },
           { path: '/finance/invoices', element: <Invoices /> },
+          { path: '/finance/ledger', element: <LedgerEntries /> },
           { path: '/finance/payment-proofs', element: <PaymentProofs /> },
-          { path: '/finance/wallets', element: <Wallets /> },
 
           // Reports
           { path: '/reports', element: <ReportsHub /> },
@@ -232,7 +244,6 @@ export const router = createBrowserRouter(
           { path: '/clients', element: <ClientsPage /> },
           { path: '/users', element: <UsersPage /> },
           { path: '/drivers', element: <DriversPage /> },
-          { path: '/recipients', element: <RecipientsPage /> },
 
           // Settings
           { path: '/settings', element: <SettingsHub /> },

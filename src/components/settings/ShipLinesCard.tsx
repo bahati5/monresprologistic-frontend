@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { shipLineHooks, shippingModeHooks, useAppSettings, useShippingRatesIndex } from '@/hooks/useSettings'
+import { toast } from 'sonner'
+import { shipLineHooks, shippingModeHooks, useAppSettings, useCountriesList, useFormatMoney } from '@/hooks/useSettings'
+import { resolveMoneySymbol } from '@/lib/formatCurrency'
 import { SettingsCard } from './SettingsCard'
 import { CrudSheet } from './CrudSheet'
 import { Button } from '@/components/ui/button'
@@ -30,48 +32,80 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { CountryMultiSelect } from '@/components/ui/CountryMultiSelect'
 import { CountryFlag } from '@/components/CountryFlag'
 
 type RateDraft = {
   shipping_mode_id: number
-  delivery_time_id: number | null
   unit_price: string
-  pricing_type: 'per_kg' | 'per_volume' | 'flat'
   is_active: boolean
-  volumetric_divisor: string
+  delivery_label_override: string
 }
 
 function emptyRateRow(): RateDraft {
   return {
     shipping_mode_id: 0,
-    delivery_time_id: null,
     unit_price: '0',
-    pricing_type: 'per_kg',
     is_active: true,
-    volumetric_divisor: '',
+    delivery_label_override: '',
   }
 }
 
-function normalizeModeDeliveryTimes(mode: Record<string, unknown>) {
-  const raw = (mode.delivery_times ?? mode.deliveryTimes) as unknown
+function deliveryOptionsForMode(mode: Record<string, unknown>): string[] {
+  const raw = (mode.delivery_options ?? mode.deliveryOptions) as unknown
   if (!Array.isArray(raw)) return []
-  return raw as { id: number; label: string; shipping_mode_id?: number }[]
+  return raw.map((x) => String(x)).filter((s) => s.trim() !== '')
+}
+
+function FlagsCell({ countries }: { countries: ShipLineCountryRef[] }) {
+  if (!countries.length) {
+    return <span className="text-muted-foreground text-xs">—</span>
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 max-w-[min(100%,260px)]">
+      {countries.map((c) => (
+        <span
+          key={c.id}
+          className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-xs"
+          title={c.name}
+        >
+          <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-3 !w-4 shrink-0" />
+          <span className="truncate max-w-[4.5rem]">{c.iso2 || c.code || c.name}</span>
+        </span>
+      ))}
+    </div>
+  )
 }
 
 export function ShipLinesCard() {
   const qc = useQueryClient()
   const { data: appSettings } = useAppSettings()
+  const { formatMoney } = useFormatMoney()
   const globalCurrency = String(appSettings?.currency ?? 'USD').toUpperCase()
+  const currencyUi = resolveMoneySymbol({
+    currency: globalCurrency,
+    currency_symbol: String(appSettings?.currency_symbol ?? ''),
+  })
   const { data: items, isLoading } = shipLineHooks.useList()
   const { data: modes } = shippingModeHooks.useList()
-  const { data: indexData } = useShippingRatesIndex()
+  const { data: countriesRaw = [] } = useCountriesList()
   const create = shipLineHooks.useCreate()
   const update = shipLineHooks.useUpdate()
   const del = shipLineHooks.useDelete()
 
   const countries = useMemo(
-    () => (Array.isArray(indexData?.countries) ? indexData.countries : []) as ShipLineCountryRef[],
-    [indexData?.countries],
+    () =>
+      (countriesRaw ?? []).map(
+        (c) =>
+          ({
+            id: c.id,
+            name: c.name,
+            code: c.code || null,
+            iso2: c.iso2 ?? null,
+            emoji: c.emoji ?? null,
+          }) satisfies ShipLineCountryRef,
+      ),
+    [countriesRaw],
   )
 
   const modeList = useMemo(
@@ -81,7 +115,6 @@ export function ShipLinesCard() {
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editItem, setEditItem] = useState<ShipLine | null>(null)
-  const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [originIds, setOriginIds] = useState<number[]>([])
@@ -90,16 +123,8 @@ export function ShipLinesCard() {
 
   const list = Array.isArray(items) ? (items as ShipLine[]) : []
 
-  const toggleOrigin = (id: number, on: boolean) => {
-    setOriginIds((prev) => (on ? [...new Set([...prev, id])] : prev.filter((x) => x !== id)))
-  }
-  const toggleDest = (id: number, on: boolean) => {
-    setDestIds((prev) => (on ? [...new Set([...prev, id])] : prev.filter((x) => x !== id)))
-  }
-
   const openCreate = () => {
     setEditItem(null)
-    setName('')
     setDescription('')
     setIsActive(true)
     setOriginIds([])
@@ -110,7 +135,6 @@ export function ShipLinesCard() {
 
   const openEdit = (item: ShipLine) => {
     setEditItem(item)
-    setName(item.name ?? '')
     setDescription(String(item.description ?? ''))
     setIsActive(item.is_active !== false)
     setOriginIds((item.origin_countries ?? []).map((c) => c.id))
@@ -120,11 +144,9 @@ export function ShipLinesCard() {
       r.length
         ? r.map((row) => ({
             shipping_mode_id: row.shipping_mode_id,
-            delivery_time_id: row.delivery_time_id ?? null,
             unit_price: String(row.unit_price ?? 0),
-            pricing_type: row.pricing_type,
             is_active: row.is_active !== false,
-            volumetric_divisor: row.volumetric_divisor != null ? String(row.volumetric_divisor) : '',
+            delivery_label_override: String(row.delivery_label_override ?? '').trim(),
           }))
         : [emptyRateRow()],
     )
@@ -136,20 +158,13 @@ export function ShipLinesCard() {
       .filter((r) => r.shipping_mode_id > 0)
       .map((r) => ({
         shipping_mode_id: r.shipping_mode_id,
-        delivery_time_id: r.delivery_time_id && r.delivery_time_id > 0 ? r.delivery_time_id : null,
         unit_price: Number(r.unit_price) || 0,
         currency: globalCurrency,
-        pricing_type: r.pricing_type,
         is_active: r.is_active,
-        volumetric_divisor: (() => {
-          const s = r.volumetric_divisor.trim()
-          if (s === '') return null
-          const n = parseInt(s, 10)
-          return Number.isFinite(n) && n >= 1 ? n : null
-        })(),
+        delivery_label_override: r.delivery_label_override.trim() || null,
       }))
     return {
-      name: name.trim(),
+      name: '',
       description: description.trim() || null,
       is_active: isActive,
       origin_country_ids: originIds,
@@ -160,7 +175,7 @@ export function ShipLinesCard() {
 
   const handleSubmit = () => {
     const payload = buildPayload()
-    if (!payload.name || payload.origin_country_ids.length === 0 || payload.dest_country_ids.length === 0) {
+    if (payload.origin_country_ids.length === 0 || payload.dest_country_ids.length === 0) {
       return
     }
     if (payload.rates.length === 0) return
@@ -182,7 +197,7 @@ export function ShipLinesCard() {
       const cur = next[idx]
       const merged = { ...cur, ...patch }
       if (patch.shipping_mode_id != null && patch.shipping_mode_id !== cur.shipping_mode_id) {
-        merged.delivery_time_id = null
+        merged.delivery_label_override = ''
       }
       next[idx] = merged
       return next
@@ -196,7 +211,7 @@ export function ShipLinesCard() {
         icon={Ship}
         badge={`${list.length}`}
         isLoading={isLoading}
-        description={`Pays d'origine / destination et grille tarifaire par mode (prix en ${globalCurrency}, délai, diviseur volumétrique optionnel).`}
+        description={`Pays d'origine / destination et tarif par mode (prix en ${currencyUi}). Type de prix et diviseur volumétrique : réglages du mode d'expédition.`}
         actions={
           <Button size="sm" onClick={openCreate}>
             <Plus size={14} className="mr-1" />
@@ -204,63 +219,130 @@ export function ShipLinesCard() {
           </Button>
         }
       >
-        <div className="space-y-2">
-          {list.map((item) => (
-            <div
-              key={item.id}
-              className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-sm">{displayLocalized(item.name)}</p>
-                {item.description ? (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{String(item.description)}</p>
-                ) : null}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {(item.origin_countries ?? []).length} origine(s) → {(item.destination_countries ?? []).length}{' '}
-                  destination(s) · {(item.rates ?? []).length} tarif(s)
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Badge variant={item.is_active ? 'default' : 'secondary'} className="text-xs">
-                  {item.is_active ? 'Actif' : 'Inactif'}
-                </Badge>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
-                  <Pencil size={14} />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                      <Trash2 size={14} />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer cette ligne ?</AlertDialogTitle>
-                      <AlertDialogDescription>Les tarifs associés seront supprimés.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() =>
-                          del.mutate(item.id, {
-                            onSuccess: () => {
-                              qc.invalidateQueries({ queryKey: ['shipments', 'create-options'] })
-                              qc.invalidateQueries({ queryKey: ['shipment-wizard', 'ship-lines-route'] })
-                            },
-                          })
-                        }
-                      >
-                        Supprimer
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          ))}
-          {list.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">Aucune ligne configurée</p>
-          )}
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[860px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <th className="p-3 font-medium">Route</th>
+                <th className="p-3 font-medium">Origines</th>
+                <th className="p-3 font-medium">Destinations</th>
+                <th className="p-3 font-medium">Ligne</th>
+                <th className="p-3 font-medium">Mode</th>
+                <th className="p-3 font-medium">Délai (surcharge)</th>
+                <th className="p-3 font-medium text-right">Prix</th>
+                <th className="p-3 font-medium">Tarif</th>
+                <th className="p-3 font-medium w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((item) => {
+                const rates = item.rates?.length ? item.rates : [null]
+                const rowSpan = rates.length
+                const origins = item.origin_countries ?? []
+                const dests = item.destination_countries ?? []
+                return rates.map((rate, i) => (
+                  <tr
+                    key={rate?.id != null ? `r-${rate.id}` : `l-${item.id}-${i}`}
+                    className="border-b border-border last:border-0 hover:bg-muted/25 transition-colors"
+                  >
+                    {i === 0 ? (
+                      <td rowSpan={rowSpan} className="align-top p-3 text-foreground">
+                        <div className="font-medium leading-snug">{displayLocalized(item.name)}</div>
+                        {item.description ? (
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{String(item.description)}</p>
+                        ) : null}
+                      </td>
+                    ) : null}
+                    {i === 0 ? (
+                      <td rowSpan={rowSpan} className="align-top p-3">
+                        <FlagsCell countries={origins} />
+                      </td>
+                    ) : null}
+                    {i === 0 ? (
+                      <td rowSpan={rowSpan} className="align-top p-3">
+                        <FlagsCell countries={dests} />
+                      </td>
+                    ) : null}
+                    {i === 0 ? (
+                      <td rowSpan={rowSpan} className="align-top p-3">
+                        <Badge variant={item.is_active ? 'default' : 'secondary'} className="text-xs">
+                          {item.is_active ? 'Actif' : 'Inactif'}
+                        </Badge>
+                      </td>
+                    ) : null}
+                    <td className="p-3 text-foreground">
+                      {rate?.shipping_mode ? (
+                        <span className="font-medium">{displayLocalized(String(rate.shipping_mode.name ?? ''))}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-muted-foreground text-xs max-w-[140px]">
+                      {rate?.delivery_label_override ? String(rate.delivery_label_override) : '—'}
+                    </td>
+                    <td className="p-3 text-right font-medium tabular-nums whitespace-nowrap">
+                      {rate != null ? formatMoney(Number(rate.unit_price ?? 0)) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {rate != null ? (
+                        <Badge variant={rate.is_active !== false ? 'outline' : 'secondary'} className="text-xs">
+                          {rate.is_active !== false ? 'Actif' : 'Inactif'}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    {i === 0 ? (
+                      <td rowSpan={rowSpan} className="align-top p-3">
+                        <div className="flex flex-col gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                            <Pencil size={14} />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                <Trash2 size={14} />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Supprimer cette ligne ?</AlertDialogTitle>
+                                <AlertDialogDescription>Les tarifs associés seront supprimés.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    del.mutate(item.id, {
+                                      onSuccess: () => {
+                                        qc.invalidateQueries({ queryKey: ['shipments', 'create-options'] })
+                                        qc.invalidateQueries({ queryKey: ['shipment-wizard', 'ship-lines-route'] })
+                                      },
+                                    })
+                                  }
+                                >
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))
+              })}
+              {list.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-muted-foreground text-sm">
+                    Aucune ligne configurée
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </SettingsCard>
 
@@ -272,14 +354,6 @@ export function ShipLinesCard() {
         isLoading={create.isPending || update.isPending}
       >
         <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-          <div className="space-y-2">
-            <Label>Nom *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
-          </div>
           <div className="flex items-center justify-between">
             <Label>Actif</Label>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
@@ -287,38 +361,22 @@ export function ShipLinesCard() {
 
           <div className="rounded-lg border p-3 space-y-2">
             <Label className="text-sm font-semibold">Pays d&apos;origine *</Label>
-            <div className="max-h-36 overflow-y-auto space-y-2 border rounded-md p-2">
-              {countries.map((c) => (
-                <label key={`o-${c.id}`} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-input"
-                    checked={originIds.includes(c.id)}
-                    onChange={(e) => toggleOrigin(c.id, e.target.checked)}
-                  />
-                  <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-4 !w-5" />
-                  <span>{c.name}</span>
-                </label>
-              ))}
-            </div>
+            <CountryMultiSelect
+              options={countries}
+              selectedIds={originIds}
+              onChange={setOriginIds}
+              placeholder="Rechercher et sélectionner un ou plusieurs pays…"
+            />
           </div>
 
           <div className="rounded-lg border p-3 space-y-2">
             <Label className="text-sm font-semibold">Pays de destination *</Label>
-            <div className="max-h-36 overflow-y-auto space-y-2 border rounded-md p-2">
-              {countries.map((c) => (
-                <label key={`d-${c.id}`} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-input"
-                    checked={destIds.includes(c.id)}
-                    onChange={(e) => toggleDest(c.id, e.target.checked)}
-                  />
-                  <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-4 !w-5" />
-                  <span>{c.name}</span>
-                </label>
-              ))}
-            </div>
+            <CountryMultiSelect
+              options={countries}
+              selectedIds={destIds}
+              onChange={setDestIds}
+              placeholder="Rechercher et sélectionner un ou plusieurs pays…"
+            />
           </div>
 
           <div className="rounded-lg border p-3 space-y-3">
@@ -336,7 +394,7 @@ export function ShipLinesCard() {
             </div>
             {rateRows.map((row, idx) => {
               const mode = modeList.find((m) => Number(m.id) === row.shipping_mode_id)
-              const dts = mode ? normalizeModeDeliveryTimes(mode) : []
+              const delayOpts = mode ? deliveryOptionsForMode(mode) : []
               return (
                 <div key={idx} className="grid gap-2 rounded-md bg-muted/40 p-3 md:grid-cols-2">
                   <div className="space-y-1 md:col-span-2">
@@ -357,62 +415,53 @@ export function ShipLinesCard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Délai (optionnel)</Label>
-                    <Select
-                      value={row.delivery_time_id ? String(row.delivery_time_id) : '__none'}
-                      onValueChange={(v: string) =>
-                        updateRate(idx, { delivery_time_id: v === '__none' ? null : Number(v) })
-                      }
-                      disabled={!row.shipping_mode_id}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Aucun" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">Aucun</SelectItem>
-                        {dts.map((dt) => (
-                          <SelectItem key={dt.id} value={String(dt.id)}>
-                            {dt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Type de prix</Label>
-                    <Select
-                      value={row.pricing_type}
-                      onValueChange={(v: string) =>
-                        updateRate(idx, { pricing_type: v as RateDraft['pricing_type'] })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="per_kg">Par kg</SelectItem>
-                        <SelectItem value="per_volume">Par m³</SelectItem>
-                        <SelectItem value="flat">Forfait</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-1 md:col-span-2">
+                    <Label className="text-xs">Surcharge délai (optionnel)</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Laisser vide pour le libellé défini sur le mode ; sinon préciser un délai spécifique à ce tarif.
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <Input
+                        className="flex-1"
+                        placeholder="ex. 5–7 jours ouvrés"
+                        value={row.delivery_label_override}
+                        onChange={(e) => updateRate(idx, { delivery_label_override: e.target.value })}
+                        disabled={!row.shipping_mode_id}
+                      />
+                      <Select
+                        value="__pick"
+                        onValueChange={(v) => {
+                          if (v === '__pick' || v === '__clear') {
+                            if (v === '__clear') updateRate(idx, { delivery_label_override: '' })
+                            return
+                          }
+                          updateRate(idx, { delivery_label_override: v })
+                        }}
+                        disabled={!row.shipping_mode_id || delayOpts.length === 0}
+                      >
+                        <SelectTrigger className="sm:w-[200px]">
+                          <SelectValue placeholder="Insérer depuis le mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__pick">Choisir un libellé du mode…</SelectItem>
+                          <SelectItem value="__clear">Effacer</SelectItem>
+                          {delayOpts.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <Label className="text-xs">Prix unitaire * ({globalCurrency})</Label>
+                    <Label className="text-xs">Prix * ({currencyUi})</Label>
                     <Input
                       type="number"
                       min={0}
                       step="0.01"
                       value={row.unit_price}
                       onChange={(e) => updateRate(idx, { unit_price: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Diviseur volumétrique (cm³/kg)</Label>
-                    <Input
-                      placeholder="ex. 5000 ou 6000 (IATA)"
-                      value={row.volumetric_divisor}
-                      onChange={(e) => updateRate(idx, { volumetric_divisor: e.target.value })}
                     />
                   </div>
                   <div className="flex items-center justify-between md:col-span-2">
@@ -436,6 +485,16 @@ export function ShipLinesCard() {
                 </div>
               )
             })}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Description (optionnel)</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Notes internes, précisions sur la route…"
+            />
           </div>
         </div>
       </CrudSheet>

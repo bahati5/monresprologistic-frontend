@@ -3,10 +3,11 @@ import { useFinanceDashboard } from '@/hooks/useFinance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard, Receipt,
+  DollarSign, TrendingUp, TrendingDown, CreditCard, Receipt,
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
 import { displayLocalized } from '@/lib/localizedString'
+import { useFormatMoney } from '@/hooks/useSettings'
 
 function StatCard({ title, value, icon: Icon, trend, trendLabel, color }: {
   title: string; value: string | number; icon: any; trend?: number; trendLabel?: string; color: string
@@ -40,13 +41,14 @@ function StatCard({ title, value, icon: Icon, trend, trendLabel, color }: {
 
 export default function FinanceDashboardPage() {
   const { data, isLoading } = useFinanceDashboard()
+  const { formatMoney } = useFormatMoney()
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Tableau de bord financier</h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => <Card key={i} className="animate-pulse h-32" />)}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => <Card key={i} className="animate-pulse h-32" />)}
         </div>
       </div>
     )
@@ -62,10 +64,10 @@ export default function FinanceDashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Chiffre d'affaires"
-          value={`${d.total_revenue ?? 0}`}
+          value={formatMoney(Number(d.total_revenue ?? 0))}
           icon={DollarSign}
           trend={d.revenue_trend}
           trendLabel="vs mois dernier"
@@ -73,23 +75,17 @@ export default function FinanceDashboardPage() {
         />
         <StatCard
           title="Creances clients"
-          value={`${d.total_receivables ?? 0}`}
+          value={formatMoney(Number(d.total_receivables ?? 0))}
           icon={Receipt}
           color="#f59e0b"
         />
         <StatCard
           title="Paiements recus"
-          value={`${d.total_paid ?? 0}`}
+          value={formatMoney(Number(d.total_paid ?? 0))}
           icon={CreditCard}
           trend={d.paid_trend}
           trendLabel="vs mois dernier"
           color="#10b981"
-        />
-        <StatCard
-          title="Solde portefeuilles"
-          value={`${d.total_wallet_balance ?? 0}`}
-          icon={Wallet}
-          color="#8b5cf6"
         />
       </div>
 
@@ -112,7 +108,9 @@ export default function FinanceDashboardPage() {
                       <p className="text-xs text-muted-foreground">{displayLocalized(inv.client_name || inv.client?.name)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold">{inv.amount}</p>
+                      <p className="text-sm font-bold">
+                        {formatMoney(Number(inv.amount ?? 0))}
+                      </p>
                       <Badge variant={inv.status === 'paid' ? 'default' : 'secondary'} className="text-xs mt-0.5">
                         {inv.status === 'paid' ? 'Payee' : inv.status === 'partial' ? 'Partielle' : 'En attente'}
                       </Badge>
@@ -142,7 +140,9 @@ export default function FinanceDashboardPage() {
                       <p className="text-sm font-medium">{displayLocalized(pay.client_name || pay.user?.name)}</p>
                       <p className="text-xs text-muted-foreground">{pay.method} — {new Date(pay.created_at).toLocaleDateString('fr-FR')}</p>
                     </div>
-                    <p className="text-sm font-bold text-emerald-600">+{pay.amount}</p>
+                    <p className="text-sm font-bold text-emerald-600">
+                      +{formatMoney(Number(pay.amount ?? 0))}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -176,9 +176,15 @@ export default function FinanceDashboardPage() {
                   {d.monthly_breakdown.map((m: any, i: number) => (
                     <tr key={i} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-3 font-medium">{m.month}</td>
-                      <td className="px-4 py-3 text-right">{m.invoiced}</td>
-                      <td className="px-4 py-3 text-right text-emerald-600">{m.paid}</td>
-                      <td className="px-4 py-3 text-right font-medium">{m.balance}</td>
+                      <td className="px-4 py-3 text-right">
+                        {formatMoney(Number(m.invoiced ?? 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right text-emerald-600">
+                        {formatMoney(Number(m.paid ?? 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {formatMoney(Number(m.balance ?? 0))}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

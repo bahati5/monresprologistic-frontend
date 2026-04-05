@@ -8,8 +8,11 @@ export interface ShipmentNotice {
   client_id: number
   client?: { id: number; name: string; email: string }
   carrier_name: string
-  tracking_number: string
-  merchant: string | null
+  /** API pré-alerte / colis attendu */
+  vendor_tracking_number?: string | null
+  tracking_number?: string | null
+  merchant_name?: string | null
+  merchant?: string | null
   description: string | null
   declared_value: number | null
   value_currency: string | null
@@ -23,10 +26,12 @@ export interface ShipmentNotice {
 }
 
 export interface ShipmentNoticeCreatePayload {
+  client_id?: number
   carrier_name: string
-  tracking_number: string
-  merchant?: string
+  vendor_tracking_number: string
+  merchant_name?: string
   description?: string
+  notes?: string
   declared_value?: number
   value_currency?: string
   purchase_date?: string
@@ -91,7 +96,7 @@ export interface CustomerPackage {
   status: StatusData
   shipment_notice_id: number | null
   shipment_notice?: ShipmentNotice
-  consolidation_id: number | null
+  regroupement_id: number | null
   received_at: string | null
   received_by: string | null
   delivered_at: string | null

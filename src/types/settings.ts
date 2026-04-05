@@ -2,6 +2,8 @@
 
 export interface AppSettings {
   app_name: string
+  /** Nom affiché dans la barre latérale ; vide = même valeur que le nom de l'application. */
+  hub_brand_name?: string
   app_url: string
   app_email: string
   nit: string
@@ -11,6 +13,14 @@ export interface AppSettings {
   mobile_secondary?: string
   address: string
   country: string
+  /** Code ISO alpha-2 du pays d’identité (lecture seule, calculé par l’API). */
+  country_iso2?: string
+  /** ID pays (liste emplacements). */
+  country_id?: number | '' | null
+  /** ID région / province. */
+  state_id?: number | '' | null
+  /** ID ville (cascade pays → région → ville). */
+  city_id?: number | '' | null
   city: string
   postal_code: string
   locker_address: string
@@ -29,6 +39,22 @@ export interface AppSettings {
   number_format: string
   logo_url: string | null
   favicon_url: string | null
+  /** À côté du logo dans la sidebar : afficher le nom de l’app (défaut oui). */
+  show_sidebar_brand_with_logo?: boolean
+}
+
+/** Identité publique (GET /api/branding) — pas besoin du droit manage_settings. */
+export interface PublicBranding {
+  logo_url: string | null
+  favicon_url: string | null
+  site_name: string
+  hub_brand_name: string
+  show_sidebar_brand_with_logo: boolean
+  /** Code ISO 4217 (paramètres généraux de l’application). */
+  currency: string
+  /** Symbole affiché dans l’UI (ex. €, $). */
+  currency_symbol: string
+  currency_position: 'before' | 'after'
 }
 
 export interface Agency {
@@ -41,33 +67,16 @@ export interface Agency {
   is_active: boolean
   users_count?: number
   created_at?: string
-}
-
-export interface Office {
-  id: number
-  name: string
-  address: string
-  city: string
-  country: string
-  contact_name?: string | null
   contact_phone?: string | null
   contact_phone_secondary?: string | null
   contact_email?: string | null
-  /** @deprecated utiliser contact_phone */
-  phone?: string
-  agency_id: number | null
-  agency?: Agency
-  is_active: boolean
-  type?: 'office' | 'branch'
-}
-
-export interface DeliveryTimeNested {
-  id: number
-  label: string
-  description?: string | null
-  shipping_mode_id?: number
-  is_active: boolean
-  sort_order?: number
+  address?: string | null
+  country_id?: number | null
+  state_id?: number | null
+  city_id?: number | null
+  country?: { id: number; name: string } | null
+  state?: { id: number; name: string } | null
+  city?: { id: number; name: string } | null
 }
 
 export interface ShippingMode {
@@ -78,8 +87,10 @@ export interface ShippingMode {
   is_active: boolean
   sort_order?: number
   volumetric_divisor?: number | null
-  delivery_times?: DeliveryTimeNested[]
-  delivery_times_count?: number
+  /** Règle de calcul du tarif pour ce mode (kg, m³, forfait) */
+  default_pricing_type?: 'per_kg' | 'per_volume' | 'flat' | null
+  /** Libellés de délai proposés pour l’assistant et les surcharges de ligne */
+  delivery_options?: string[]
 }
 
 export interface PackagingType {
@@ -92,20 +103,16 @@ export interface PackagingType {
   sort_order?: number
 }
 
-/** @deprecated Utiliser les délais imbriqués sous ShippingMode ; type conservé pour compat. */
-export interface DeliveryTime {
-  id: number
-  label: string
-  shipping_mode_id?: number | null
-  is_active: boolean
-  sort_order?: number
-}
-
 export interface TransportCompany {
   id: number
   name: string
-  logo_url: string | null
-  contact: string | null
+  logo_url?: string | null
+  logo_path?: string | null
+  contact_name?: string | null
+  contact_email?: string | null
+  contact_phone?: string | null
+  /** @deprecated regrouper contact_* côté UI si besoin */
+  contact?: string | null
   is_active: boolean
 }
 
@@ -113,14 +120,12 @@ export interface ShipLineRateRow {
   id?: number
   ship_line_id?: number
   shipping_mode_id: number
-  delivery_time_id?: number | null
+  /** Si renseigné, remplace le libellé de délai du mode pour ce tarif de ligne uniquement */
+  delivery_label_override?: string | null
   unit_price: number
   currency: string
-  pricing_type: 'per_kg' | 'per_volume' | 'flat'
   is_active: boolean
-  volumetric_divisor?: number | null
   shipping_mode?: { id: number; name: string } | null
-  delivery_time?: { id: number; label: string } | null
 }
 
 export interface ShipLineCountryRef {
@@ -152,49 +157,16 @@ export interface ArticleCategory {
   is_active: boolean
 }
 
-export interface Tax {
+/** Extras de facturation (catalogue) — API `settings/billing-extras`. */
+export interface BillingExtra {
   id: number
-  name: string
+  agency_id?: number | null
+  label: string
+  calculation_description?: string | null
   type: 'percentage' | 'fixed'
   value: number
   is_active: boolean
-}
-
-/** Pays (liste tarifs / pivots) — aligné API `settings/shipping-rates`. */
-export interface ShippingRateCountryRef {
-  id: number
-  name: string
-  code?: string | null
-  iso2?: string | null
-  emoji?: string | null
-}
-
-export interface ShippingRate {
-  id: number
-  agency_id?: number | null
-  origin_country_id?: number | null
-  dest_country_id?: number | null
-  shipping_mode_id?: number | null
-  pricing_type: 'per_kg' | 'per_volume' | 'flat'
-  unit_price: number | string
-  currency?: string
-  weight_tiers?: unknown[] | Record<string, unknown> | null
-  is_active: boolean
-  agency?: { id: number; name: string }
-  agencies?: { id: number; name: string }[]
-  origin_country?: ShippingRateCountryRef
-  dest_country?: ShippingRateCountryRef
-  shipping_mode?: ShippingMode
-  shipping_modes?: ShippingMode[]
-  origin_countries?: ShippingRateCountryRef[]
-  destination_countries?: ShippingRateCountryRef[]
-}
-
-export interface ShippingRatesIndexPayload {
-  rates: ShippingRate[]
-  countries: ShippingRateCountryRef[]
-  shippingModes: { id: number; name: string; code?: string | null }[]
-  agencies: { id: number; name: string }[]
+  sort_order?: number
 }
 
 export interface PricingRule {
@@ -281,13 +253,6 @@ export interface TwilioConfig {
   is_active: boolean
   whatsapp_number: string
   whatsapp_active: boolean
-}
-
-export interface DocumentTemplate {
-  id: number
-  type: string
-  name: string
-  content: string
 }
 
 export interface LocationCountry {

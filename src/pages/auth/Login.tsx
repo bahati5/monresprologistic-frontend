@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Package, Truck, Globe, Shield } from "lucide-react";
+import { AuthBrandingMark } from "@/components/auth/AuthBrandingMark";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -56,14 +57,7 @@ export default function Login() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}>
-            <div className="flex items-center gap-3 mb-8">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-                <Package size={24} />
-              </div>
-              <span className="text-2xl font-bold tracking-tight">
-                Monrespro
-              </span>
-            </div>
+            <AuthBrandingMark />
             <h2 className="text-3xl xl:text-4xl font-bold leading-tight mb-4">
               Gerez vos expeditions
               <br />
@@ -71,7 +65,7 @@ export default function Login() {
             </h2>
             <p className="text-white/70 text-lg mb-10 max-w-md">
               Plateforme logistique complete pour le suivi de colis, la
-              consolidation et la livraison Europe-Afrique.
+              regroupement logistique et la livraison Europe-Afrique.
             </p>
           </motion.div>
           <motion.div

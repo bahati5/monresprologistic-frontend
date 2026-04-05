@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 import {
   paymentMethodHooks, agencyPaymentCoordinateHooks,
   usePaymentGateways, useUpdatePaymentGateways,
@@ -12,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { CreditCard, Wallet, Landmark, Plus, Trash2 } from 'lucide-react'
+import { CreditCard, Banknote, Landmark, Plus, Trash2 } from 'lucide-react'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -60,7 +61,7 @@ function PaymentMethodsCard() {
 
   return (
     <>
-      <SettingsCard title="Methodes de paiement" icon={Wallet} badge={`${methods?.length ?? 0}`} isLoading={isLoading}
+      <SettingsCard title="Methodes de paiement" icon={Banknote} badge={`${methods?.length ?? 0}`} isLoading={isLoading}
         actions={<Button size="sm" onClick={() => { setForm({ is_active: true }); setOpen(true) }}><Plus size={14} className="mr-1" />Ajouter</Button>}>
         <div className="space-y-2">
           {methods?.map((m: PaymentMethod) => (
@@ -106,10 +107,10 @@ function PaymentGatewaysCard() {
   const handleSave = () => update.mutate(form)
 
   const gatewayList = [
-    { key: 'paypal', label: 'PayPal', fields: ['client_id', 'client_secret', 'mode'] },
-    { key: 'stripe', label: 'Stripe', fields: ['publishable_key', 'secret_key', 'webhook_secret'] },
-    { key: 'paystack', label: 'Paystack', fields: ['public_key', 'secret_key'] },
-    { key: 'wire_transfer', label: 'Virement bancaire', fields: ['bank_name', 'account_number', 'iban', 'swift'] },
+    { key: 'paypal', label: 'PayPal', fields: ['client_id', 'client_secret', 'mode'], functional: false },
+    { key: 'stripe', label: 'Stripe', fields: ['publishable_key', 'secret_key', 'webhook_secret'], functional: false },
+    { key: 'paystack', label: 'Paystack', fields: ['public_key', 'secret_key'], functional: false },
+    { key: 'wire_transfer', label: 'Virement bancaire', fields: ['bank_name', 'account_number', 'iban', 'swift'], functional: true },
   ]
 
   return (
@@ -118,12 +119,17 @@ function PaymentGatewaysCard() {
         {gatewayList.map(gw => {
           const cfg = form[gw.key] || {}
           return (
-            <div key={gw.key} className="rounded-lg border p-4 space-y-3">
+            <div key={gw.key} className={cn("rounded-lg border p-4 space-y-3", !gw.functional && "opacity-60 bg-muted/20 grayscale-[0.5]")}>
               <div className="flex items-center justify-between">
-                <p className="font-medium text-sm">{gw.label}</p>
-                <Switch checked={!!cfg.is_active} onCheckedChange={v => set(gw.key, 'is_active', v)} />
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm">{gw.label}</p>
+                  {!gw.functional && (
+                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-500/10">Bientôt disponible</Badge>
+                  )}
+                </div>
+                <Switch checked={!!cfg.is_active} onCheckedChange={v => set(gw.key, 'is_active', v)} disabled={!gw.functional} />
               </div>
-              {cfg.is_active && (
+              {cfg.is_active && gw.functional && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {gw.fields.map(f => (
                     <div key={f} className="space-y-1">

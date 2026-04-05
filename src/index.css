@@ -102,6 +102,10 @@
   * {
     @apply border-border;
   }
+  /* Échelle UI plus compacte (défaut navigateur 16px → 14px) : rem Tailwind suit cette base. */
+  html {
+    font-size: 14px;
+  }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;

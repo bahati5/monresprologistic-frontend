@@ -31,7 +31,7 @@ export function useCreateShipmentNotice() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['shipment-notices'] })
-      toast.success('Avis d\'expedition cree')
+      toast.success('Colis attendu enregistré')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
   })
@@ -192,8 +192,8 @@ export function useCreateCustomerPackage() {
 export function useUpdateCustomerPackageStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, status_id, note }: { id: number; status_id: number; note?: string }) =>
-      api.post(`/api/customer-packages/${id}/update-status`, { status_id, note }).then(r => r.data),
+    mutationFn: ({ id, status, notes }: { id: number; status: string; notes?: string }) =>
+      api.post(`/api/customer-packages/${id}/update-status`, { status, notes }).then((r) => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['customer-packages', vars.id] })
       qc.invalidateQueries({ queryKey: ['customer-packages'] })

@@ -4,7 +4,6 @@ export type ShipmentWorkflowStep =
   | 'registration'
   | 'documents'
   | 'checkout'
-  | 'dispatch'
 
 export interface ShipmentWorkflowContextType {
   currentStep: ShipmentWorkflowStep
@@ -35,7 +34,6 @@ const STEP_ORDER: ShipmentWorkflowStep[] = [
   'registration',
   'documents',
   'checkout',
-  'dispatch',
 ]
 
 export const ShipmentWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -76,7 +74,7 @@ export const ShipmentWorkflowProvider: React.FC<{ children: React.ReactNode }> =
     setCompletedSteps([])
   }, [])
 
-  const canGoNext = currentStep !== 'dispatch'
+  const canGoNext = currentStep !== 'checkout'
   const canGoPrevious = currentStep !== 'registration'
 
   const value: ShipmentWorkflowContextType = {

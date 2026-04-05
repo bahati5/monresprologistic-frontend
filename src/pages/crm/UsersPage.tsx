@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { ListCardsToggle } from '@/components/common/ListCardsToggle'
+import { loadViewMode, saveViewMode, type ListOrCards } from '@/lib/listViewMode'
 import { motion } from 'framer-motion'
 import { useUsers, useCreateUser, useUpdateUser, useToggleUserActive } from '@/hooks/useCrm'
 import { Card, CardContent } from '@/components/ui/card'
@@ -33,6 +35,8 @@ const ROLE_COLORS: Record<string, string> = {
   driver: '#d97706',
 }
 
+const VIEW_KEY = 'users-list-view'
+
 export default function UsersPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -44,6 +48,11 @@ export default function UsersPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({})
+  const [viewMode, setViewMode] = useState<ListOrCards>(() => loadViewMode(VIEW_KEY))
+
+  useEffect(() => {
+    saveViewMode(VIEW_KEY, viewMode)
+  }, [viewMode])
 
   const users = data?.data || []
   const pagination = (data || {}) as any
@@ -71,81 +80,143 @@ export default function UsersPage() {
         <Button onClick={openCreate}><Plus size={16} className="mr-1.5" />Nouvel utilisateur</Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Rechercher..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Rechercher..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <ListCardsToggle mode={viewMode} onModeChange={setViewMode} />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left font-medium">Nom</th>
-                  <th className="px-4 py-3 text-left font-medium">Email</th>
-                  <th className="px-4 py-3 text-left font-medium">Role</th>
-                  <th className="px-4 py-3 text-left font-medium">Statut</th>
-                  <th className="px-4 py-3 text-left font-medium">Inscription</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="border-b">{[...Array(6)].map((_, j) => (
-                      <td key={j} className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded bg-muted" /></td>
-                    ))}</tr>
-                  ))
-                ) : users.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center">
-                    <Users size={40} className="mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="text-muted-foreground">Aucun utilisateur</p>
-                  </td></tr>
-                ) : (
-                  users.map((u: any) => {
-                    const role = u.roles?.[0] || u.role || 'client'
-                    const roleColor = ROLE_COLORS[role] || '#64748B'
-                    return (
-                      <tr key={u.id} className="border-b hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-medium">{displayLocalized(u.name)}</td>
-                        <td className="px-4 py-3 text-sm">{u.email}</td>
-                        <td className="px-4 py-3">
-                          <Badge className="text-xs" style={{ backgroundColor: roleColor + '20', color: roleColor, borderColor: roleColor + '40' }}>
-                            <Shield size={10} className="mr-1" />{ROLE_LABELS[role] || role}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant={u.is_active !== false ? 'default' : 'secondary'} className="text-xs">
-                            {u.is_active !== false ? 'Actif' : 'Inactif'}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {new Date(u.created_at).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal size={14} /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit(u)}><Pencil size={14} className="mr-2" />Modifier</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => toggleStatus.mutate(u.id)}>
-                                {u.is_active !== false ? <><UserX size={14} className="mr-2" />Desactiver</> : <><UserCheck size={14} className="mr-2" />Activer</>}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {viewMode === 'list' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium">Nom</th>
+                    <th className="px-4 py-3 text-left font-medium">Email</th>
+                    <th className="px-4 py-3 text-left font-medium">Role</th>
+                    <th className="px-4 py-3 text-left font-medium">Statut</th>
+                    <th className="px-4 py-3 text-left font-medium">Inscription</th>
+                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className="border-b">{[...Array(6)].map((_, j) => (
+                        <td key={j} className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded bg-muted" /></td>
+                      ))}</tr>
+                    ))
+                  ) : users.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-12 text-center">
+                      <Users size={40} className="mx-auto mb-3 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">Aucun utilisateur</p>
+                    </td></tr>
+                  ) : (
+                    users.map((u: any) => {
+                      const role = u.roles?.[0] || u.role || 'client'
+                      const roleColor = ROLE_COLORS[role] || '#64748B'
+                      return (
+                        <tr key={u.id} className="border-b hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 font-medium">{displayLocalized(u.name)}</td>
+                          <td className="px-4 py-3 text-sm">{u.email}</td>
+                          <td className="px-4 py-3">
+                            <Badge className="text-xs" style={{ backgroundColor: roleColor + '20', color: roleColor, borderColor: roleColor + '40' }}>
+                              <Shield size={10} className="mr-1" />{ROLE_LABELS[role] || role}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={u.is_active !== false ? 'default' : 'secondary'} className="text-xs">
+                              {u.is_active !== false ? 'Actif' : 'Inactif'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {new Date(u.created_at).toLocaleDateString('fr-FR')}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal size={14} /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit(u)}><Pencil size={14} className="mr-2" />Modifier</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => toggleStatus.mutate(u.id)}>
+                                  {u.is_active !== false ? <><UserX size={14} className="mr-2" />Desactiver</> : <><UserCheck size={14} className="mr-2" />Activer</>}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i}><CardContent className="p-4 space-y-2"><div className="h-4 w-28 animate-pulse rounded bg-muted" /></CardContent></Card>
+              ))}
+            </div>
+          ) : users.length === 0 ? (
+            <Card><CardContent className="py-12 text-center">
+              <Users size={40} className="mx-auto mb-3 text-muted-foreground/30" />
+              <p className="text-muted-foreground">Aucun utilisateur</p>
+            </CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {users.map((u: any) => {
+                const role = u.roles?.[0] || u.role || 'client'
+                const roleColor = ROLE_COLORS[role] || '#64748B'
+                return (
+                  <Card key={u.id}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium">{displayLocalized(u.name)}</p>
+                          <p className="text-xs text-muted-foreground break-all">{u.email}</p>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreHorizontal size={14} /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(u)}><Pencil size={14} className="mr-2" />Modifier</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => toggleStatus.mutate(u.id)}>
+                              {u.is_active !== false ? <><UserX size={14} className="mr-2" />Desactiver</> : <><UserCheck size={14} className="mr-2" />Activer</>}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <Badge className="text-xs w-fit" style={{ backgroundColor: roleColor + '20', color: roleColor, borderColor: roleColor + '40' }}>
+                        <Shield size={10} className="mr-1" />{ROLE_LABELS[role] || role}
+                      </Badge>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={u.is_active !== false ? 'default' : 'secondary'} className="text-xs">
+                          {u.is_active !== false ? 'Actif' : 'Inactif'}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground self-center">
+                          Inscrit le {new Date(u.created_at).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {(pagination.last_page ?? 1) > 1 && (
         <div className="flex items-center justify-between">

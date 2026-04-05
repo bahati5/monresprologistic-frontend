@@ -16,12 +16,21 @@ export function useShipments(filters: ShipmentListFilters = {}) {
 export function useShipment(id: number | string | undefined) {
   return useQuery<Shipment>({
     queryKey: ['shipments', id],
-    queryFn: () => api.get(`/api/shipments/${id}`).then(r => r.data?.shipment ?? r.data),
+    queryFn: () =>
+      api.get(`/api/shipments/${id}`).then((r) => {
+        const d = r.data
+        const ship = (d?.shipment ?? d) as Shipment
+        return {
+          ...ship,
+          workflow_steps: d?.workflow_steps ?? ship.workflow_steps,
+          available_transitions: d?.available_transitions ?? ship.available_transitions,
+        }
+      }),
     enabled: !!id,
   })
 }
 
-/** Options assistant (modes, bureaux, % défaut facturation, etc.) — GET /api/shipments/create */
+/** Options assistant (modes, emballages, % défaut facturation, etc.) — GET /api/shipments/create */
 export function useShipmentCreateOptions() {
   return useQuery({
     queryKey: ['shipments', 'create-options'],
@@ -66,8 +75,8 @@ export function usePreviewQuote() {
 export function useUpdateShipmentStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, status_id, note }: { id: number; status_id: number; note?: string }) =>
-      api.post(`/api/shipments/${id}/update-status`, { status_id, note }).then(r => r.data),
+    mutationFn: ({ id, status, notes }: { id: number; status: string; notes?: string }) =>
+      api.post(`/api/shipments/${id}/update-status`, { status, notes }).then((r) => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['shipments', vars.id] })
       qc.invalidateQueries({ queryKey: ['shipments'] })
@@ -127,21 +136,18 @@ export function useDeliverShipment() {
 export function useRecordPayment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: number; amount: number; method: string; reference?: string; note?: string }) =>
-      api.post(`/api/shipments/${id}/record-payment`, data).then(r => r.data),
+    mutationFn: ({ id, amount, method, reference, note }: { id: number; amount: number; method: string; reference?: string; note?: string }) =>
+      api.post(`/api/shipments/${id}/record-payment`, {
+        amount,
+        payment_method: method,
+        reference: reference || undefined,
+        notes: note || undefined,
+      }).then(r => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['shipments', vars.id] })
       toast.success('Paiement enregistre')
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}
-
-export function useShipmentAcceptance(id: number | string | undefined) {
-  return useQuery({
-    queryKey: ['shipments', id, 'acceptance'],
-    queryFn: () => api.get(`/api/shipments/${id}/acceptance`).then(r => r.data),
-    enabled: !!id,
   })
 }
 
@@ -222,15 +228,3 @@ export function useWizardCreateRecipient() {
   })
 }
 
-export function useQuickCreateDeliveryTime() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: { shipping_mode_id: number; label: string; description?: string }) =>
-      api.post('/api/shipment-wizard/quick-create-delivery-time', data).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shipments', 'create-options'] })
-      qc.invalidateQueries({ queryKey: ['settings', 'shipping_modes'] })
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
-  })
-}

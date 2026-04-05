@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, Truck, Globe, Shield } from 'lucide-react'
+import { AuthBrandingMark } from '@/components/auth/AuthBrandingMark'
 
 export default function Register() {
   const [name, setName] = useState('')
@@ -51,12 +52,7 @@ export default function Register() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
-            <div className="flex items-center gap-3 mb-8">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-                <Package size={24} />
-              </div>
-              <span className="text-2xl font-bold tracking-tight">Monrespro</span>
-            </div>
+            <AuthBrandingMark />
             <h2 className="text-3xl xl:text-4xl font-bold leading-tight mb-4">
               Rejoignez des milliers<br />d'utilisateurs satisfaits
             </h2>

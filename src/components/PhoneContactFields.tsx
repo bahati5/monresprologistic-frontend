@@ -25,9 +25,11 @@ type RowProps = {
   value: string
   onChange: (full: string) => void
   disabled?: boolean
+  /** Pays (countries.id) associé à l’indicatif courant — pour préremplir l’adresse. */
+  onDialCountryChange?: (countryId: number | null) => void
 }
 
-function PhoneDialRow({ countries, value, onChange, disabled }: RowProps) {
+function PhoneDialRow({ countries, value, onChange, disabled, onDialCountryChange }: RowProps) {
   const [open, setOpen] = useState(false)
   const [countryId, setCountryId] = useState<number | null>(null)
   const [national, setNational] = useState('')
@@ -39,6 +41,10 @@ function PhoneDialRow({ countries, value, onChange, disabled }: RowProps) {
     setCountryId(cid)
     setNational(nationalDigits)
   }, [value, countries])
+
+  useEffect(() => {
+    onDialCountryChange?.(countryId)
+  }, [countryId, onDialCountryChange])
 
   const selected = countryId != null ? byId.get(countryId) : undefined
   const displayCode = selected?.phonecode ? `+${String(selected.phonecode).replace(/^\+/, '')}` : ''
@@ -128,6 +134,8 @@ type Props = {
   isLoadingCountries?: boolean
   disabled?: boolean
   className?: string
+  /** Indicatif du numéro principal → pays (id) pour préremplissage cascade adresse. */
+  onPrimaryDialCountryChange?: (countryId: number | null) => void
 }
 
 /**
@@ -143,6 +151,7 @@ export function PhoneContactFields({
   isLoadingCountries,
   disabled,
   className,
+  onPrimaryDialCountryChange,
 }: Props) {
   const [showSecond, setShowSecond] = useState(() => secondary.trim().length > 0)
 
@@ -173,7 +182,13 @@ export function PhoneContactFields({
         <p className="text-sm text-muted-foreground">Chargement des indicatifs…</p>
       ) : (
         <>
-          <PhoneDialRow countries={countries} value={primary} onChange={onPrimaryChange} disabled={busy} />
+          <PhoneDialRow
+            countries={countries}
+            value={primary}
+            onChange={onPrimaryChange}
+            disabled={busy}
+            onDialCountryChange={onPrimaryDialCountryChange}
+          />
           {showSecond ? (
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between">

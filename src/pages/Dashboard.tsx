@@ -9,13 +9,14 @@ import { TimelineLog, type TimelineEvent } from '@/components/workflow/TimelineL
 import { staggerContainer, fadeInUp } from '@/lib/animations'
 import {
   Package, Truck, DollarSign, Users, FileText,
-  Bell, CreditCard, Plus, CheckCircle, Wallet,
+  Bell, CreditCard, Plus, CheckCircle, ShoppingBag,
 } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import { displayLocalized } from '@/lib/localizedString'
+import { useFormatMoney } from '@/hooks/useSettings'
 
 const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4']
 
@@ -30,8 +31,36 @@ function isStaffDashboard(type: string): boolean {
   return type === 'admin' || type === 'employee' || type === 'operator'
 }
 
+function MonthlyEvolutionTooltip(props: {
+  active?: boolean
+  payload?: Array<{ dataKey?: string | number; name?: string; value?: unknown }>
+  label?: string
+}) {
+  const { formatMoney } = useFormatMoney()
+  const { active, payload, label } = props
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-lg border bg-popover p-2 text-xs shadow-md">
+      <p className="font-medium mb-1">{label}</p>
+      <ul className="space-y-0.5">
+        {payload.map((entry: { dataKey?: string | number; name?: string; value?: unknown }) => (
+          <li key={String(entry.dataKey)} className="flex justify-between gap-4">
+            <span className="text-muted-foreground">{entry.name}</span>
+            <span className="font-medium tabular-nums">
+              {entry.dataKey === 'revenue' && typeof entry.value === 'number'
+                ? formatMoney(entry.value)
+                : String(entry.value ?? '')}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore()
+  const { formatMoney } = useFormatMoney()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
@@ -94,8 +123,9 @@ export default function Dashboard() {
           subtitle="Suivez vos colis et gerez vos expeditions depuis votre espace personnel."
           gradient={['#0e7490', '#14B8A6'] as const}
           actions={[
-            { label: 'Demander un pickup', href: '/pickups/create', icon: Truck },
-            { label: 'Creer une pre-alerte', href: '/shipment-notices/create', icon: Plus, variant: 'outline' },
+            { label: 'Shopping Assisté', href: '/shopping-assiste/nouveau', icon: ShoppingBag },
+            { label: 'Demander un pickup', href: '/pickups/create', icon: Truck, variant: 'outline' },
+            { label: 'Nouveau Colis Attendu', href: '/shipment-notices/create', icon: Bell, variant: 'outline' },
           ]}
         />
       )}
@@ -133,7 +163,7 @@ export default function Dashboard() {
             delay={1}
           />
           <KpiCard
-            title="Pre-alertes en attente"
+            title="Colis Attendus en attente"
             value={stats.pre_alerts ?? stats.pre_alerts_pending ?? 0}
             icon={Bell}
             color="#F59E0B"
@@ -150,13 +180,14 @@ export default function Dashboard() {
           />
           <KpiCard
             title="Revenus du mois"
-            value={stats.monthly_revenue ?? 0}
+            value={formatMoney(Number(stats.monthly_revenue ?? 0))}
             icon={DollarSign}
             color="#14B8A6"
             trend={stats.revenue_trend ?? undefined}
             trendLabel="vs mois dernier"
             href="/finance/dashboard"
             delay={4}
+            animateValue={false}
           />
           <KpiCard
             title="Clients actifs"
@@ -170,11 +201,10 @@ export default function Dashboard() {
       )}
 
       {dashboardType === 'client' && (
-        <motion.div variants={fadeInUp} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <KpiCard title="Mes pre-alertes" value={stats.pre_alerts ?? data?.preAlertsCount ?? 0} icon={Bell} color="#F59E0B" href="/shipment-notices" delay={0} />
-          <KpiCard title="Mes achats assistes" value={stats.purchase_orders ?? 0} icon={FileText} color="#6366F1" href="/purchase-orders" delay={1} />
+        <motion.div variants={fadeInUp} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <KpiCard title="Colis Attendus" value={stats.pre_alerts ?? data?.preAlertsCount ?? 0} icon={Bell} color="#F59E0B" href="/shipment-notices" delay={0} />
+          <KpiCard title="Shopping Assisté" value={stats.purchase_orders ?? 0} icon={FileText} color="#6366F1" href="/purchase-orders" delay={1} />
           <KpiCard title="Mes expeditions" value={stats.shipments_total ?? 0} icon={Package} color="#3B82F6" href="/shipments" delay={2} />
-          <KpiCard title="Mon solde" value={stats.wallet_balance ?? 0} icon={Wallet} color="#14B8A6" href="/finance/wallets" delay={3} />
         </motion.div>
       )}
 
@@ -222,14 +252,7 @@ export default function Dashboard() {
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(220 9% 46%)" />
                       <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="hsl(220 9% 46%)" />
                       <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} stroke="hsl(220 9% 46%)" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(0 0% 100%)',
-                          border: '1px solid hsl(220 13% 91%)',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
+                      <Tooltip content={<MonthlyEvolutionTooltip />} />
                       <Legend wrapperStyle={{ fontSize: '12px' }} />
                       <Bar yAxisId="left" dataKey="shipments" name="Expeditions" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24} />
                       <Area yAxisId="right" type="monotone" dataKey="revenue" name="Revenus" stroke="#14B8A6" strokeWidth={2} fill="url(#colorRevenue)" />

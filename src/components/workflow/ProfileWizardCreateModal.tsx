@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,14 +10,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { DbCombobox } from '@/components/ui/DbCombobox'
 import { useCreateClient } from '@/hooks/useCrm'
 import { usePhoneCountries } from '@/hooks/useSettings'
 import { useWizardCreateRecipient } from '@/hooks/useShipments'
-import { useLocationCountries, useLocationStates, useLocationCities } from '@/hooks/useLocationCascade'
-import { CountryFlag } from '@/components/CountryFlag'
 import { PhoneContactFields } from '@/components/PhoneContactFields'
-
+import { LocationCascadeWithEnrichment } from '@/components/location/LocationCascadeWithEnrichment'
 export type ProfileWizardCreateMode = 'sender' | 'recipient'
 
 type Props = {
@@ -60,10 +57,8 @@ export function ProfileWizardCreateModal({
   const [countryId, setCountryId] = useState('')
   const [stateId, setStateId] = useState('')
   const [cityId, setCityId] = useState('')
-
-  const { data: countries = [] } = useLocationCountries()
-  const { data: states = [] } = useLocationStates(countryId ? Number(countryId) : undefined)
-  const { data: cities = [] } = useLocationCities(stateId ? Number(stateId) : undefined)
+  const countryIdRef = useRef(countryId)
+  countryIdRef.current = countryId
 
   useEffect(() => {
     if (!open) return
@@ -97,50 +92,14 @@ export function ProfileWizardCreateModal({
     setCityId('')
   }, [open, searchHint])
 
-  useEffect(() => {
+  const handlePrimaryDialCountryChange = useCallback((dialCountryId: number | null) => {
+    if (dialCountryId == null) return
+    const cur = countryIdRef.current
+    if (cur !== '' && cur != null) return
     setStateId('')
     setCityId('')
-  }, [countryId])
-
-  useEffect(() => {
-    setCityId('')
-  }, [stateId])
-
-  const countryOptions = useMemo(
-    () =>
-      countries.map((c) => ({
-        value: String(c.id),
-        label: (
-          <span className="flex items-center gap-2">
-            <CountryFlag emoji={c.emoji} iso2={c.iso2} code={c.code} className="!h-4 !w-5" />
-            <span>{c.name}</span>
-            {c.iso2 ? <span className="text-muted-foreground text-xs">({c.iso2})</span> : null}
-          </span>
-        ),
-        keywords: [c.name, String(c.id), c.code ?? '', c.iso2 ?? ''].filter(Boolean) as string[],
-      })),
-    [countries],
-  )
-
-  const stateOptions = useMemo(
-    () =>
-      states.map((s) => ({
-        value: String(s.id),
-        label: s.name,
-        keywords: [s.name, String(s.id)],
-      })),
-    [states],
-  )
-
-  const cityOptions = useMemo(
-    () =>
-      cities.map((c) => ({
-        value: String(c.id),
-        label: c.name,
-        keywords: [c.name, String(c.id)],
-      })),
-    [cities],
-  )
+    setCountryId(String(dialCountryId))
+  }, [])
 
   const pending = createClient.isPending || createRecipient.isPending
   const canSubmit =
@@ -228,6 +187,7 @@ export function ProfileWizardCreateModal({
               onSecondaryChange={setPhoneSecondary}
               countries={phoneCountries}
               isLoadingCountries={loadingPhoneCountries}
+              onPrimaryDialCountryChange={handlePrimaryDialCountryChange}
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
@@ -247,36 +207,19 @@ export function ProfileWizardCreateModal({
             <Label>Code postal</Label>
             <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} autoComplete="postal-code" />
           </div>
-          <div className="space-y-1.5">
-            <Label>Pays *</Label>
-            <DbCombobox
-              value={countryId}
-              onValueChange={setCountryId}
-              options={countryOptions}
-              placeholder="Choisir…"
-              searchPlaceholder="Filtrer…"
-            />
-          </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Région / province *</Label>
-            <DbCombobox
-              value={stateId}
-              onValueChange={setStateId}
-              options={stateOptions}
-              disabled={!countryId}
-              placeholder={countryId ? 'Choisir…' : 'Pays dabord'}
-              searchPlaceholder="Filtrer…"
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Ville *</Label>
-            <DbCombobox
-              value={cityId}
-              onValueChange={setCityId}
-              options={cityOptions}
-              disabled={!stateId}
-              placeholder={stateId ? 'Choisir…' : 'Région dabord'}
-              searchPlaceholder="Filtrer…"
+            <Label>Pays, région et ville *</Label>
+            <LocationCascadeWithEnrichment
+              value={{
+                countryId: countryId === '' ? '' : Number(countryId),
+                stateId: stateId === '' ? '' : Number(stateId),
+                cityId: cityId === '' ? '' : Number(cityId),
+              }}
+              onChange={(loc) => {
+                setCountryId(loc.countryId === '' || loc.countryId == null ? '' : String(loc.countryId))
+                setStateId(loc.stateId === '' || loc.stateId == null ? '' : String(loc.stateId))
+                setCityId(loc.cityId === '' || loc.cityId == null ? '' : String(loc.cityId))
+              }}
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2">

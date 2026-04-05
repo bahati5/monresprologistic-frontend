@@ -1,6 +1,22 @@
 /* ── Shipment entity types ── */
 
-import type { StatusData } from '.'
+export interface ShipmentStatusPayload {
+  code: string
+  name: string
+  color_hex?: string | null
+}
+
+/** Filtre liste expéditions (codes enum backend). */
+export const SHIPMENT_STATUS_FILTER_OPTIONS: { code: string; name: string }[] = [
+  { code: 'draft', name: 'Brouillon' },
+  { code: 'pending_drop_off', name: 'En attente de dépôt' },
+  { code: 'received_at_hub', name: 'Réceptionné au hub' },
+  { code: 'ready_for_dispatch', name: 'Prêt à l’expédition' },
+  { code: 'in_transit', name: 'En transit' },
+  { code: 'arrived_at_destination', name: 'Arrivé à destination' },
+  { code: 'delivered', name: 'Livré' },
+  { code: 'cancelled', name: 'Annulé' },
+]
 
 export interface ShipmentItem {
   id: number
@@ -28,42 +44,64 @@ export interface ShipmentCharge {
 
 export interface ShipmentLog {
   id: number
-  status: StatusData
-  note: string | null
-  user_name: string | null
+  title?: string | null
+  description?: string | null
+  status?: { code: string; name: string } | null
+  note?: string | null
+  user_name?: string | null
+  changed_by_name?: string | null
+  changed_at?: string | null
   created_at: string
 }
 
 export interface ShipmentPayment {
   id: number
   amount: number
+  currency?: string | null
   method: string
   reference: string | null
   note: string | null
   created_at: string
+  recorded_by?: string | null
 }
 
 export interface Shipment {
   id: number
   tracking_number: string
   reference_code: string | null
-  status: StatusData
-  status_id: number
+  status: ShipmentStatusPayload
+  workflow_steps?: Array<{
+    code: string
+    label: string
+    color?: string
+    completed: boolean
+    current: boolean
+    date?: string | null
+  }>
+  available_transitions?: Array<{ code: string; label: string }>
 
   sender_name: string
-  sender_phone: string
+  sender_phone: string | null
+  sender_phone_secondary?: string | null
   sender_email: string | null
   sender_address: string | null
+  sender_landmark?: string | null
+  sender_zip_code?: string | null
   sender_city: string | null
+  sender_state?: string | null
   sender_country: string | null
   client_id: number | null
   client?: { id: number; name: string; email: string }
 
   recipient_name: string
-  recipient_phone: string
+  recipient_phone: string | null
+  recipient_phone_secondary?: string | null
   recipient_email: string | null
   recipient_address: string | null
+  recipient_landmark?: string | null
+  recipient_zip_code?: string | null
   recipient_city: string | null
+  recipient_state?: string | null
   recipient_country: string | null
   recipient_id: number | null
 
@@ -73,22 +111,19 @@ export interface Shipment {
   ship_line: string | null
   delivery_time: string | null
 
-  origin_office_id: number | null
-  destination_office_id: number | null
-  origin_office?: { id: number; name: string }
-  destination_office?: { id: number; name: string }
-
   driver_id: number | null
   driver?: { id: number; name: string; phone: string }
 
   total_weight: number
   total_volume: number | null
   declared_value: number | null
-  subtotal: number
-  tax_total: number
-  total: number
-  amount_paid: number
-  balance_due: number
+  currency?: string | null
+
+  subtotal?: number | null
+  tax_total?: number | null
+  total?: number | null
+  amount_paid?: number | null
+  balance_due?: number | null
   payment_status?: string
   paid_at?: string | null
 
@@ -128,9 +163,7 @@ export interface ShipmentCreatePayload {
   packaging_type_id?: number
   transport_company_id?: number
   ship_line_id?: number
-  delivery_time_id?: number
-  origin_office_id?: number
-  destination_office_id?: number
+  delivery_time_label?: string
 
   items: Array<{
     description: string
@@ -148,7 +181,7 @@ export interface ShipmentCreatePayload {
 
 export interface ShipmentListFilters {
   search?: string
-  status_id?: number
+  status?: string
   client_id?: number
   driver_id?: number
   from_date?: string

@@ -1,23 +1,26 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Package, Star } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { DbComboboxAsync } from '@/components/ui/DbCombobox'
-import { useSearchProfiles, type ProfileSearchResult } from '@/hooks/useShipments'
-import { useClient } from '@/hooks/useCrm'
-import { ProfileWizardCreateModal } from '@/components/workflow/ProfileWizardCreateModal'
+import { useState, useMemo, useEffect } from "react";
+import { Package, Star } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { DbComboboxAsync } from "@/components/ui/DbCombobox";
+import {
+  useSearchProfiles,
+  type ProfileSearchResult,
+} from "@/hooks/useShipments";
+import { useClient } from "@/hooks/useCrm";
+import { ProfileWizardCreateModal } from "@/components/workflow/ProfileWizardCreateModal";
 
 interface Step1ActorsProps {
-  senderId: string
-  onSenderChange: (id: string) => void
-  recipientId: string
-  onRecipientChange: (id: string) => void
-  errors?: Record<string, string[]>
+  senderId: string;
+  onSenderChange: (id: string) => void;
+  recipientId: string;
+  onRecipientChange: (id: string) => void;
+  errors?: Record<string, string[]>;
 }
 
 function profileOptionLabel(p: ProfileSearchResult) {
-  const sub = [p.email, p.city, p.country].filter(Boolean).join(' · ')
+  const sub = [p.email, p.city, p.country].filter(Boolean).join(" · ");
   return (
     <div className="flex w-full flex-col gap-0.5">
       <span className="font-medium">{p.full_name}</span>
@@ -36,13 +39,15 @@ function profileOptionLabel(p: ProfileSearchResult) {
         )}
       </div>
     </div>
-  )
+  );
 }
 
-function displayNameFromClient(d: { full_name?: string; name?: string } | undefined) {
-  if (!d) return ''
-  const n = (d.full_name ?? d.name ?? '').trim()
-  return n
+function displayNameFromClient(
+  d: { full_name?: string; name?: string } | undefined,
+) {
+  if (!d) return "";
+  const n = (d.full_name ?? d.name ?? "").trim();
+  return n;
 }
 
 export function Step1Actors({
@@ -52,37 +57,44 @@ export function Step1Actors({
   onRecipientChange,
   errors,
 }: Step1ActorsProps) {
-  const [senderQuery, setSenderQuery] = useState('')
-  const [recipientQuery, setRecipientQuery] = useState('')
+  const [senderQuery, setSenderQuery] = useState("");
+  const [recipientQuery, setRecipientQuery] = useState("");
   const [profileModal, setProfileModal] = useState<{
-    mode: 'sender' | 'recipient'
-    hint?: string
-  } | null>(null)
+    mode: "sender" | "recipient";
+    hint?: string;
+  } | null>(null);
 
-  const senderIdNum = senderId ? Number(senderId) : undefined
-  const { data: senderResults, isLoading: senderLoading } = useSearchProfiles(senderQuery)
-  const { data: recipientResults, isLoading: recipientLoading } = useSearchProfiles(
-    recipientQuery,
-    senderIdNum,
-    senderIdNum,
-  )
+  const senderIdNum = senderId ? Number(senderId) : undefined;
+  const { data: senderResults, isLoading: senderLoading } =
+    useSearchProfiles(senderQuery);
+  const { data: recipientResults, isLoading: recipientLoading } =
+    useSearchProfiles(recipientQuery, senderIdNum, senderIdNum);
 
-  const { data: senderClientDetail } = useClient(senderId || undefined)
-  const { data: recipientClientDetail } = useClient(recipientId || undefined)
+  const { data: senderClientDetail } = useClient(senderId || undefined);
+  const { data: recipientClientDetail } = useClient(recipientId || undefined);
 
   useEffect(() => {
-    onRecipientChange('')
-    setRecipientQuery('')
-  }, [senderId]) // eslint-disable-line react-hooks/exhaustive-deps
+    onRecipientChange("");
+    setRecipientQuery("");
+  }, [senderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const senderOptions = useMemo(() => {
     const base = (senderResults ?? []).map((p) => ({
       value: String(p.id),
       label: profileOptionLabel(p),
-      keywords: [p.full_name, p.email ?? '', p.phone ?? '', p.locker_number ?? ''].filter(Boolean),
-    }))
-    const pinned = displayNameFromClient(senderClientDetail)
-    if (senderId && pinned && !base.some((o) => o.value === senderId)) {
+      keywords: [
+        p.full_name,
+        p.email ?? "",
+        p.phone ?? "",
+        p.locker_number ?? "",
+      ].filter(Boolean),
+    }));
+    const pinned = displayNameFromClient(senderClientDetail);
+    if (
+      senderId &&
+      pinned &&
+      !base.some((o) => String(o.value) === String(senderId))
+    ) {
       return [
         {
           value: senderId,
@@ -90,19 +102,28 @@ export function Step1Actors({
           keywords: [pinned],
         },
         ...base,
-      ]
+      ];
     }
-    return base
-  }, [senderResults, senderId, senderClientDetail])
+    return base;
+  }, [senderResults, senderId, senderClientDetail]);
 
   const recipientOptions = useMemo(() => {
     const base = (recipientResults ?? []).map((p) => ({
       value: String(p.id),
       label: profileOptionLabel(p),
-      keywords: [p.full_name, p.email ?? '', p.phone ?? '', p.locker_number ?? ''].filter(Boolean),
-    }))
-    const pinned = displayNameFromClient(recipientClientDetail)
-    if (recipientId && pinned && !base.some((o) => o.value === recipientId)) {
+      keywords: [
+        p.full_name,
+        p.email ?? "",
+        p.phone ?? "",
+        p.locker_number ?? "",
+      ].filter(Boolean),
+    }));
+    const pinned = displayNameFromClient(recipientClientDetail);
+    if (
+      recipientId &&
+      pinned &&
+      !base.some((o) => String(o.value) === String(recipientId))
+    ) {
       return [
         {
           value: recipientId,
@@ -110,10 +131,10 @@ export function Step1Actors({
           keywords: [pinned],
         },
         ...base,
-      ]
+      ];
     }
-    return base
-  }, [recipientResults, recipientId, recipientClientDetail])
+    return base;
+  }, [recipientResults, recipientId, recipientClientDetail]);
 
   return (
     <div className="space-y-4">
@@ -125,7 +146,7 @@ export function Step1Actors({
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Label>Rechercher un profil (min. 2 caractères)</Label>
+            <Label>Rechercher une personne (min. 2 caractères)</Label>
             <DbComboboxAsync
               value={senderId}
               onValueChange={onSenderChange}
@@ -136,15 +157,25 @@ export function Step1Actors({
               searchMinLength={2}
               belowMinText="Saisissez au moins 2 caractères pour lancer la recherche."
               emptyText="Aucun profil trouvé."
-              placeholder={senderQuery.length < 2 ? 'Recherchez puis choisissez…' : 'Choisir un expéditeur…'}
-              onOpenCreateModal={(hint) => setProfileModal({ mode: 'sender', hint })}
+              placeholder={
+                senderQuery.length < 2
+                  ? "Recherchez puis choisissez…"
+                  : "Choisir un expéditeur…"
+              }
+              onOpenCreateModal={(hint) =>
+                setProfileModal({ mode: "sender", hint })
+              }
               createButtonTitle="Nouvel expéditeur"
             />
             {errors?.sender_profile_id && (
-              <p className="text-sm text-destructive">{errors.sender_profile_id[0]}</p>
+              <p className="text-sm text-destructive">
+                {errors.sender_profile_id[0]}
+              </p>
             )}
             {errors?.sender_client_id && (
-              <p className="text-sm text-destructive">{errors.sender_client_id[0]}</p>
+              <p className="text-sm text-destructive">
+                {errors.sender_client_id[0]}
+              </p>
             )}
           </div>
         </CardContent>
@@ -157,7 +188,7 @@ export function Step1Actors({
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Label>Rechercher un profil (min. 2 caractères)</Label>
+              <Label>Rechercher une personne (min. 2 caractères)</Label>
               <DbComboboxAsync
                 value={recipientId}
                 onValueChange={onRecipientChange}
@@ -168,15 +199,25 @@ export function Step1Actors({
                 searchMinLength={2}
                 belowMinText="Saisissez au moins 2 caractères pour lancer la recherche."
                 emptyText="Aucun profil trouvé."
-                placeholder={recipientQuery.length < 2 ? 'Recherchez puis choisissez…' : 'Choisir un destinataire…'}
-                onOpenCreateModal={(hint) => setProfileModal({ mode: 'recipient', hint })}
+                placeholder={
+                  recipientQuery.length < 2
+                    ? "Recherchez puis choisissez…"
+                    : "Choisir un destinataire…"
+                }
+                onOpenCreateModal={(hint) =>
+                  setProfileModal({ mode: "recipient", hint })
+                }
                 createButtonTitle="Nouveau destinataire"
               />
               {errors?.recipient_profile_id && (
-                <p className="text-sm text-destructive">{errors.recipient_profile_id[0]}</p>
+                <p className="text-sm text-destructive">
+                  {errors.recipient_profile_id[0]}
+                </p>
               )}
               {errors?.recipient_id && (
-                <p className="text-sm text-destructive">{errors.recipient_id[0]}</p>
+                <p className="text-sm text-destructive">
+                  {errors.recipient_id[0]}
+                </p>
               )}
             </div>
           </CardContent>
@@ -188,20 +229,22 @@ export function Step1Actors({
           open
           onOpenChange={(o) => !o && setProfileModal(null)}
           mode={profileModal.mode}
-          senderProfileId={profileModal.mode === 'recipient' ? Number(senderId) : undefined}
+          senderProfileId={
+            profileModal.mode === "recipient" ? Number(senderId) : undefined
+          }
           searchHint={profileModal.hint}
           onCreated={(id) => {
-            if (profileModal.mode === 'sender') {
-              onSenderChange(String(id))
-              setSenderQuery('')
+            if (profileModal.mode === "sender") {
+              onSenderChange(String(id));
+              setSenderQuery("");
             } else {
-              onRecipientChange(String(id))
-              setRecipientQuery('')
+              onRecipientChange(String(id));
+              setRecipientQuery("");
             }
-            setProfileModal(null)
+            setProfileModal(null);
           }}
         />
       )}
     </div>
-  )
+  );
 }

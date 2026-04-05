@@ -16,7 +16,7 @@ interface DispatchStepProps {
   shipment: any
   availableTransitions: any[]
   drivers: any[]
-  onDispatch: (data: { status_id: number; notes?: string }) => Promise<void>
+  onDispatch: (data: { status: string; notes?: string }) => Promise<void>
   isProcessing?: boolean
 }
 
@@ -27,7 +27,7 @@ export function DispatchStep({
   onDispatch,
   isProcessing,
 }: DispatchStepProps) {
-  const [selectedStatusId, setSelectedStatusId] = useState('')
+  const [selectedStatusCode, setSelectedStatusCode] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [dispatched, setDispatched] = useState(false)
@@ -41,7 +41,7 @@ export function DispatchStep({
   const driverName = shipment?.assigned_driver_name || shipment?.assigned_driver?.name || null
 
   const handleDispatch = async () => {
-    if (!selectedStatusId) {
+    if (!selectedStatusCode) {
       toast.error('Veuillez sélectionner le prochain statut')
       return
     }
@@ -49,7 +49,7 @@ export function DispatchStep({
     setSubmitting(true)
     try {
       await onDispatch({
-        status_id: parseInt(selectedStatusId),
+        status: selectedStatusCode,
         notes: notes || undefined,
       })
       setDispatched(true)
@@ -167,17 +167,20 @@ export function DispatchStep({
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Prochain statut</Label>
-              <Select value={selectedStatusId} onValueChange={setSelectedStatusId}>
+              <Select value={selectedStatusCode} onValueChange={setSelectedStatusCode}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un statut" />
                 </SelectTrigger>
                 <SelectContent>
                   {(availableTransitions || []).map((s: any) => {
-                    const label = s.name
-                      ? (typeof s.name === 'object' ? displayLocalized(s.name) : s.name)
-                      : s.code
+                    const code = s.code ?? String(s.id)
+                    const label = s.label
+                      ? (typeof s.label === 'object' ? displayLocalized(s.label) : s.label)
+                      : s.name
+                        ? (typeof s.name === 'object' ? displayLocalized(s.name) : s.name)
+                        : code
                     return (
-                      <SelectItem key={s.id} value={String(s.id)}>
+                      <SelectItem key={code} value={code}>
                         {label}
                       </SelectItem>
                     )
@@ -200,7 +203,7 @@ export function DispatchStep({
           <div className="flex justify-end">
             <Button
               onClick={handleDispatch}
-              disabled={submitting || !selectedStatusId || isProcessing}
+              disabled={submitting || !selectedStatusCode || isProcessing}
               size="lg"
               className="gap-2 bg-emerald-600 hover:bg-emerald-700"
             >
