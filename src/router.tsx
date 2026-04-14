@@ -44,6 +44,7 @@ const FinanceDashboardPage = () => lazily(() => import('@/pages/finance/FinanceD
 
 // CRM
 const ClientsPage = () => lazily(() => import('@/pages/crm/ClientsPage'))
+const ClientDetailPage = () => lazily(() => import('@/pages/crm/ClientDetailPage'))
 const UsersPage = () => lazily(() => import('@/pages/crm/UsersPage'))
 const DriversPage = () => lazily(() => import('@/pages/crm/DriversPage'))
 
@@ -56,6 +57,7 @@ const SettingsHub = () => lazily(() => import('@/pages/settings/SettingsHub'))
 // Shopping assisté & colis attendus (création)
 const AssistedShoppingNewPage = () => lazily(() => import('@/pages/shopping/AssistedShoppingNewPage'))
 const AssistedPurchasesListPage = () => lazily(() => import('@/pages/shopping/AssistedPurchasesListPage'))
+const ClientAssistedPurchaseDetailPage = () => lazily(() => import('@/pages/shopping/ClientAssistedPurchaseDetailPage'))
 const AssistedPurchaseQuotePage = () => lazily(() => import('@/pages/shopping/AssistedPurchaseQuotePage'))
 const ShipmentNoticeCreatePage = () => lazily(() => import('@/pages/inbound/ShipmentNoticeCreatePage'))
 
@@ -223,6 +225,7 @@ export const router = createBrowserRouter(
           { path: '/shipment-notices', element: <ShipmentNotices /> },
           { path: '/shopping-assiste/nouveau', element: <AssistedShoppingNewPage /> },
           { path: '/purchase-orders', element: <AssistedPurchasesListPage /> },
+          { path: '/purchase-orders/:id', element: <ClientAssistedPurchaseDetailPage /> },
           { path: '/purchase-orders/:id/chiffrage', element: <AssistedPurchaseQuotePage /> },
           { path: '/customer-packages', element: <CustomerPackages /> },
 
@@ -242,6 +245,7 @@ export const router = createBrowserRouter(
 
           // CRM Management
           { path: '/clients', element: <ClientsPage /> },
+          { path: '/clients/:id', element: <ClientDetailPage /> },
           { path: '/users', element: <UsersPage /> },
           { path: '/drivers', element: <DriversPage /> },
 

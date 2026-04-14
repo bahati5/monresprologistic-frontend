@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   notificationTemplateHooks,
-  useSmtpConfig, useUpdateSmtpConfig,
-  useTwilioConfig, useUpdateTwilioConfig,
+  useSmtpConfig, useUpdateSmtpConfig, useTestSmtpConfig,
+  useTwilioConfig, useUpdateTwilioConfig, useTestTwilioConfig,
 } from '@/hooks/useSettings'
 import { SettingsCard } from './SettingsCard'
 import { CrudSheet } from './CrudSheet'
@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Bell, Mail, MessageSquare, Plus, Pencil } from 'lucide-react'
-import type { NotificationTemplate } from '@/types/settings'
+import type { NotificationTemplate, SmtpConfig, TwilioConfig } from '@/types/settings'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
 
@@ -125,9 +125,11 @@ function TemplatesCard() {
 function SmtpCard() {
   const { data: smtp, isLoading } = useSmtpConfig()
   const update = useUpdateSmtpConfig()
-  const [form, setForm] = useState<Record<string, any>>({})
+  const testSmtp = useTestSmtpConfig()
+  const [form, setForm] = useState<Partial<SmtpConfig>>({})
+  const [testTo, setTestTo] = useState('')
   useEffect(() => { if (smtp) setForm(smtp) }, [smtp])
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const set = (k: keyof SmtpConfig, v: string | number) => setForm(p => ({ ...p, [k]: v }))
 
   return (
     <SettingsCard title="Configuration SMTP (Email)" icon={Mail} isLoading={isLoading}>
@@ -137,7 +139,7 @@ function SmtpCard() {
           <div className="space-y-2"><Label>Port</Label><Input type="number" value={form.port ?? ''} onChange={e => set('port', Number(e.target.value))} placeholder="587" /></div>
           <div className="space-y-2">
             <Label>Chiffrement</Label>
-            <Select value={form.encryption || 'tls'} onValueChange={v => set('encryption', v)}>
+            <Select value={form.encryption || 'tls'} onValueChange={v => set('encryption', v as SmtpConfig['encryption'])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="tls">TLS</SelectItem>
@@ -147,12 +149,29 @@ function SmtpCard() {
             </Select>
           </div>
           <div className="space-y-2"><Label>Utilisateur</Label><Input value={form.username || ''} onChange={e => set('username', e.target.value)} /></div>
-          <div className="space-y-2"><Label>Mot de passe</Label><Input type="password" value={form.password || ''} onChange={e => set('password', e.target.value)} /></div>
+          <div className="space-y-2"><Label>Mot de passe</Label><Input type="password" value={form.password || ''} onChange={e => set('password', e.target.value)} placeholder="Laisser vide pour ne pas modifier" /></div>
           <div className="space-y-2"><Label>Email d'envoi</Label><Input type="email" value={form.from_email || ''} onChange={e => set('from_email', e.target.value)} /></div>
           <div className="space-y-2"><Label>Nom d'envoi</Label><Input value={form.from_name || ''} onChange={e => set('from_name', e.target.value)} /></div>
         </div>
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+          <p className="text-sm text-muted-foreground">Enregistrez la configuration, puis testez l’envoi avec une adresse réelle.</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="space-y-2 flex-1">
+              <Label htmlFor="smtp-test-to">E-mail de test (destinataire)</Label>
+              <Input id="smtp-test-to" type="email" value={testTo} onChange={e => setTestTo(e.target.value)} placeholder="vous@exemple.com" />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={testSmtp.isPending || !testTo.trim()}
+              onClick={() => testSmtp.mutate(testTo.trim())}
+            >
+              {testSmtp.isPending ? 'Envoi...' : 'Envoyer un e-mail de test'}
+            </Button>
+          </div>
+        </div>
         <div className="flex justify-end">
-          <Button onClick={() => update.mutate(form)} disabled={update.isPending}>
+          <Button onClick={() => update.mutate(form as SmtpConfig)} disabled={update.isPending}>
             {update.isPending ? 'Enregistrement...' : 'Enregistrer SMTP'}
           </Button>
         </div>
@@ -164,16 +183,19 @@ function SmtpCard() {
 function TwilioCard() {
   const { data: twilio, isLoading } = useTwilioConfig()
   const update = useUpdateTwilioConfig()
-  const [form, setForm] = useState<Record<string, any>>({})
+  const testTwilio = useTestTwilioConfig()
+  const [form, setForm] = useState<Partial<TwilioConfig>>({})
+  const [testTo, setTestTo] = useState('')
+  const [testChannel, setTestChannel] = useState<'sms' | 'whatsapp'>('sms')
   useEffect(() => { if (twilio) setForm(twilio) }, [twilio])
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const set = <K extends keyof TwilioConfig>(k: K, v: TwilioConfig[K]) => setForm(p => ({ ...p, [k]: v }))
 
   return (
     <SettingsCard title="Configuration Twilio (SMS & WhatsApp)" icon={MessageSquare} isLoading={isLoading}>
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2"><Label>Account SID</Label><Input value={form.account_sid || ''} onChange={e => set('account_sid', e.target.value)} placeholder="ACxxxxxxx" /></div>
-          <div className="space-y-2"><Label>Auth Token</Label><Input type="password" value={form.auth_token || ''} onChange={e => set('auth_token', e.target.value)} /></div>
+          <div className="space-y-2"><Label>Auth Token</Label><Input type="password" value={form.auth_token || ''} onChange={e => set('auth_token', e.target.value)} placeholder="Laisser vide pour ne pas modifier" /></div>
           <div className="space-y-2"><Label>Numero SMS</Label><Input value={form.from_number || ''} onChange={e => set('from_number', e.target.value)} placeholder="+32..." /></div>
           <div className="space-y-2"><Label>Numero WhatsApp</Label><Input value={form.whatsapp_number || ''} onChange={e => set('whatsapp_number', e.target.value)} placeholder="+32..." /></div>
         </div>
@@ -181,8 +203,45 @@ function TwilioCard() {
           <div className="flex items-center gap-2"><Switch checked={!!form.is_active} onCheckedChange={v => set('is_active', v)} /><Label>SMS actif</Label></div>
           <div className="flex items-center gap-2"><Switch checked={!!form.whatsapp_active} onCheckedChange={v => set('whatsapp_active', v)} /><Label>WhatsApp actif</Label></div>
         </div>
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+          <p className="text-sm text-muted-foreground">Après enregistrement : vérifiez les identifiants sans envoyer de message, ou envoyez un SMS / WhatsApp de test (coût Twilio possible).</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={testTwilio.isPending}
+              onClick={() => testTwilio.mutate({})}
+            >
+              {testTwilio.isPending ? 'Vérification...' : 'Vérifier les identifiants Twilio'}
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="space-y-2 flex-1">
+              <Label>Canal de test</Label>
+              <Select value={testChannel} onValueChange={v => setTestChannel(v as 'sms' | 'whatsapp')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sms">SMS</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 flex-[2] min-w-[12rem]">
+              <Label htmlFor="twilio-test-to">Destinataire (E.164, ex. +32470123456)</Label>
+              <Input id="twilio-test-to" value={testTo} onChange={e => setTestTo(e.target.value)} placeholder="+32..." />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={testTwilio.isPending || !testTo.trim()}
+              onClick={() => testTwilio.mutate({ to: testTo.trim(), channel: testChannel })}
+            >
+              {testTwilio.isPending ? 'Envoi...' : 'Envoyer un message de test'}
+            </Button>
+          </div>
+        </div>
         <div className="flex justify-end">
-          <Button onClick={() => update.mutate(form)} disabled={update.isPending}>
+          <Button onClick={() => update.mutate(form as TwilioConfig)} disabled={update.isPending}>
             {update.isPending ? 'Enregistrement...' : 'Enregistrer Twilio'}
           </Button>
         </div>

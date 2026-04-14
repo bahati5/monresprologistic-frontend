@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ListCardsToggle } from '@/components/common/ListCardsToggle'
 import { loadViewMode, saveViewMode, type ListOrCards } from '@/lib/listViewMode'
 import { motion } from 'framer-motion'
@@ -23,6 +24,7 @@ import { displayLocalized } from '@/lib/localizedString'
 const VIEW_KEY = 'clients-list-view'
 
 export default function ClientsPage() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const { data, isLoading } = useClients({ page, search: search || undefined })
@@ -102,7 +104,10 @@ export default function ClientsPage() {
                     </td></tr>
                   ) : (
                     clients.map((c: any) => (
-                      <tr key={c.id} className="border-b hover:bg-muted/30 transition-colors">
+                      <tr key={c.id} 
+                        className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/clients/${c.id}`)}
+                      >
                         <td className="px-4 py-3">
                           <p className="font-medium">{displayLocalized(c.name)}</p>
                           {c.company && <p className="text-xs text-muted-foreground">{displayLocalized(c.company)}</p>}
@@ -113,9 +118,26 @@ export default function ClientsPage() {
                           {c.locker_number ? <Badge variant="outline" className="text-xs font-mono">{c.locker_number}</Badge> : '-'}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge variant={c.is_active ? 'default' : 'secondary'} className="text-xs">
-                            {c.is_active ? 'Actif' : 'Inactif'}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant={c.is_active ? 'default' : 'secondary'} className="text-xs">
+                              {c.is_active ? 'Actif' : 'Inactif'}
+                            </Badge>
+                            {c.is_client && (
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                Client
+                              </Badge>
+                            )}
+                            {c.is_recipient && (
+                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                Destinataire
+                              </Badge>
+                            )}
+                            {c.is_client && c.is_recipient && (
+                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                Les deux
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <DropdownMenu>
@@ -157,7 +179,10 @@ export default function ClientsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {clients.map((c: any) => (
-                <Card key={c.id}>
+                <Card key={c.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate(`/clients/${c.id}`)}
+                >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -189,6 +214,15 @@ export default function ClientsPage() {
                     <div className="flex flex-wrap gap-2 pt-1">
                       {c.locker_number ? <Badge variant="outline" className="text-xs font-mono">Locker {c.locker_number}</Badge> : null}
                       <Badge variant={c.is_active ? 'default' : 'secondary'} className="text-xs">{c.is_active ? 'Actif' : 'Inactif'}</Badge>
+                      {c.is_client && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Client</Badge>
+                      )}
+                      {c.is_recipient && (
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">Destinataire</Badge>
+                      )}
+                      {c.is_client && c.is_recipient && (
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">Les deux</Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

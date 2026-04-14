@@ -1,16 +1,19 @@
-import { useCallback, useState } from 'react'
-import { useForm, useFieldArray, type Resolver } from 'react-hook-form'
+import { useCallback, useMemo, useState } from 'react'
+import { useForm, useFieldArray, Controller, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery } from '@tanstack/react-query'
-import { Link as LinkIcon, ShoppingBag, Trash2, Plus } from 'lucide-react'
+import { Link as LinkIcon, ShoppingBag, Trash2, Plus, UserSearch } from 'lucide-react'
 import api from '@/api/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { DbComboboxAsync, type DbComboboxOption } from '@/components/ui/DbCombobox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useSearchClients } from '@/hooks/useShipments'
 import {
   Select,
   SelectContent,
@@ -41,12 +44,35 @@ const articleLineSchema = z.object({
   merchant_id: z.number().int().positive().optional(),
 })
 
-const assistedShoppingSchema = z.object({
-  items: z.array(articleLineSchema).min(1, 'Ajoutez au moins un article.'),
-  notes: z.string().optional().default(''),
-})
+function buildAssistedShoppingSchema(isStaff: boolean) {
+  return z
+    .object({
+      /** Obligatoire côté UI/API si l’employé crée la demande au nom d’un client. */
+      user_id: z.number().int().positive().optional(),
+      items: z.array(articleLineSchema).min(1, 'Ajoutez au moins un article.'),
+      notes: z.string().optional().default(''),
+    })
+    .superRefine((data, ctx) => {
+      if (isStaff && (data.user_id == null || !Number.isFinite(data.user_id))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'Recherchez et sélectionnez le client pour le compte duquel cette demande est créée.',
+          path: ['user_id'],
+        })
+      }
+    })
+}
 
-export type AssistedShoppingFormValues = z.infer<typeof assistedShoppingSchema>
+export type AssistedShoppingFormValues = z.infer<ReturnType<typeof buildAssistedShoppingSchema>>
+
+type WizardClientSearchRow = {
+  id: number
+  user_id?: number | null
+  name?: string
+  email?: string
+  phone?: string | null
+}
 
 const defaultArticle = (): AssistedShoppingFormValues['items'][number] => ({
   url: '',
@@ -62,6 +88,11 @@ export type AssistedShoppingFormProps = {
   /** État de chargement externe (ex. mutation API) */
   isSubmitting?: boolean
   className?: string
+  /**
+   * Employé / admin : affiche la recherche client obligatoire (création au nom d’un client).
+   * Client final : masqué ; le serveur associe automatiquement `Auth::id()`.
+   */
+  isStaff?: boolean
 }
 
 function normalizeHostname(raw: string): string {
@@ -85,7 +116,14 @@ function findMerchantForHostname(
   return null
 }
 
-export function AssistedShoppingForm({ onSubmit, isSubmitting = false, className }: AssistedShoppingFormProps) {
+export function AssistedShoppingForm({
+  onSubmit,
+  isSubmitting = false,
+  className,
+  isStaff = false,
+}: AssistedShoppingFormProps) {
+  const schema = useMemo(() => buildAssistedShoppingSchema(isStaff), [isStaff])
+
   const {
     register,
     control,
@@ -94,14 +132,38 @@ export function AssistedShoppingForm({ onSubmit, isSubmitting = false, className
     watch,
     formState: { errors },
   } = useForm<AssistedShoppingFormValues>({
-    resolver: zodResolver(assistedShoppingSchema) as Resolver<AssistedShoppingFormValues>,
+    resolver: zodResolver(schema) as Resolver<AssistedShoppingFormValues>,
     defaultValues: {
+      user_id: undefined,
       items: [defaultArticle()],
       notes: '',
     },
     /** Garantit que chaque ligne du tableau envoie bien `name` / `options` au submit. */
     shouldUnregister: false,
   })
+
+  const [clientSearch, setClientSearch] = useState('')
+  const { data: clientsRaw, isFetching: clientsLoading } = useSearchClients(clientSearch)
+
+  const clientComboboxOptions: DbComboboxOption[] = useMemo(() => {
+    const rows = Array.isArray(clientsRaw) ? (clientsRaw as WizardClientSearchRow[]) : []
+    return rows
+      .filter((r) => r.user_id != null && Number(r.user_id) > 0)
+      .map((r) => {
+        const uid = Number(r.user_id)
+        const sub = [r.email, r.phone].filter(Boolean).join(' · ') || 'Compte portail'
+        return {
+          value: String(uid),
+          label: (
+            <div className="flex flex-col items-start gap-0.5 py-0.5 text-left">
+              <span className="font-medium leading-tight">{r.name ?? 'Client'}</span>
+              <span className="text-xs font-normal text-muted-foreground">{sub}</span>
+            </div>
+          ),
+          keywords: [r.name ?? '', r.email ?? '', r.phone ?? ''].filter(Boolean) as string[],
+        }
+      })
+  }, [clientsRaw])
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -180,6 +242,59 @@ export function AssistedShoppingForm({ onSubmit, isSubmitting = false, className
       </header>
 
       <form onSubmit={submit} className="space-y-6">
+        {isStaff ? (
+          <Card className="border-primary/25 bg-primary/[0.03] p-5 shadow-sm ring-1 ring-primary/10 dark:bg-primary/5">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <UserSearch className="h-4 w-4" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label htmlFor="assisted-shopping-client" className="text-base font-semibold">
+                    Client concerné
+                  </Label>
+                  <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
+                    Obligatoire
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  La demande sera enregistrée sur le compte portail de ce client (devis, paiement, suivi).
+                </p>
+              </div>
+            </div>
+            <Controller
+              name="user_id"
+              control={control}
+              render={({ field }) => (
+                <DbComboboxAsync
+                  id="assisted-shopping-client"
+                  value={field.value != null && Number.isFinite(field.value) ? String(field.value) : ''}
+                  onValueChange={(v) => {
+                    const n = v ? Number(v) : NaN
+                    field.onChange(Number.isFinite(n) && n > 0 ? n : undefined)
+                  }}
+                  options={clientComboboxOptions}
+                  filterQuery={clientSearch}
+                  onFilterQueryChange={setClientSearch}
+                  searchMinLength={2}
+                  belowMinText="Saisissez au moins 2 caractères (nom, e-mail ou téléphone)."
+                  placeholder="Rechercher un client…"
+                  searchPlaceholder="Nom, e-mail ou téléphone…"
+                  emptyText="Aucun résultat. Vérifiez l’orthographe ou créez un compte portail depuis le CRM."
+                  isLoading={clientsLoading}
+                  showCreateButton={false}
+                  className={errors.user_id ? 'border-destructive' : undefined}
+                />
+              )}
+            />
+            {errors.user_id ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {errors.user_id.message}
+              </p>
+            ) : null}
+          </Card>
+        ) : null}
+
         <div className="flex flex-col gap-6">
           {fields.map((field, index) => {
             const urlReg = register(`items.${index}.url`)

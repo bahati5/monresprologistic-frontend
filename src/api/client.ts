@@ -9,15 +9,30 @@ const baseURL = import.meta.env.DEV
   ? ''
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
+const DEFAULT_TIMEOUT_MS = 30_000
+
+/** Génération PDF + envoi SMTP peuvent dépasser 30 s (sinon « timeout exceeded » côté navigateur). */
+const LONG_RUNNING_TIMEOUT_MS = 120_000
+const LONG_RUNNING_URL =
+  /\/api\/assisted-purchases\/[^/]+\/(?:quote-preview|quote|resend-quote)(?:\?.*)?$/i
+
 const api = axios.create({
   baseURL,
   withCredentials: true,
   withXSRFToken: true,
-  timeout: 30_000,
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
   },
+})
+
+api.interceptors.request.use((config) => {
+  const u = config.url ?? ''
+  if (LONG_RUNNING_URL.test(u)) {
+    config.timeout = LONG_RUNNING_TIMEOUT_MS
+  }
+  return config
 })
 
 /** Ne pas rediriger : session absente attendue pour savoir si l'utilisateur est connecté. */

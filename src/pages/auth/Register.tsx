@@ -10,8 +10,10 @@ import { Package, Truck, Globe, Shield } from 'lucide-react'
 import { AuthBrandingMark } from '@/components/auth/AuthBrandingMark'
 
 export default function Register() {
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [errors, setErrors] = useState<Record<string, string[]>>({})
@@ -24,7 +26,14 @@ export default function Register() {
     setErrors({})
     setLoading(true)
     try {
-      await register(name, email, password, passwordConfirmation)
+      await register(
+        firstName.trim(),
+        lastName.trim(),
+        email.trim().toLowerCase(),
+        phone.trim(),
+        password,
+        passwordConfirmation,
+      )
       navigate('/dashboard')
     } catch (err: any) {
       if (err.response?.status === 422) {
@@ -109,15 +118,50 @@ export default function Register() {
                     {errors.general[0]}
                   </motion.div>
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nom complet</Label>
-                  <Input id="name" placeholder="Jean Dupont" value={name} onChange={(e) => setName(e.target.value)} required autoFocus className="h-11" />
-                  {errors.name && <p className="text-xs text-destructive">{errors.name[0]}</p>}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="first_name">Prénom</Label>
+                    <Input
+                      id="first_name"
+                      placeholder="Jean"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      autoFocus
+                      className="h-11"
+                    />
+                    {errors.first_name && <p className="text-xs text-destructive">{errors.first_name[0]}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="last_name">Nom</Label>
+                    <Input
+                      id="last_name"
+                      placeholder="Dupont"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      className="h-11"
+                    />
+                    {errors.last_name && <p className="text-xs text-destructive">{errors.last_name[0]}</p>}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" placeholder="votre@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" />
                   {errors.email && <p className="text-xs text-destructive">{errors.email[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Téléphone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+33 6 12 34 56 78"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                  {errors.phone && <p className="text-xs text-destructive">{errors.phone[0]}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">

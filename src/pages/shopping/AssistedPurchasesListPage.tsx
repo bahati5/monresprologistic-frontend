@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MerchantLogoBadge } from '@/components/shopping/MerchantLogoBadge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type RowMerchant = { name?: string; logo_url?: string | null }
 
@@ -40,6 +41,7 @@ const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'paid', label: 'Paiement validé' },
   { value: 'ordered', label: 'Acheté chez le fournisseur' },
   { value: 'arrived_at_hub', label: "Colis reçu à l'entrepôt" },
+  { value: 'converted_to_shipment', label: 'Converti en expédition' },
   { value: 'cancelled', label: 'Annulé' },
 ]
 
@@ -47,6 +49,11 @@ export default function AssistedPurchasesListPage() {
   const { user } = useAuthStore()
   const { data: branding } = usePublicBranding()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>(() => {
+    const t = searchParams.get('tab')
+    return t === 'history' ? 'history' : 'active'
+  })
 
   const isStaff = Boolean(
     user?.roles?.some((r) => ['super_admin', 'agency_admin', 'operator'].includes(r)),
@@ -84,8 +91,9 @@ export default function AssistedPurchasesListPage() {
       date_to: searchParams.get('date_to') || undefined,
       client_search: isStaff ? searchParams.get('client_search') || undefined : undefined,
       merchant_id: merchantIdApi,
+      tab: activeTab,
     }),
-    [searchParams, isStaff, merchantIdApi],
+    [searchParams, isStaff, merchantIdApi, activeTab],
   )
 
   const { data: merchantsRes } = useQuery({
@@ -317,20 +325,39 @@ export default function AssistedPurchasesListPage() {
   )
 
   return (
-    <GenericListPage
-      title="Shopping Assisté"
-      apiPath="/api/assisted-purchases"
-      dataKey="purchases"
-      columns={columns}
-      createPath="/shopping-assiste/nouveau"
-      createLabel="Nouvelle demande"
-      logoUrl={branding?.logo_url ?? null}
-      logoAlt={branding?.site_name ? `${branding.site_name} — logo` : 'Logo'}
-      extraApiParams={extraApiParams}
-      filtersSlot={filtersSlot}
-      {...(isStaff
-        ? { detailPath: (row: Record<string, unknown>) => `/purchase-orders/${row.id}/chiffrage` }
-        : {})}
-    />
+    <div className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          const next = v as 'active' | 'history'
+          setActiveTab(next)
+          const sp = new URLSearchParams(searchParams)
+          sp.set('tab', next)
+          sp.set('page', '1')
+          setSearchParams(sp)
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="active">En cours</TabsTrigger>
+          <TabsTrigger value="history">Historique</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <GenericListPage
+        title="Shopping Assisté"
+        apiPath="/api/assisted-purchases"
+        dataKey="purchases"
+        columns={columns}
+        createPath="/shopping-assiste/nouveau"
+        createLabel="Nouvelle demande"
+        logoUrl={branding?.logo_url ?? null}
+        logoAlt={branding?.site_name ? `${branding.site_name} — logo` : 'Logo'}
+        extraApiParams={extraApiParams}
+        filtersSlot={filtersSlot}
+        detailPath={(row: Record<string, unknown>) =>
+          isStaff ? `/purchase-orders/${row.id}/chiffrage` : `/purchase-orders/${row.id}`
+        }
+      />
+    </div>
   )
 }

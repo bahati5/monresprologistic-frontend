@@ -13,6 +13,10 @@ import {
   Hash,
   Landmark,
   ShoppingBag,
+  RefreshCw,
+  CircleCheck,
+  Package,
+  ArrowRight,
 } from 'lucide-react'
 import { MerchantLogoBadge } from '@/components/shopping/MerchantLogoBadge'
 import { toast } from 'sonner'
@@ -35,6 +39,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -158,6 +163,31 @@ export type AdminShoppingQuoteViewProps = {
   } | null
   /** Si statut `ordered`, affiche le suivi enregistré (lecture seule). */
   orderedSupplierTracking?: string | null
+  /** Titre de page (défaut : chiffrage équipe). */
+  pageHeading?: string
+  /** Sous-titre sous le titre (défaut : texte équipe chiffrage). */
+  pageSubheading?: string
+  /** Renvoyer le devis au client (e-mail + notification). */
+  resendQuoteAction?: {
+    onResend: () => void | Promise<void>
+    isPending: boolean
+  } | null
+  /** Valider le paiement reçu (statut « Devis disponible »). */
+  markPaidAction?: {
+    onMarkPaid: () => void | Promise<void>
+    isPending: boolean
+  } | null
+  /** Titre de la carte coordonnées (défaut : « Client »). */
+  clientSectionTitle?: string
+  /** Convertir l'achat assisté en expédition logistique (statut arrived_at_hub ou ordered). */
+  convertToShipmentAction?: {
+    onConvert: () => void | Promise<void>
+    isPending: boolean
+  } | null
+  /** ID du shipment déjà converti (lecture seule, affiché comme lien). */
+  convertedShipmentId?: number | null
+  /** URL de la preuve de paiement téléversée par le client (affichée côté admin). */
+  paymentProofUrl?: string | null
 }
 
 const STATUS_HEX: Record<string, string> = {
@@ -166,6 +196,7 @@ const STATUS_HEX: Record<string, string> = {
   paid: '#059669',
   ordered: '#7c3aed',
   arrived_at_hub: '#16a34a',
+  converted_to_shipment: '#4f46e5',
   cancelled: '#dc2626',
 }
 
@@ -199,6 +230,14 @@ export function AdminShoppingQuoteView({
   readonlyQuoteDetails = null,
   markOrderedAction = null,
   orderedSupplierTracking = null,
+  pageHeading,
+  pageSubheading,
+  resendQuoteAction = null,
+  markPaidAction = null,
+  clientSectionTitle = 'Client',
+  convertToShipmentAction = null,
+  convertedShipmentId = null,
+  paymentProofUrl = null,
 }: AdminShoppingQuoteViewProps) {
   const { formatMoney, branding } = useFormatMoney()
   const [unitPrices, setUnitPrices] = useState<Record<string, string>>(() => {
@@ -232,6 +271,7 @@ export function AdminShoppingQuoteView({
 
   const [supplierTrackingInput, setSupplierTrackingInput] = useState('')
   const [confirmOrderWithoutTracking, setConfirmOrderWithoutTracking] = useState(false)
+  const [confirmConvertOpen, setConfirmConvertOpen] = useState(false)
 
   const subtotal = useMemo(() => {
     let sum = 0
@@ -258,6 +298,13 @@ export function AdminShoppingQuoteView({
       return { line, unitPrice: u, lineTotal: lt }
     })
   }, [lines, unitPrices])
+
+  const defaultSubheading =
+    'Vérifiez les liens fournis par le client, saisissez les prix réels constatés sur le site marchand, puis ajoutez vos frais de service avant d’envoyer le devis.'
+  const resolvedHeading =
+    pageHeading != null && pageHeading.trim() !== '' ? pageHeading.trim() : `Chiffrage de la demande #${requestId}`
+  const resolvedSubheading =
+    pageSubheading != null && pageSubheading.trim() !== '' ? pageSubheading.trim() : defaultSubheading
 
   const statusHex = STATUS_HEX[status.code] ?? '#64748b'
   const badgeStyle =
@@ -364,9 +411,7 @@ export function AdminShoppingQuoteView({
       >
         <div className="space-y-3 min-w-0">
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-              Chiffrage de la demande #{requestId}
-            </h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">{resolvedHeading}</h1>
             <Badge
               className={cn(
                 'text-xs font-semibold px-2.5 py-0.5 shrink-0',
@@ -379,16 +424,13 @@ export function AdminShoppingQuoteView({
               {status.label}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Vérifiez les liens fournis par le client, saisissez les prix réels constatés sur le site
-            marchand, puis ajoutez vos frais de service avant d&apos;envoyer le devis.
-          </p>
+          <p className="text-sm text-muted-foreground">{resolvedSubheading}</p>
 
           <Card className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
             <CardHeader className="pb-3 bg-muted/30 border-b border-border/60">
               <CardTitle className="text-base flex items-center gap-2 font-semibold text-foreground">
                 <User className="h-4 w-4 text-[#3d3d69] shrink-0" aria-hidden />
-                Client
+                {clientSectionTitle}
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
                 Coordonnées associées à la demande — vue synthèse
@@ -497,6 +539,113 @@ export function AdminShoppingQuoteView({
                   </Button>
                 </CardContent>
               </Card>
+            </motion.div>
+          ) : null}
+
+          {convertedShipmentId != null ? (
+            <motion.div variants={fadeInUp}>
+              <Card className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-indigo-50/50 dark:border-indigo-500/25 dark:bg-indigo-500/10 shadow-sm">
+                <CardHeader className="pb-2 pt-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-indigo-900 dark:text-indigo-200">
+                    <Package className="h-4 w-4 shrink-0" aria-hidden />
+                    Converti en expédition
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Cet achat assisté a été converti en dossier d'expédition logistique.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4 pt-0">
+                  <a
+                    href={`/shipments/${convertedShipmentId}`}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300 hover:underline"
+                  >
+                    Voir l'expédition #{convertedShipmentId}
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </a>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : null}
+
+          {convertToShipmentAction && convertedShipmentId == null ? (
+            <motion.div variants={fadeInUp}>
+              <Card className="overflow-hidden rounded-2xl border border-blue-300/70 bg-gradient-to-br from-blue-50/90 to-background dark:border-blue-500/35 dark:from-blue-950/40 dark:to-card shadow-md ring-1 ring-blue-500/15">
+                <CardHeader className="pb-2 border-b border-blue-200/60 dark:border-blue-500/20 bg-blue-100/40 dark:bg-blue-950/30">
+                  <CardTitle className="text-base flex items-center gap-2 font-semibold text-blue-900 dark:text-blue-100">
+                    <Package className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-300" aria-hidden />
+                    Pont vers l'expédition
+                  </CardTitle>
+                  <CardDescription className="text-xs text-blue-900/80 dark:text-blue-200/80">
+                    Le colis est au hub. Créez le dossier d'expédition pour peser le colis, calculer le fret et facturer le client.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-5">
+                  <Button
+                    type="button"
+                    size="lg"
+                    disabled={convertToShipmentAction.isPending}
+                    className="h-12 w-full sm:w-auto gap-2 text-base font-semibold bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500 shadow-md"
+                    onClick={() => setConfirmConvertOpen(true)}
+                  >
+                    <Package className="h-5 w-5 shrink-0" aria-hidden />
+                    {convertToShipmentAction.isPending
+                      ? 'Conversion en cours…'
+                      : '\uD83D\uDCE6 Convertir en Expédition Logistique'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : null}
+
+          {resendQuoteAction || markPaidAction ? (
+            <motion.div variants={fadeInUp} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {resendQuoteAction ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={resendQuoteAction.isPending}
+                  onClick={() => void resendQuoteAction.onResend()}
+                >
+                  <RefreshCw
+                    className={cn('h-4 w-4 shrink-0', resendQuoteAction.isPending && 'animate-spin')}
+                    aria-hidden
+                  />
+                  {resendQuoteAction.isPending ? 'Envoi…' : 'Renvoyer le devis au client'}
+                </Button>
+              ) : null}
+              {markPaidAction ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                  disabled={markPaidAction.isPending}
+                  onClick={() => void markPaidAction.onMarkPaid()}
+                >
+                  <CircleCheck className="h-4 w-4 shrink-0" aria-hidden />
+                  {markPaidAction.isPending ? 'Validation…' : 'Valider le paiement reçu'}
+                </Button>
+              ) : null}
+            </motion.div>
+          ) : null}
+
+          {paymentProofUrl ? (
+            <motion.div variants={fadeInUp}>
+              <div className="flex items-center gap-3 rounded-xl border border-amber-200/70 bg-amber-50/50 px-4 py-3 dark:border-amber-500/20 dark:bg-amber-950/20">
+                <ExternalLink className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+                <span className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                  Le client a téléversé une preuve de paiement
+                </span>
+                <a
+                  href={paymentProofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-amber-300/60 bg-white px-3 py-1 text-sm font-semibold text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+                >
+                  Voir la preuve
+                </a>
+              </div>
             </motion.div>
           ) : null}
         </div>
@@ -779,7 +928,7 @@ export function AdminShoppingQuoteView({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={markOrderedAction?.isSubmitting}>Annuler</AlertDialogCancel>
-            <Button
+            <AlertDialogAction
               type="button"
               className="bg-violet-600 text-white hover:bg-violet-700 focus-visible:ring-violet-500"
               disabled={markOrderedAction?.isSubmitting}
@@ -789,7 +938,33 @@ export function AdminShoppingQuoteView({
               }}
             >
               Confirmer sans suivi
-            </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmConvertOpen} onOpenChange={setConfirmConvertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convertir en expédition logistique ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cela va créer un dossier d'expédition pour peser le colis et facturer le fret.
+              L'achat assisté sera marqué comme converti et ne pourra plus être modifié. Continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={convertToShipmentAction?.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              className="bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500"
+              disabled={convertToShipmentAction?.isPending}
+              onClick={() => {
+                setConfirmConvertOpen(false)
+                void convertToShipmentAction?.onConvert()
+              }}
+            >
+              {convertToShipmentAction?.isPending ? 'Conversion…' : 'Confirmer la conversion'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

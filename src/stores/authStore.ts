@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { AuthUser } from '@/types'
 import api from '@/api/client'
+import { normalizeAuthUser } from '@/lib/authUser'
 
 interface AuthState {
   user: AuthUser | null
@@ -8,7 +9,14 @@ interface AuthState {
   isAuthenticated: boolean
   fetchUser: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string, password_confirmation: string) => Promise<void>
+  register: (
+    first_name: string,
+    last_name: string,
+    email: string,
+    phone: string,
+    password: string,
+    password_confirmation: string,
+  ) => Promise<void>
   logout: () => Promise<void>
   setUser: (user: AuthUser | null) => void
 }
@@ -22,7 +30,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true })
       const { data } = await api.get('/api/auth/user')
-      set({ user: data.user, isAuthenticated: true, isLoading: false })
+      set({
+        user: normalizeAuthUser(data.user),
+        isAuthenticated: true,
+        isLoading: false,
+      })
     } catch {
       set({ user: null, isAuthenticated: false, isLoading: false })
     }
@@ -34,13 +46,27 @@ export const useAuthStore = create<AuthState>((set) => ({
       login: email.trim().toLowerCase(),
       password,
     })
-    set({ user: data.user, isAuthenticated: true })
+    set({ user: normalizeAuthUser(data.user), isAuthenticated: true })
   },
 
-  register: async (name: string, email: string, password: string, password_confirmation: string) => {
+  register: async (
+    first_name: string,
+    last_name: string,
+    email: string,
+    phone: string,
+    password: string,
+    password_confirmation: string,
+  ) => {
     await api.get('/sanctum/csrf-cookie')
-    const { data } = await api.post('/api/auth/register', { name, email, password, password_confirmation })
-    set({ user: data.user, isAuthenticated: true })
+    const { data } = await api.post('/api/auth/register', {
+      first_name,
+      last_name,
+      email,
+      phone,
+      password,
+      password_confirmation,
+    })
+    set({ user: normalizeAuthUser(data.user), isAuthenticated: true })
   },
 
   logout: async () => {
