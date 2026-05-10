@@ -1,6 +1,10 @@
+import { ShoppingBag, Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+
 import GenericListPage from '@/pages/GenericListPage'
 import { useAuthStore } from '@/stores/authStore'
 import { usePublicBranding } from '@/hooks/useSettings'
+import { Button } from '@/components/ui/button'
 import { AssistedPurchasesKanbanSection } from '@/components/shopping/list/AssistedPurchasesKanbanSection'
 import { AssistedPurchasesListFilters } from '@/components/shopping/list/AssistedPurchasesListFilters'
 import { AssistedPurchasesListPageTabs } from '@/components/shopping/list/AssistedPurchasesListPageTabs'
@@ -25,6 +29,33 @@ export default function AssistedPurchasesListPage() {
 
   return (
     <div className="space-y-4">
+      {/* Header glass gradient */}
+      <div className="bg-linear-to-r from-[#073763] to-[#0b5394] rounded-xl p-6 text-white shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
+              <ShoppingBag className="h-6 w-6" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-light">Shopping assisté</h1>
+              <p className="text-white/70 text-sm font-light mt-0.5">
+                Gérez les demandes d'achat, les devis et les commandes fournisseur.
+              </p>
+            </div>
+          </div>
+          <Button
+            asChild
+            size="sm"
+            className="bg-white/15 hover:bg-white/25 text-white border border-white/20 gap-1.5 backdrop-blur-sm"
+          >
+            <Link to="/shopping-assiste/nouveau">
+              <Plus size={14} />
+              Nouvelle demande
+            </Link>
+          </Button>
+        </div>
+      </div>
+
       <AssistedPurchasesListPageTabs
         activeTab={activeTab}
         onActiveTabChange={setActiveTab}
@@ -35,13 +66,11 @@ export default function AssistedPurchasesListPage() {
 
       {viewMode === 'list' ? (
         <GenericListPage
-          title="Shopping Assisté"
+          title=""
           apiPath="/api/assisted-purchases"
           dataKey="purchases"
           columns={columns}
-          createPath="/shopping-assiste/nouveau"
-          createLabel="Nouvelle demande"
-          logoUrl={branding?.logo_url ?? null}
+          logoUrl={null}
           logoAlt={branding?.site_name ? `${branding.site_name} — logo` : 'Logo'}
           extraApiParams={extraApiParams}
           filtersSlot={<AssistedPurchasesListFilters {...filtersProps} />}

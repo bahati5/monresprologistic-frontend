@@ -15,7 +15,7 @@ function isStaffFromUser(user: AuthUser | null) {
 export function useAssistedPurchasesListPage(user: AuthUser | null) {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban')
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
 
   const [activeTab, setActiveTabState] = useState<'active' | 'history'>(() => {
     const t = searchParams.get('tab')

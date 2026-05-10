@@ -1,4 +1,4 @@
-import { ShoppingBag } from 'lucide-react'
+import { ShoppingBag, Send, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -52,35 +52,42 @@ export function AssistedShoppingForm({
   })
 
   return (
-    <div className={cn('mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-2', className)}>
-      <header className="space-y-3 text-center sm:text-left">
-        <div className="flex items-start justify-between">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-inner ring-1 ring-primary/15 sm:mx-0">
-            <ShoppingBag className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+    <div className={cn('mx-auto max-w-4xl space-y-5 pb-16', className)}>
+      {/* Header glass gradient */}
+      <div className="bg-linear-to-r from-[#073763] to-[#0b5394] rounded-xl p-6 text-white shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
+              <ShoppingBag className="h-6 w-6" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-light">Nouvelle demande</h1>
+              <p className="text-white/70 text-sm font-light mt-0.5">
+                Collez les liens de vos articles, notre équipe s'occupe de l'achat et de l'expédition.
+              </p>
+            </div>
           </div>
           {headerSlot}
         </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-            Nouvelle demande de Shopping Assisté
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-            Collez les liens de vos articles, notre équipe s’occupe de l’achat et de l’expédition.
-          </p>
-        </div>
-      </header>
+      </div>
 
-      <form onSubmit={submit} className="space-y-6">
-        {isStaff ? (
-          <AssistedShoppingClientFields
-            control={control}
-            errors={errors}
-            clientComboboxOptions={clientComboboxOptions}
-            clientSearch={clientSearch}
-            setClientSearch={setClientSearch}
-            clientsLoading={clientsLoading}
-          />
-        ) : null}
+      <form onSubmit={submit} className="space-y-5">
+        {isStaff && (
+          <div className="glass neo-raised rounded-xl p-4">
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <AlertCircle size={14} className="text-[#073763]" />
+              Client associé
+            </h2>
+            <AssistedShoppingClientFields
+              control={control}
+              errors={errors}
+              clientComboboxOptions={clientComboboxOptions}
+              clientSearch={clientSearch}
+              setClientSearch={setClientSearch}
+              clientsLoading={clientsLoading}
+            />
+          </div>
+        )}
 
         <AssistedShoppingLineItems
           fields={fields}
@@ -99,26 +106,29 @@ export function AssistedShoppingForm({
           extractProductFromUrl={extractProductFromUrl}
         />
 
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes supplémentaires pour notre équipe</Label>
+        <div className="glass neo-raised rounded-xl p-4 space-y-2">
+          <Label htmlFor="notes" className="text-sm font-semibold">
+            Notes supplémentaires
+          </Label>
           <Textarea
             id="notes"
-            rows={4}
+            rows={3}
             placeholder="Instructions, délais souhaités, préférences de livraison…"
-            className="min-h-[120px] resize-y"
+            className="min-h-[80px] resize-y text-sm"
             {...register('notes')}
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 pt-2">
+        <div className="flex flex-wrap items-center gap-3">
           {actionsSlot}
           <Button
             type="submit"
             size="lg"
             disabled={isSubmitting}
-            className="h-12 flex-1 text-base font-semibold shadow-md transition-shadow hover:shadow-lg"
+            className="flex-1 h-11 text-sm font-semibold bg-[#073763] hover:bg-[#0b5394] text-white shadow-md gap-2"
           >
-            {isSubmitting ? 'Envoi en cours…' : 'Demander un devis (Gratuit)'}
+            <Send size={16} />
+            {isSubmitting ? 'Envoi en cours…' : 'Demander un devis (gratuit)'}
           </Button>
         </div>
       </form>

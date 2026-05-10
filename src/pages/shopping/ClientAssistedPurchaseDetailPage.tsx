@@ -7,6 +7,7 @@ import api from '@/api/client'
 import { getApiErrorMessage } from '@/lib/apiErrors'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { AdminShoppingQuoteView } from '@/components/shopping/AdminShoppingQuoteView'
 import { usePublicBranding } from '@/hooks/useSettings'
 import {
@@ -67,7 +68,7 @@ export default function ClientAssistedPurchaseDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['assisted-purchase', id] })
     },
     onError: (err: unknown) => {
-      toast.error(getApiErrorMessage(err, 'Impossible d’envoyer la confirmation.'))
+      toast.error(getApiErrorMessage(err, 'Impossible d\u2019envoyer la confirmation.'))
     },
   })
 
@@ -137,19 +138,19 @@ export default function ClientAssistedPurchaseDetailPage() {
       : null
 
   return (
-    <div className="space-y-6">
-      {statusCode === 'converted_to_shipment' && convertedShipmentId != null ? (
+    <div className="space-y-4">
+      {statusCode === 'converted_to_shipment' && convertedShipmentId != null && (
         <ConvertedToShipmentBanner
           convertedShipmentId={convertedShipmentId}
           onOpenShipment={(sid) => navigate(`/shipments/${sid}`)}
         />
-      ) : null}
+      )}
 
       <AdminShoppingQuoteView
         key={String(p.id)}
         requestId={String(p.id)}
-        pageHeading={`Votre devis — demande n°${p.id}`}
-        pageSubheading="Consultez le détail des montants et les instructions de paiement communiquées par notre équipe."
+        pageHeading={`Votre devis — demande n\u00B0${p.id}`}
+        pageSubheading="Consultez le d\u00E9tail des montants et les instructions de paiement."
         clientSectionTitle="Votre compte"
         status={{ code: statusCode, label: statusLabel, toneClassName }}
         client={buildShoppingQuoteClient(p)}
@@ -161,14 +162,14 @@ export default function ClientAssistedPurchaseDetailPage() {
         initialBankFeePercentage={initialBankPct}
         initialPaymentMethodsNote={initialPaymentNote}
         headerActions={
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
+          <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs" onClick={() => navigate(-1)}>
+            <ArrowLeft size={14} />
             Retour
           </Button>
         }
       />
 
-      {statusCode === 'awaiting_payment' ? (
+      {statusCode === 'awaiting_payment' && (
         <ClientPaymentAckSection
           ackMessage={ackMessage}
           setAckMessage={setAckMessage}
@@ -181,7 +182,7 @@ export default function ClientAssistedPurchaseDetailPage() {
             void ackMutation.mutateAsync({ message: ackMessage, file: proofFile })
           }
         />
-      ) : null}
+      )}
 
       <PurchaseDetailCommentsCard purchaseId={Number(p.id)} />
     </div>

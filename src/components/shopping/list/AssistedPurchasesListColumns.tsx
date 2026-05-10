@@ -12,6 +12,18 @@ export function getAssistedPurchasesListColumns(isStaff: boolean): {
 }[] {
   return [
     { key: 'id', label: '#' },
+    ...(isStaff
+      ? [
+          {
+            key: 'user',
+            label: 'Client',
+            render: (r: Record<string, unknown>) => {
+              const u = r.user as { name?: string } | undefined
+              return displayLocalized(u?.name) || '—'
+            },
+          },
+        ]
+      : []),
     {
       key: 'article_label',
       label: 'Article',
@@ -85,18 +97,6 @@ export function getAssistedPurchasesListColumns(isStaff: boolean): {
         return label
       },
     },
-    ...(isStaff
-      ? [
-          {
-            key: 'user',
-            label: 'Client',
-            render: (r: Record<string, unknown>) => {
-              const u = r.user as { name?: string } | undefined
-              return displayLocalized(u?.name) || '—'
-            },
-          },
-        ]
-      : []),
     {
       key: 'created_at',
       label: 'Date',

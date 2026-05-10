@@ -81,18 +81,19 @@ export function AdminShoppingQuoteView({
       variants={staggerContainer}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-4"
     >
-      <motion.div
-        variants={fadeInUp}
-        className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
-      >
-        <div className="space-y-3 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">{vm.resolvedHeading}</h1>
+      {/* TOP BAR: Header compact + statut + actions */}
+      <motion.div variants={fadeInUp} className="glass neo-raised rounded-xl px-5 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            {headerActions}
+            <h1 className="text-lg font-semibold tracking-tight text-foreground whitespace-nowrap">
+              {vm.resolvedHeading}
+            </h1>
             <Badge
               className={cn(
-                'text-xs font-semibold px-2.5 py-0.5 shrink-0',
+                'text-[11px] font-semibold px-2 py-0.5 shrink-0',
                 status.toneClassName?.trim()
                   ? cn(status.toneClassName, 'border-0')
                   : 'border',
@@ -101,75 +102,83 @@ export function AdminShoppingQuoteView({
             >
               {status.label}
             </Badge>
+            {draftIndicator}
           </div>
-          <p className="text-sm text-muted-foreground">{vm.resolvedSubheading}</p>
 
-          <QuoteClientCard client={client} clientSectionTitle={clientSectionTitle} />
-
-          <QuoteMarkOrderedDialog
-            statusCode={status.code}
-            orderedSupplierTracking={orderedSupplierTracking}
-            markOrderedAction={markOrderedAction}
-            supplierTrackingInput={vm.supplierTrackingInput}
-            onSupplierTrackingChange={vm.setSupplierTrackingInput}
-            confirmOrderWithoutTracking={vm.confirmOrderWithoutTracking}
-            onConfirmOrderWithoutTrackingChange={vm.setConfirmOrderWithoutTracking}
-            onMarkOrderedClick={vm.handleMarkOrderedClick}
-            onSubmitMarkOrdered={vm.submitMarkOrdered}
-          />
-
-          <QuoteActionsBar
-            group="afterClient"
-            convertedShipmentId={convertedShipmentId}
-            convertToShipmentAction={convertToShipmentAction}
-            confirmConvertOpen={vm.confirmConvertOpen}
-            onConfirmConvertOpenChange={vm.setConfirmConvertOpen}
-            resendQuoteAction={resendQuoteAction}
-            markPaidAction={markPaidAction}
-            paymentProofUrl={paymentProofUrl}
-          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <QuoteActionsBar
+              group="afterClient"
+              convertedShipmentId={convertedShipmentId}
+              convertToShipmentAction={convertToShipmentAction}
+              confirmConvertOpen={vm.confirmConvertOpen}
+              onConfirmConvertOpenChange={vm.setConfirmConvertOpen}
+              resendQuoteAction={resendQuoteAction}
+              markPaidAction={markPaidAction}
+              paymentProofUrl={paymentProofUrl}
+            />
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {draftIndicator}
-          {headerActions}
-        </div>
+        <p className="text-xs text-muted-foreground mt-2">{vm.resolvedSubheading}</p>
+
+        <QuoteMarkOrderedDialog
+          statusCode={status.code}
+          orderedSupplierTracking={orderedSupplierTracking}
+          markOrderedAction={markOrderedAction}
+          supplierTrackingInput={vm.supplierTrackingInput}
+          onSupplierTrackingChange={vm.setSupplierTrackingInput}
+          confirmOrderWithoutTracking={vm.confirmOrderWithoutTracking}
+          onConfirmOrderWithoutTrackingChange={vm.setConfirmOrderWithoutTracking}
+          onMarkOrderedClick={vm.handleMarkOrderedClick}
+          onSubmitMarkOrdered={vm.submitMarkOrdered}
+        />
       </motion.div>
 
-      <QuoteFinancialForm
-        lines={lines}
-        unitPrices={vm.unitPrices}
-        onUnitPriceChange={vm.handleUnitChange}
-        canEdit={vm.canEdit}
-        curLabel={vm.curLabel}
-        money={vm.money}
-        readonlyFinancialSummary={readonlyFinancialSummary}
-        readonlyQuoteDetails={readonlyQuoteDetails}
-        subtotal={vm.subtotal}
-        serviceFee={vm.serviceFee}
-        onServiceFeeChange={vm.setServiceFee}
-        bankFeePercentage={vm.bankFeePercentage}
-        onBankFeePercentageChange={vm.setBankFeePercentage}
-        bankFeeAmount={vm.bankFeeAmount}
-        grandTotal={vm.grandTotal}
-        paymentMethodsNote={vm.paymentMethodsNote}
-        onPaymentMethodsNoteChange={vm.setPaymentMethodsNote}
-        quoteSendActions={
-          vm.onSendQuote && vm.canEdit ? (
-            <QuoteActionsBar
-              group="afterFinancial"
-              canEdit={vm.canEdit}
-              linesLength={lines.length}
-              isSending={vm.isSending}
-              previewLoading={vm.previewLoading}
-              onSendQuote={vm.onSendQuote}
-              onRequestEmailPreview={vm.onRequestEmailPreview}
-              onPreviewEmail={vm.handlePreviewEmail}
-              onSubmitQuote={vm.handleSubmit}
-            />
-          ) : undefined
-        }
-      />
+      {/* BODY: 2 colonnes — Articles (main) + Client & Synthèse (sidebar) */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        {/* Colonne principale: Articles + actions envoi */}
+        <motion.div variants={fadeInUp} className="min-w-0">
+          <QuoteFinancialForm
+            lines={lines}
+            unitPrices={vm.unitPrices}
+            onUnitPriceChange={vm.handleUnitChange}
+            canEdit={vm.canEdit}
+            curLabel={vm.curLabel}
+            money={vm.money}
+            readonlyFinancialSummary={readonlyFinancialSummary}
+            readonlyQuoteDetails={readonlyQuoteDetails}
+            subtotal={vm.subtotal}
+            serviceFee={vm.serviceFee}
+            onServiceFeeChange={vm.setServiceFee}
+            bankFeePercentage={vm.bankFeePercentage}
+            onBankFeePercentageChange={vm.setBankFeePercentage}
+            bankFeeAmount={vm.bankFeeAmount}
+            grandTotal={vm.grandTotal}
+            paymentMethodsNote={vm.paymentMethodsNote}
+            onPaymentMethodsNoteChange={vm.setPaymentMethodsNote}
+            quoteSendActions={
+              vm.onSendQuote && vm.canEdit ? (
+                <QuoteActionsBar
+                  group="afterFinancial"
+                  canEdit={vm.canEdit}
+                  linesLength={lines.length}
+                  isSending={vm.isSending}
+                  previewLoading={vm.previewLoading}
+                  onSendQuote={vm.onSendQuote}
+                  onRequestEmailPreview={vm.onRequestEmailPreview}
+                  onPreviewEmail={vm.handlePreviewEmail}
+                  onSubmitQuote={vm.handleSubmit}
+                />
+              ) : undefined
+            }
+          />
+        </motion.div>
+
+        {/* Sidebar droite: Client */}
+        <motion.aside variants={fadeInUp} className="space-y-4">
+          <QuoteClientCard client={client} clientSectionTitle={clientSectionTitle} />
+        </motion.aside>
+      </div>
 
       <QuoteEmailPreviewDialog
         open={vm.previewOpen}

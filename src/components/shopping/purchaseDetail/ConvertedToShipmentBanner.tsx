@@ -1,6 +1,5 @@
 import { ArrowRight, CheckCircle2, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 
 interface ConvertedToShipmentBannerProps {
   convertedShipmentId: number
@@ -9,29 +8,27 @@ interface ConvertedToShipmentBannerProps {
 
 export function ConvertedToShipmentBanner({ convertedShipmentId, onOpenShipment }: ConvertedToShipmentBannerProps) {
   return (
-    <Card className="overflow-hidden rounded-2xl border-2 border-emerald-300/70 bg-gradient-to-br from-emerald-50/90 to-background shadow-lg dark:border-emerald-500/30 dark:from-emerald-950/30">
-      <CardContent className="flex flex-col items-center gap-4 py-8 text-center sm:flex-row sm:text-left">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300">
-          <CheckCircle2 className="h-8 w-8" aria-hidden />
+    <div className="glass neo-raised rounded-xl px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-emerald-200/50 dark:border-emerald-500/20">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg shrink-0">
+          <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
         </div>
-        <div className="min-w-0 flex-1 space-y-1">
-          <h2 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
-            Votre achat a été converti en expédition
-          </h2>
-          <p className="text-sm text-emerald-800/80 dark:text-emerald-200/70">
-            Votre colis est en cours de traitement logistique. Suivez-le depuis votre espace Expéditions.
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">Converti en expédition</p>
+          <p className="text-xs text-muted-foreground">
+            Votre colis est en cours de traitement logistique.
           </p>
         </div>
-        <Button
-          size="lg"
-          className="shrink-0 gap-2 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md"
-          onClick={() => onOpenShipment(convertedShipmentId)}
-        >
-          <Package className="h-5 w-5" aria-hidden />
-          Voir l'expédition #{convertedShipmentId}
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <Button
+        size="sm"
+        className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shrink-0"
+        onClick={() => onOpenShipment(convertedShipmentId)}
+      >
+        <Package size={14} />
+        Expédition #{convertedShipmentId}
+        <ArrowRight size={13} />
+      </Button>
+    </div>
   )
 }

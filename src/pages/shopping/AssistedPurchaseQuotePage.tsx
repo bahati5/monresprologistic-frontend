@@ -43,18 +43,21 @@ export default function AssistedPurchaseQuotePage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 w-72 rounded-lg bg-muted animate-pulse" />
-        <div className="h-48 rounded-xl border bg-card animate-pulse" />
-        <div className="h-64 rounded-xl border bg-card animate-pulse" />
+        <div className="glass neo-raised rounded-xl h-14 animate-pulse" />
+        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+          <div className="glass neo-raised rounded-xl h-64 animate-pulse" />
+          <div className="glass neo-raised rounded-xl h-48 animate-pulse" />
+        </div>
       </div>
     )
   }
 
   if (isError || !data?.purchase) {
     return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
+      <div className="glass neo-raised rounded-xl p-6 text-sm">
         <p className="font-medium text-destructive">Demande introuvable ou accès refusé.</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>
+        <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => navigate(-1)}>
+          <ArrowLeft size={14} />
           Retour
         </Button>
       </div>
@@ -130,8 +133,8 @@ export default function AssistedPurchaseQuotePage() {
           : null
       }
       headerActions={
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" aria-hidden />
+        <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs" onClick={() => navigate(-1)}>
+          <ArrowLeft size={14} />
           Retour
         </Button>
       }
