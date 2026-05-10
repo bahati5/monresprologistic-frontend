@@ -12,6 +12,7 @@ import {
   RefreshCw,
   UserPlus,
   CreditCard,
+  Pencil,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -130,42 +131,34 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
 
   return (
     <>
-      <motion.div variants={fadeInUp} className="flex flex-wrap gap-2">
-        {shipmentStatusRaw === 'draft' || userCan(user, 'edit_shipments') ? (
+      <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-1.5 mt-2">
+        {(shipmentStatusRaw === 'draft' || userCan(user, 'edit_shipments')) && (
           <Button
-            variant="default"
             size="sm"
-            className="bg-amber-600 hover:bg-amber-700 text-white"
+            className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={() => navigate(`/shipments/${shipmentId}/edit`)}
           >
-            <FileText size={14} className="mr-1.5" />
+            <Pencil size={12} className="mr-1" />
             Modifier
           </Button>
-        ) : null}
-        <Button type="button" variant="secondary" size="sm" className="font-medium" onClick={onOpenDigitalFormSection}>
-          <FileText size={14} className="mr-1.5 shrink-0" />
-          Formulaire numérique
-        </Button>
-        <Button variant="outline" size="sm" onClick={onCopyTracking}>
-          <Copy size={14} className="mr-1.5" />
-          Copier tracking
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => onStatusDialogOpenChange(true)}>
-          <RefreshCw size={14} className="mr-1.5" />
+        )}
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onStatusDialogOpenChange(true)}>
+          <RefreshCw size={12} className="mr-1" />
           Changer statut
         </Button>
-        {showAssignDriver ? (
-          <Button variant="outline" size="sm" onClick={() => onDriverDialogOpenChange(true)}>
-            <UserPlus size={14} className="mr-1.5" />
-            Assigner chauffeur
+        {showPaymentButton && (
+          <Button size="sm" className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground" onClick={onOpenPayment}>
+            <CreditCard size={12} className="mr-1" />
+            Paiement
           </Button>
-        ) : null}
-        {showPaymentButton ? (
-          <Button variant="default" size="sm" onClick={onOpenPayment}>
-            <CreditCard size={14} className="mr-1.5" />
-            Caisse / paiement
+        )}
+        {showAssignDriver && (
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onDriverDialogOpenChange(true)}>
+            <UserPlus size={12} className="mr-1" />
+            Chauffeur
           </Button>
-        ) : null}
+        )}
+
         <input
           ref={signedFormInputRef}
           type="file"
@@ -173,95 +166,82 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
           className="hidden"
           onChange={onSignedFormChange}
         />
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={archiveSignedPending}
-          onClick={() => signedFormInputRef.current?.click()}
-        >
-          {archiveSignedPending ? (
-            <Loader2 size={14} className="mr-1.5 animate-spin" />
-          ) : (
-            <FileUp size={14} className="mr-1.5" />
-          )}
-          {hasSignedForm ? 'Remplacer formulaire signe' : 'Archiver formulaire signe'}
-        </Button>
-        {regroupementSlot}
+
+        {/* Menu secondaire : téléchargements, copie, regroupement */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <MoreHorizontal size={16} />
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+              <MoreHorizontal size={14} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onOpenDigitalFormSection}>
-              <FileText size={14} className="mr-2" />
-              Formulaire d&apos;expédition (aperçu + PDF)
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={onCopyTracking}>
+              <Copy size={13} className="mr-2" />
+              Copier le numéro de tracking
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={archiveSignedPending}
+              onClick={() => signedFormInputRef.current?.click()}
+            >
+              {archiveSignedPending ? <Loader2 size={13} className="mr-2 animate-spin" /> : <FileUp size={13} className="mr-2" />}
+              {hasSignedForm ? 'Remplacer formulaire signé' : 'Archiver formulaire signé'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                if (!shipmentId) return
+                void downloadApiPdf(`/api/shipments/${shipmentId}/pdf/form`, `formulaire-${trackingNumber || shipmentId}.pdf`)
+              }}
+            >
+              <Download size={13} className="mr-2" />
+              Télécharger formulaire (PDF)
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 if (!shipmentId) return
-                void downloadApiPdf(
-                  `/api/shipments/${shipmentId}/pdf/form`,
-                  `formulaire-expedition-${trackingNumber || shipmentId}.pdf`,
-                )
+                void downloadApiPdf(`/api/shipments/${shipmentId}/pdf/invoice`, `facture-${trackingNumber || shipmentId}.pdf`)
               }}
             >
-              <Download size={14} className="mr-2" />
-              Télécharger formulaire (PDF)
+              <Download size={13} className="mr-2" />
+              Télécharger facture (PDF)
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {canDuplicateShipment ? (
+            <DropdownMenuItem
+              onClick={() => {
+                if (!shipmentId) return
+                void downloadApiPdf(`/api/shipments/${shipmentId}/pdf/label`, `etiquette-${trackingNumber || shipmentId}.pdf`)
+              }}
+            >
+              <Download size={13} className="mr-2" />
+              Télécharger étiquette (PDF)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => shipmentId && void openApiPdf(`/api/shipments/${shipmentId}/pdf/tracking`)}>
+              <Download size={13} className="mr-2" />
+              Rapport de suivi
+            </DropdownMenuItem>
+            {canDuplicateShipment && (
               <>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   disabled={duplicateShipment.isPending}
                   onClick={() => {
                     if (!shipmentId) return
                     duplicateShipment.mutate(Number(shipmentId), {
                       onSuccess: (res) => {
-                        toast.success('Nouveau brouillon créé — ouverture du dossier.')
+                        toast.success('Nouveau brouillon créé.')
                         navigate(`/shipments/${res.id}`)
                       },
                     })
                   }}
                 >
-                  <CopyPlus size={14} className="mr-2" />
+                  <CopyPlus size={13} className="mr-2" />
                   Dupliquer le dossier
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
               </>
-            ) : null}
-            <DropdownMenuItem
-              onClick={() => {
-                if (!shipmentId) return
-                void downloadApiPdf(
-                  `/api/shipments/${shipmentId}/pdf/invoice`,
-                  `facture-${trackingNumber || shipmentId}.pdf`,
-                )
-              }}
-            >
-              <Download size={14} className="mr-2" />
-              Télécharger facture (PDF)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (!shipmentId) return
-                void downloadApiPdf(
-                  `/api/shipments/${shipmentId}/pdf/label`,
-                  `etiquette-${trackingNumber || shipmentId}.pdf`,
-                )
-              }}
-            >
-              <Download size={14} className="mr-2" />
-              Télécharger étiquette (PDF)
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => shipmentId && void openApiPdf(`/api/shipments/${shipmentId}/pdf/tracking`)}>
-              <Download size={14} className="mr-2" />
-              Rapport de suivi
-            </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        {regroupementSlot}
       </motion.div>
 
       <ShipmentDetailStatusDriverDialogs

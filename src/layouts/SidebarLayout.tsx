@@ -70,7 +70,7 @@ export default function SidebarLayout() {
   const closeMobile = () => setMobileOpen(false)
 
   return (
-    <div className="flex h-dvh max-h-dvh min-h-0 w-full overflow-hidden bg-background">
+    <div className="flex h-dvh max-h-dvh min-h-0 w-full overflow-hidden bg-orbs">
       <MobileSidebarOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       <motion.aside
@@ -101,7 +101,7 @@ export default function SidebarLayout() {
         />
       </motion.aside>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <AppTopBar
           mobileOpen={mobileOpen}
           onToggleMobile={() => setMobileOpen(!mobileOpen)}
@@ -110,7 +110,7 @@ export default function SidebarLayout() {
           user={user}
         />
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

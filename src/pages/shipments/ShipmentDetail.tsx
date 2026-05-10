@@ -14,7 +14,6 @@ import { useRegroupementsPicker, useAttachShipmentToRegroupement, useCreateRegro
 import { useAuthStore } from '@/stores/authStore'
 import { userCan, userCanManageRegroupementShipments } from '@/lib/permissions'
 import { paymentMethodHooks, useFormatMoney, usePaymentGateways } from '@/hooks/useSettings'
-import { Card, CardContent } from '@/components/ui/card'
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper'
 import { staggerContainer, fadeInUp } from '@/lib/animations'
 import { STATUS_COLORS } from '@/lib/animations'
@@ -151,8 +150,9 @@ export default function ShipmentDetail() {
   const timelineEvents = buildShipmentTimelineEvents(s.logs)
 
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-6">
-      <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-4">
+      {/* ═══ TOP BAR : Header compact + actions ═══ */}
+      <motion.div variants={fadeInUp} className="glass neo-raised rounded-xl px-4 py-3">
         <ShipmentDetailHeader
           shipmentId={id}
           trackingNumber={s.tracking_number}
@@ -205,50 +205,56 @@ export default function ShipmentDetail() {
         />
       </motion.div>
 
+      {/* ═══ STEPPER ═══ */}
+      <motion.div variants={fadeInUp} className="glass neo-raised-sm rounded-xl px-4 py-4">
+        <WorkflowStepper
+          steps={stepperSteps}
+          currentStepId={currentStepId}
+          completedStepIds={completedSteps}
+          rejectedStepIds={rejectedStepIds}
+        />
+      </motion.div>
+
       {s.regroupement_id && s.regroupement ? (
         <ShipmentDetailRegroupementCard shipmentId={id} regroupement={s.regroupement} />
       ) : null}
 
-      <motion.div variants={fadeInUp}>
-        <Card>
-          <CardContent className="py-6 px-4 md:px-8">
-            <WorkflowStepper
-              steps={stepperSteps}
-              currentStepId={currentStepId}
-              completedStepIds={completedSteps}
-              rejectedStepIds={rejectedStepIds}
-            />
-          </CardContent>
-        </Card>
-      </motion.div>
+      {/* ═══ BODY : 2 colonnes — Tabs (main) + Info sidebar ═══ */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        {/* Colonne principale : Tabs */}
+        <motion.div variants={fadeInUp} className="min-w-0">
+          <ShipmentDetailTabsSection
+            documentsTabsRef={documentsTabsRef}
+            detailTab={detailTab}
+            onDetailTabChange={setDetailTab}
+            shipment={s}
+            formatMoney={formatMoney}
+            paymentMethods={paymentMethods}
+            payBadge={payBadge}
+            timelineEvents={timelineEvents}
+            shipmentId={id}
+            trackingNumber={s.tracking_number}
+            hasSignedForm={s.has_signed_form}
+            signedFormUrl={signedFormUrl}
+            formHtml={formHtml}
+            invoiceHtml={invoiceHtml}
+            labelHtml={labelHtml}
+            docFetchState={docFetchState}
+            docDownloadKind={docDownloadKind}
+            setDocDownloadKind={setDocDownloadKind}
+            signedFormInputRef={signedFormInputRef}
+            archiveSignedPending={archiveSignedForm.isPending}
+            onPrintForm={handlePrintForm}
+            onPrintInvoice={handlePrintInvoice}
+            onPrintLabel={handlePrintLabel}
+          />
+        </motion.div>
 
-      <ShipmentDetailInfoGrid shipment={s} />
-
-      <ShipmentDetailTabsSection
-        documentsTabsRef={documentsTabsRef}
-        detailTab={detailTab}
-        onDetailTabChange={setDetailTab}
-        shipment={s}
-        formatMoney={formatMoney}
-        paymentMethods={paymentMethods}
-        payBadge={payBadge}
-        timelineEvents={timelineEvents}
-        shipmentId={id}
-        trackingNumber={s.tracking_number}
-        hasSignedForm={s.has_signed_form}
-        signedFormUrl={signedFormUrl}
-        formHtml={formHtml}
-        invoiceHtml={invoiceHtml}
-        labelHtml={labelHtml}
-        docFetchState={docFetchState}
-        docDownloadKind={docDownloadKind}
-        setDocDownloadKind={setDocDownloadKind}
-        signedFormInputRef={signedFormInputRef}
-        archiveSignedPending={archiveSignedForm.isPending}
-        onPrintForm={handlePrintForm}
-        onPrintInvoice={handlePrintInvoice}
-        onPrintLabel={handlePrintLabel}
-      />
+        {/* Sidebar droite : Infos compactes */}
+        <motion.aside variants={fadeInUp} className="space-y-4">
+          <ShipmentDetailInfoGrid shipment={s} />
+        </motion.aside>
+      </div>
 
       <ShipmentDetailPaymentDialog
         shipmentId={id}

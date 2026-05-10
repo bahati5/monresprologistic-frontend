@@ -9,12 +9,10 @@ export interface InfoRowProps {
 export function InfoRow({ icon: Icon, label, value }: InfoRowProps) {
   if (!value && value !== 0) return null
   return (
-    <div className="flex items-start gap-3 text-sm">
-      <Icon size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
-      </div>
+    <div className="flex items-center gap-2 py-1 text-xs">
+      <Icon size={12} className="shrink-0 text-primary/50" />
+      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
+      <span className="font-medium text-foreground ml-auto text-right truncate max-w-[140px]" title={String(value)}>{value}</span>
     </div>
   )
 }
