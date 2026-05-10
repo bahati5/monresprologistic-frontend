@@ -32,7 +32,7 @@ export const ShipmentProcessSteps: React.FC<ShipmentProcessStepsProps> = ({
     ? Math.round(((completedSteps.length + (currentIndex >= 0 ? 0.5 : 0)) / (STEPS.length - 1)) * 100)
     : 0
 
-  const getStatus = (stepKey: ShipmentWorkflowStep, index: number) => {
+  const getStatus = (stepKey: ShipmentWorkflowStep) => {
     if (completedSteps.includes(stepKey)) return 'completed'
     if (stepKey === currentStep) return 'active'
     return 'pending'
@@ -64,7 +64,7 @@ export const ShipmentProcessSteps: React.FC<ShipmentProcessStepsProps> = ({
       {/* Desktop steps */}
       <div className="hidden md:flex items-start justify-between w-full">
         {STEPS.map((step, i) => {
-          const status = getStatus(step.key, i)
+          const status = getStatus(step.key)
           const clickable = canNavigate(i)
           const isLast = i === STEPS.length - 1
           const StepIcon = step.icon
@@ -142,7 +142,7 @@ export const ShipmentProcessSteps: React.FC<ShipmentProcessStepsProps> = ({
       {/* Mobile compact */}
       <div className="flex items-center justify-between w-full md:hidden">
         {STEPS.map((step, i) => {
-          const status = getStatus(step.key, i)
+          const status = getStatus(step.key)
           const isLast = i === STEPS.length - 1
           const clickable = canNavigate(i)
 

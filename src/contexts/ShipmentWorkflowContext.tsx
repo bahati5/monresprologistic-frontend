@@ -22,6 +22,8 @@ export interface ShipmentWorkflowContextType {
 
 const ShipmentWorkflowContext = createContext<ShipmentWorkflowContextType | undefined>(undefined)
 
+// Hook is intentionally co-located with the provider; consumers import from this module.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useShipmentWorkflow = () => {
   const context = useContext(ShipmentWorkflowContext)
   if (!context) {

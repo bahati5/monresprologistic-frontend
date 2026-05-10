@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, Truck, Globe, Shield } from 'lucide-react'
 import { AuthBrandingMark } from '@/components/auth/AuthBrandingMark'
+import { getApiErrorMessage } from '@/lib/apiError'
 
 export default function Register() {
   const [firstName, setFirstName] = useState('')
@@ -35,11 +37,12 @@ export default function Register() {
         passwordConfirmation,
       )
       navigate('/dashboard')
-    } catch (err: any) {
-      if (err.response?.status === 422) {
-        setErrors(err.response.data.errors || {})
+    } catch (err: unknown) {
+      if (isAxiosError(err) && err.response?.status === 422) {
+        const body = err.response.data as { errors?: Record<string, string[]> }
+        setErrors(body.errors ?? {})
       } else {
-        setErrors({ general: [err.response?.data?.message || 'Erreur lors de l\'inscription.'] })
+        setErrors({ general: [getApiErrorMessage(err, 'Erreur lors de l\'inscription.')] })
       }
     } finally {
       setLoading(false)

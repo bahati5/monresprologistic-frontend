@@ -1,0 +1,2 @@
+export const SIDEBAR_WIDTH_EXPANDED = 220
+export const SIDEBAR_WIDTH_COLLAPSED = 68

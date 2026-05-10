@@ -6,10 +6,9 @@ import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import {
   BarChart3, TrendingUp, Package, Truck, Users, DollarSign,
-  Download, Calendar, ArrowUpRight, ArrowDownRight,
+  Download, Calendar, ArrowUpRight, ArrowDownRight, FileText,
 } from 'lucide-react'
 
 const REPORT_SECTIONS = [
@@ -18,6 +17,12 @@ const REPORT_SECTIONS = [
   { id: 'pickups', label: 'Ramassages', icon: Truck, color: '#10B981', description: 'Performance des collectes' },
   { id: 'clients', label: 'Clients', icon: Users, color: '#8B5CF6', description: 'Activite, retention, top clients' },
 ]
+
+interface ReportKpi {
+  label?: string
+  value?: string | number
+  trend?: number
+}
 
 export default function ReportsHub() {
   const [period, setPeriod] = useState('month')
@@ -29,7 +34,7 @@ export default function ReportsHub() {
     retry: false,
   })
 
-  const kpis = data?.kpis || []
+  const kpis: ReportKpi[] = data?.kpis || []
 
   const exportSlug: Record<string, string | null> = {
     shipments: 'export/shipments',
@@ -58,6 +63,13 @@ export default function ReportsHub() {
     window.open(url, '_blank')
   }
 
+  const handleExportPdf = () => {
+    const base = api.defaults.baseURL || ''
+    const q = new URLSearchParams({ section: activeSection, period })
+    const url = `${base}/api/reports/summary/pdf?${q}`
+    window.open(url, '_blank')
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -80,6 +92,9 @@ export default function ReportsHub() {
           </Select>
           <Button variant="outline" size="sm" disabled={!exportSlug[activeSection]} onClick={handleExportCsv}>
             <Download size={14} className="mr-1.5" />CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportPdf}>
+            <FileText size={14} className="mr-1.5" />PDF
           </Button>
         </div>
       </div>
@@ -114,7 +129,7 @@ export default function ReportsHub() {
         </div>
       ) : kpis.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {kpis.map((kpi: any, i: number) => {
+          {kpis.map((kpi, i: number) => {
             const trend = kpi.trend
             const isPositive = trend != null && trend >= 0
             return (
@@ -158,9 +173,9 @@ export default function ReportsHub() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.table.map((row: any, i: number) => (
+                  {data.table.map((row: Record<string, unknown>, i: number) => (
                     <tr key={i} className="border-b hover:bg-muted/30">
-                      {Object.values(row).map((cell: any, j: number) => (
+                      {Object.values(row).map((cell, j: number) => (
                         <td key={j} className="px-4 py-3">{String(cell)}</td>
                       ))}
                     </tr>

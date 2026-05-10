@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Package, Star } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo, useCallback } from "react";
+import { Package, Star, User } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DbComboboxAsync } from "@/components/ui/DbCombobox";
@@ -10,6 +9,7 @@ import {
 } from "@/hooks/useShipments";
 import { useClient } from "@/hooks/useCrm";
 import { ProfileWizardCreateModal } from "@/components/workflow/ProfileWizardCreateModal";
+import { cn } from "@/lib/utils";
 
 interface Step1ActorsProps {
   senderId: string;
@@ -50,62 +50,24 @@ function displayNameFromClient(
   return n;
 }
 
-export function Step1Actors({
+function RecipientComboboxSection({
   senderId,
-  onSenderChange,
   recipientId,
   onRecipientChange,
+  onOpenCreateModal,
   errors,
-}: Step1ActorsProps) {
-  const [senderQuery, setSenderQuery] = useState("");
+}: {
+  senderId: string;
+  recipientId: string;
+  onRecipientChange: (id: string) => void;
+  onOpenCreateModal: (searchHint?: string) => void;
+  errors?: Record<string, string[]>;
+}) {
   const [recipientQuery, setRecipientQuery] = useState("");
-  const [profileModal, setProfileModal] = useState<{
-    mode: "sender" | "recipient";
-    hint?: string;
-  } | null>(null);
-
   const senderIdNum = senderId ? Number(senderId) : undefined;
-  const { data: senderResults, isLoading: senderLoading } =
-    useSearchProfiles(senderQuery);
-  const { data: recipientResults, isLoading: recipientLoading } =
+  const { data: recipientResults, isFetching: recipientLoading } =
     useSearchProfiles(recipientQuery, senderIdNum, senderIdNum);
-
-  const { data: senderClientDetail } = useClient(senderId || undefined);
   const { data: recipientClientDetail } = useClient(recipientId || undefined);
-
-  useEffect(() => {
-    onRecipientChange("");
-    setRecipientQuery("");
-  }, [senderId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const senderOptions = useMemo(() => {
-    const base = (senderResults ?? []).map((p) => ({
-      value: String(p.id),
-      label: profileOptionLabel(p),
-      keywords: [
-        p.full_name,
-        p.email ?? "",
-        p.phone ?? "",
-        p.locker_number ?? "",
-      ].filter(Boolean),
-    }));
-    const pinned = displayNameFromClient(senderClientDetail);
-    if (
-      senderId &&
-      pinned &&
-      !base.some((o) => String(o.value) === String(senderId))
-    ) {
-      return [
-        {
-          value: senderId,
-          label: <span className="font-medium">{pinned}</span>,
-          keywords: [pinned],
-        },
-        ...base,
-      ];
-    }
-    return base;
-  }, [senderResults, senderId, senderClientDetail]);
 
   const recipientOptions = useMemo(() => {
     const base = (recipientResults ?? []).map((p) => ({
@@ -137,19 +99,122 @@ export function Step1Actors({
   }, [recipientResults, recipientId, recipientClientDetail]);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" /> Expéditeur
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div
+      className={cn(
+        "space-y-4 rounded-xl border p-4 shadow-sm transition-all",
+        senderId ? "bg-muted/20 border-border" : "bg-muted/5 border-dashed opacity-50",
+      )}
+    >
+      <div className="flex items-center gap-2 border-b pb-2">
+        <User className="h-4 w-4 text-primary" />
+        <h3 className="font-semibold text-sm uppercase tracking-wider">Destinataire</h3>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs text-muted-foreground">Rechercher une personne (min. 2 caractères)</Label>
+        <DbComboboxAsync
+          value={recipientId}
+          onValueChange={onRecipientChange}
+          filterQuery={recipientQuery}
+          onFilterQueryChange={setRecipientQuery}
+          options={recipientOptions}
+          isLoading={recipientLoading}
+          disabled={!senderId}
+          searchMinLength={2}
+          belowMinText="Saisissez au moins 2 caractères pour lancer la recherche."
+          emptyText="Aucun profil trouvé."
+          placeholder={
+            !senderId
+              ? "Choisissez d'abord l'expéditeur"
+              : recipientQuery.length < 2
+                ? "Recherchez puis choisissez…"
+                : "Choisir un destinataire…"
+          }
+          onOpenCreateModal={onOpenCreateModal}
+          createButtonTitle="Nouveau destinataire"
+        />
+        {errors?.recipient_profile_id && (
+          <p className="text-sm text-destructive">
+            {errors.recipient_profile_id[0]}
+          </p>
+        )}
+        {errors?.recipient_id && (
+          <p className="text-sm text-destructive">
+            {errors.recipient_id[0]}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function Step1Actors({
+  senderId,
+  onSenderChange,
+  recipientId,
+  onRecipientChange,
+  errors,
+}: Step1ActorsProps) {
+  const [senderQuery, setSenderQuery] = useState("");
+  const [profileModal, setProfileModal] = useState<{
+    mode: "sender" | "recipient";
+    hint?: string;
+  } | null>(null);
+
+  const { data: senderResults, isFetching: senderLoading } =
+    useSearchProfiles(senderQuery);
+
+  const { data: senderClientDetail } = useClient(senderId || undefined);
+
+  const handleSenderChange = useCallback(
+    (id: string) => {
+      if (id !== senderId) onRecipientChange("");
+      onSenderChange(id);
+    },
+    [senderId, onSenderChange, onRecipientChange],
+  );
+
+  const senderOptions = useMemo(() => {
+    const base = (senderResults ?? []).map((p) => ({
+      value: String(p.id),
+      label: profileOptionLabel(p),
+      keywords: [
+        p.full_name,
+        p.email ?? "",
+        p.phone ?? "",
+        p.locker_number ?? "",
+      ].filter(Boolean),
+    }));
+    const pinned = displayNameFromClient(senderClientDetail);
+    if (
+      senderId &&
+      pinned &&
+      !base.some((o) => String(o.value) === String(senderId))
+    ) {
+      return [
+        {
+          value: senderId,
+          label: <span className="font-medium">{pinned}</span>,
+          keywords: [pinned],
+        },
+        ...base,
+      ];
+    }
+    return base;
+  }, [senderResults, senderId, senderClientDetail]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-4 rounded-xl border bg-muted/20 p-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b pb-2">
+            <Package className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-sm uppercase tracking-wider">Expéditeur</h3>
+          </div>
           <div className="space-y-2">
-            <Label>Rechercher une personne (min. 2 caractères)</Label>
+            <Label className="text-xs text-muted-foreground">Rechercher une personne (min. 2 caractères)</Label>
             <DbComboboxAsync
               value={senderId}
-              onValueChange={onSenderChange}
+              onValueChange={handleSenderChange}
               filterQuery={senderQuery}
               onFilterQueryChange={setSenderQuery}
               options={senderOptions}
@@ -178,51 +243,19 @@ export function Step1Actors({
               </p>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {senderId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Destinataire</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label>Rechercher une personne (min. 2 caractères)</Label>
-              <DbComboboxAsync
-                value={recipientId}
-                onValueChange={onRecipientChange}
-                filterQuery={recipientQuery}
-                onFilterQueryChange={setRecipientQuery}
-                options={recipientOptions}
-                isLoading={recipientLoading}
-                searchMinLength={2}
-                belowMinText="Saisissez au moins 2 caractères pour lancer la recherche."
-                emptyText="Aucun profil trouvé."
-                placeholder={
-                  recipientQuery.length < 2
-                    ? "Recherchez puis choisissez…"
-                    : "Choisir un destinataire…"
-                }
-                onOpenCreateModal={(hint) =>
-                  setProfileModal({ mode: "recipient", hint })
-                }
-                createButtonTitle="Nouveau destinataire"
-              />
-              {errors?.recipient_profile_id && (
-                <p className="text-sm text-destructive">
-                  {errors.recipient_profile_id[0]}
-                </p>
-              )}
-              {errors?.recipient_id && (
-                <p className="text-sm text-destructive">
-                  {errors.recipient_id[0]}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <RecipientComboboxSection
+          key={`${senderId}:${recipientId || "none"}`}
+          senderId={senderId}
+          recipientId={recipientId}
+          onRecipientChange={onRecipientChange}
+          onOpenCreateModal={(hint) =>
+            setProfileModal({ mode: "recipient", hint })
+          }
+          errors={errors}
+        />
+      </div>
 
       {profileModal && (
         <ProfileWizardCreateModal
@@ -239,7 +272,6 @@ export function Step1Actors({
               setSenderQuery("");
             } else {
               onRecipientChange(String(id));
-              setRecipientQuery("");
             }
             setProfileModal(null);
           }}

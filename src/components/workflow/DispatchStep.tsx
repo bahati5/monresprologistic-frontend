@@ -10,23 +10,38 @@ import {
   CreditCard, AlertTriangle, PartyPopper,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getApiErrorMessage } from '@/lib/apiError'
 import { displayLocalized } from '@/lib/localizedString'
+import { Link } from 'react-router-dom'
+
+type LocalizedOrString = Record<string, unknown> | string | undefined
+
+interface DispatchShipment {
+  id?: number
+  public_tracking?: string
+  payment_status?: string
+  status_name?: LocalizedOrString
+  assigned_driver_name?: string
+  assigned_driver?: { name?: string }
+}
+
+interface StatusTransitionOption {
+  id?: number | string
+  code?: string
+  label?: LocalizedOrString
+  name?: LocalizedOrString
+}
 
 interface DispatchStepProps {
-  shipment: any
-  availableTransitions: any[]
-  drivers: any[]
+  shipment: DispatchShipment | null | undefined
+  availableTransitions: StatusTransitionOption[]
+  drivers: unknown[]
   onDispatch: (data: { status: string; notes?: string }) => Promise<void>
   isProcessing?: boolean
 }
 
-export function DispatchStep({
-  shipment,
-  availableTransitions,
-  drivers,
-  onDispatch,
-  isProcessing,
-}: DispatchStepProps) {
+export function DispatchStep(props: DispatchStepProps) {
+  const { shipment, availableTransitions, onDispatch, isProcessing } = props
   const [selectedStatusCode, setSelectedStatusCode] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -54,8 +69,8 @@ export function DispatchStep({
       })
       setDispatched(true)
       toast.success('Expédition validée et statut mis à jour !')
-    } catch (err: any) {
-      toast.error(err?.message || 'Erreur lors de la validation')
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Erreur lors de la validation'))
     } finally {
       setSubmitting(false)
     }
@@ -73,14 +88,14 @@ export function DispatchStep({
           </p>
           <div className="flex justify-center gap-3 pt-4">
             <Button variant="outline" asChild>
-              <a href={`/shipments/${shipment?.id}`}>
+              <Link to={`/shipments/${shipment?.id}`}>
                 <Package size={16} className="mr-2" /> Voir l'expédition
-              </a>
+              </Link>
             </Button>
             <Button variant="outline" asChild>
-              <a href="/shipments">
+              <Link to="/shipments">
                 <FileText size={16} className="mr-2" /> Liste des expéditions
-              </a>
+              </Link>
             </Button>
           </div>
         </CardContent>
@@ -172,7 +187,7 @@ export function DispatchStep({
                   <SelectValue placeholder="Sélectionner un statut" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(availableTransitions || []).map((s: any) => {
+                  {(availableTransitions || []).map((s: StatusTransitionOption) => {
                     const code = s.code ?? String(s.id)
                     const label = s.label
                       ? (typeof s.label === 'object' ? displayLocalized(s.label) : s.label)

@@ -20,6 +20,26 @@ import {
   Shield, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { displayLocalized } from '@/lib/localizedString'
+import type { User, UserCreatePayload } from '@/types/crm'
+
+interface UserRow {
+  id: number
+  name?: unknown
+  email?: string
+  role?: string
+  roles?: { name?: string }[]
+  is_active?: boolean
+  created_at?: string
+  [key: string]: unknown
+}
+
+interface UsersListPayload {
+  data?: UserRow[]
+  total?: number
+  last_page?: number
+  from?: number
+  to?: number
+}
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrateur',
@@ -46,27 +66,27 @@ export default function UsersPage() {
   const toggleStatus = useToggleUserActive()
 
   const [formOpen, setFormOpen] = useState(false)
-  const [editItem, setEditItem] = useState<any>(null)
-  const [form, setForm] = useState<Record<string, any>>({})
+  const [editItem, setEditItem] = useState<UserRow | null>(null)
+  const [form, setForm] = useState<Record<string, unknown>>({})
   const [viewMode, setViewMode] = useState<ListOrCards>(() => loadViewMode(VIEW_KEY))
 
   useEffect(() => {
     saveViewMode(VIEW_KEY, viewMode)
   }, [viewMode])
 
-  const users = data?.data || []
-  const pagination = (data || {}) as any
+  const users: UserRow[] = (data?.data ?? []) as unknown as UserRow[]
+  const pagination = (data || {}) as UsersListPayload
 
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const set = (k: string, v: unknown) => setForm(p => ({ ...p, [k]: v }))
 
   const openCreate = () => { setEditItem(null); setForm({ role: 'employee' }); setFormOpen(true) }
-  const openEdit = (u: any) => { setEditItem(u); setForm({ ...u, role: u.roles?.[0] || u.role || 'employee' }); setFormOpen(true) }
+  const openEdit = (u: UserRow) => { setEditItem(u); setForm({ ...u, role: u.roles?.[0]?.name || u.role || 'employee' }); setFormOpen(true) }
 
   const handleSubmit = () => {
     if (editItem) {
-      updateUser.mutate({ id: editItem.id, data: form }, { onSuccess: () => setFormOpen(false) })
+      updateUser.mutate({ id: editItem.id, data: form as Partial<User> }, { onSuccess: () => setFormOpen(false) })
     } else {
-      createUser.mutate(form as any, { onSuccess: () => setFormOpen(false) })
+      createUser.mutate(form as unknown as UserCreatePayload, { onSuccess: () => setFormOpen(false) })
     }
   }
 
@@ -116,8 +136,8 @@ export default function UsersPage() {
                       <p className="text-muted-foreground">Aucun utilisateur</p>
                     </td></tr>
                   ) : (
-                    users.map((u: any) => {
-                      const role = u.roles?.[0] || u.role || 'client'
+                    users.map((u) => {
+                      const role = u.roles?.[0]?.name || u.role || 'client'
                       const roleColor = ROLE_COLORS[role] || '#64748B'
                       return (
                         <tr key={u.id} className="border-b hover:bg-muted/30 transition-colors">
@@ -134,7 +154,7 @@ export default function UsersPage() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {new Date(u.created_at).toLocaleDateString('fr-FR')}
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR') : '—'}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <DropdownMenu>
@@ -174,8 +194,8 @@ export default function UsersPage() {
             </CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {users.map((u: any) => {
-                const role = u.roles?.[0] || u.role || 'client'
+              {users.map((u) => {
+                const role = u.roles?.[0]?.name || u.role || 'client'
                 const roleColor = ROLE_COLORS[role] || '#64748B'
                 return (
                   <Card key={u.id}>
@@ -206,7 +226,7 @@ export default function UsersPage() {
                           {u.is_active !== false ? 'Actif' : 'Inactif'}
                         </Badge>
                         <span className="text-xs text-muted-foreground self-center">
-                          Inscrit le {new Date(u.created_at).toLocaleDateString('fr-FR')}
+                          Inscrit le {u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR') : '—'}
                         </span>
                       </div>
                     </CardContent>
@@ -240,14 +260,14 @@ export default function UsersPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Nom *</Label><Input value={form.name || ''} onChange={e => set('name', e.target.value)} /></div>
-              <div className="space-y-2"><Label>Email *</Label><Input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Nom *</Label><Input value={String(form.name ?? '')} onChange={e => set('name', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Email *</Label><Input type="email" value={String(form.email ?? '')} onChange={e => set('email', e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Telephone</Label><Input value={form.phone || ''} onChange={e => set('phone', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Telephone</Label><Input value={String(form.phone ?? '')} onChange={e => set('phone', e.target.value)} /></div>
               <div className="space-y-2">
                 <Label>Role</Label>
-                <Select value={form.role || 'employee'} onValueChange={v => set('role', v)}>
+                <Select value={String(form.role ?? 'employee')} onValueChange={v => set('role', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Administrateur</SelectItem>
@@ -259,7 +279,7 @@ export default function UsersPage() {
               </div>
             </div>
             {!editItem && (
-              <div className="space-y-2"><Label>Mot de passe *</Label><Input type="password" value={form.password || ''} onChange={e => set('password', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Mot de passe *</Label><Input type="password" value={String(form.password ?? '')} onChange={e => set('password', e.target.value)} /></div>
             )}
           </div>
           <DialogFooter>

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
-import { Plus, type LucideIcon } from 'lucide-react'
+import { type LucideIcon } from 'lucide-react'
 
 interface HeroAction {
   label: string

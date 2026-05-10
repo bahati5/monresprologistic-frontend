@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
@@ -22,6 +22,8 @@ import type { PaymentMethod, AgencyPaymentCoordinate } from '@/types/settings'
 import { displayLocalized } from '@/lib/localizedString'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
+
+type GatewayFormState = Record<string, Record<string, unknown>>
 
 export default function PaymentsTab() {
   return (
@@ -56,8 +58,8 @@ function PaymentMethodsCard() {
   const create = paymentMethodHooks.useCreate()
   const del = paymentMethodHooks.useDelete()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<Record<string, any>>({ is_active: true })
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const [form, setForm] = useState<Partial<PaymentMethod>>({ is_active: true })
+  const set = (k: keyof PaymentMethod, v: PaymentMethod[keyof PaymentMethod]) => setForm((p) => ({ ...p, [k]: v }))
 
   return (
     <>
@@ -80,7 +82,7 @@ function PaymentMethodsCard() {
         </div>
       </SettingsCard>
 
-      <CrudSheet open={open} onOpenChange={setOpen} title="Nouvelle methode" onSubmit={() => create.mutate(form as any, { onSuccess: () => setOpen(false) })} isLoading={create.isPending}>
+      <CrudSheet open={open} onOpenChange={setOpen} title="Nouvelle methode" onSubmit={() => create.mutate(form, { onSuccess: () => setOpen(false) })} isLoading={create.isPending}>
         <div className="space-y-4">
           <div className="space-y-2"><Label>Nom</Label><Input value={form.name || ''} onChange={e => set('name', e.target.value)} /></div>
           <div className="space-y-2"><Label>Description</Label><Textarea value={form.description || ''} onChange={e => set('description', e.target.value)} /></div>
@@ -90,15 +92,12 @@ function PaymentMethodsCard() {
   )
 }
 
-function PaymentGatewaysCard() {
-  const { data: gateways, isLoading } = usePaymentGateways()
+function PaymentGatewaysForm({ initialGateways }: { initialGateways: GatewayFormState }) {
   const update = useUpdatePaymentGateways()
-  const [form, setForm] = useState<Record<string, any>>({})
+  const [form, setForm] = useState<GatewayFormState>(() => ({ ...initialGateways }))
 
-  useEffect(() => { if (gateways) setForm(gateways) }, [gateways])
-
-  const set = (gateway: string, key: string, value: any) => {
-    setForm(p => ({
+  const set = (gateway: string, key: string, value: string | boolean) => {
+    setForm((p) => ({
       ...p,
       [gateway]: { ...(p[gateway] || {}), [key]: value },
     }))
@@ -111,48 +110,63 @@ function PaymentGatewaysCard() {
     { key: 'stripe', label: 'Stripe', fields: ['publishable_key', 'secret_key', 'webhook_secret'], functional: false },
     { key: 'paystack', label: 'Paystack', fields: ['public_key', 'secret_key'], functional: false },
     { key: 'wire_transfer', label: 'Virement bancaire', fields: ['bank_name', 'account_number', 'iban', 'swift'], functional: true },
-  ]
+  ] as const
 
   return (
-    <SettingsCard title="Passerelles de paiement en ligne" icon={CreditCard} isLoading={isLoading}>
-      <div className="space-y-6">
-        {gatewayList.map(gw => {
-          const cfg = form[gw.key] || {}
-          return (
-            <div key={gw.key} className={cn("rounded-lg border p-4 space-y-3", !gw.functional && "opacity-60 bg-muted/20 grayscale-[0.5]")}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">{gw.label}</p>
-                  {!gw.functional && (
-                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-500/10">Bientôt disponible</Badge>
-                  )}
-                </div>
-                <Switch checked={!!cfg.is_active} onCheckedChange={v => set(gw.key, 'is_active', v)} disabled={!gw.functional} />
+    <div className="space-y-6">
+      {gatewayList.map((gw) => {
+        const cfg = form[gw.key] || {}
+        const isActive = !!cfg.is_active
+        const configObj = (cfg.config as Record<string, string> | undefined) || {}
+        return (
+          <div
+            key={gw.key}
+            className={cn('rounded-lg border p-4 space-y-3', !gw.functional && 'opacity-60 bg-muted/20 grayscale-[0.5]')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm">{gw.label}</p>
+                {!gw.functional && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-500/10">
+                    Bientôt disponible
+                  </Badge>
+                )}
               </div>
-              {cfg.is_active && gw.functional && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {gw.fields.map(f => (
-                    <div key={f} className="space-y-1">
-                      <Label className="text-xs">{f.replace(/_/g, ' ')}</Label>
-                      <Input
-                        type={f.includes('secret') || f.includes('token') ? 'password' : 'text'}
-                        value={cfg.config?.[f] || cfg[f] || ''}
-                        onChange={e => set(gw.key, f, e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <Switch checked={isActive} onCheckedChange={(v) => set(gw.key, 'is_active', v)} disabled={!gw.functional} />
             </div>
-          )
-        })}
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={update.isPending}>
-            {update.isPending ? 'Enregistrement...' : 'Enregistrer les passerelles'}
-          </Button>
-        </div>
+            {isActive && gw.functional && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {gw.fields.map((f) => (
+                  <div key={f} className="space-y-1">
+                    <Label className="text-xs">{f.replace(/_/g, ' ')}</Label>
+                    <Input
+                      type={f.includes('secret') || f.includes('token') ? 'password' : 'text'}
+                      value={configObj[f] || String(cfg[f] ?? '')}
+                      onChange={(e) => set(gw.key, f, e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={update.isPending}>
+          {update.isPending ? 'Enregistrement...' : 'Enregistrer les passerelles'}
+        </Button>
       </div>
+    </div>
+  )
+}
+
+function PaymentGatewaysCard() {
+  const { data: gateways, isLoading, dataUpdatedAt } = usePaymentGateways()
+  const initial = (gateways ?? {}) as GatewayFormState
+  return (
+    <SettingsCard title="Passerelles de paiement en ligne" icon={CreditCard} isLoading={isLoading}>
+      {gateways ? <PaymentGatewaysForm key={dataUpdatedAt} initialGateways={initial} /> : null}
     </SettingsCard>
   )
 }
@@ -162,8 +176,9 @@ function AgencyCoordinatesCard() {
   const create = agencyPaymentCoordinateHooks.useCreate()
   const del = agencyPaymentCoordinateHooks.useDelete()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<Record<string, any>>({})
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const [form, setForm] = useState<Partial<AgencyPaymentCoordinate>>({})
+  const set = (k: keyof AgencyPaymentCoordinate, v: AgencyPaymentCoordinate[keyof AgencyPaymentCoordinate]) =>
+    setForm((p) => ({ ...p, [k]: v }))
 
   return (
     <>
@@ -189,7 +204,7 @@ function AgencyCoordinatesCard() {
         </div>
       </SettingsCard>
 
-      <CrudSheet open={open} onOpenChange={setOpen} title="Nouvelle coordonnee" onSubmit={() => create.mutate(form as any, { onSuccess: () => setOpen(false) })} isLoading={create.isPending}>
+      <CrudSheet open={open} onOpenChange={setOpen} title="Nouvelle coordonnee" onSubmit={() => create.mutate(form, { onSuccess: () => setOpen(false) })} isLoading={create.isPending}>
         <div className="space-y-4">
           <div className="space-y-2"><Label>Libelle</Label><Input value={form.label || ''} onChange={e => set('label', e.target.value)} placeholder="Compte BNP Agence Paris" /></div>
           <div className="space-y-2"><Label>Details</Label><Textarea value={form.details || ''} onChange={e => set('details', e.target.value)} rows={5} placeholder="IBAN: FR76...\nBIC: BNPA..." /></div>

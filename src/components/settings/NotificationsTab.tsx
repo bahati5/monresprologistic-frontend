@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   notificationTemplateHooks,
@@ -18,6 +18,8 @@ import { Bell, Mail, MessageSquare, Plus, Pencil } from 'lucide-react'
 import type { NotificationTemplate, SmtpConfig, TwilioConfig } from '@/types/settings'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
+
+type NotificationTemplateForm = Partial<Omit<NotificationTemplate, 'id'>> & { id?: number }
 
 export default function NotificationsTab() {
   return (
@@ -53,17 +55,26 @@ function TemplatesCard() {
   const update = notificationTemplateHooks.useUpdate()
   const [open, setOpen] = useState(false)
   const [editItem, setEditItem] = useState<NotificationTemplate | null>(null)
-  const [form, setForm] = useState<Record<string, any>>({ channel: 'email', is_active: true })
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const [form, setForm] = useState<NotificationTemplateForm>({ channel: 'email', is_active: true })
+  const setField = (k: keyof NotificationTemplateForm, v: NotificationTemplateForm[keyof NotificationTemplateForm]) =>
+    setForm((p) => ({ ...p, [k]: v }))
 
-  const openCreate = () => { setEditItem(null); setForm({ channel: 'email', is_active: true }); setOpen(true) }
-  const openEdit = (t: NotificationTemplate) => { setEditItem(t); setForm({ ...t }); setOpen(true) }
+  const openCreate = () => {
+    setEditItem(null)
+    setForm({ channel: 'email', is_active: true })
+    setOpen(true)
+  }
+  const openEdit = (t: NotificationTemplate) => {
+    setEditItem(t)
+    setForm({ ...t })
+    setOpen(true)
+  }
 
   const handleSubmit = () => {
     if (editItem) {
       update.mutate({ id: editItem.id, data: form }, { onSuccess: () => setOpen(false) })
     } else {
-      create.mutate(form as any, { onSuccess: () => setOpen(false) })
+      create.mutate(form, { onSuccess: () => setOpen(false) })
     }
   }
 
@@ -95,10 +106,10 @@ function TemplatesCard() {
 
       <CrudSheet open={open} onOpenChange={setOpen} title={editItem ? 'Modifier le template' : 'Nouveau template'} onSubmit={handleSubmit} isLoading={create.isPending || update.isPending}>
         <div className="space-y-4">
-          <div className="space-y-2"><Label>Evenement</Label><Input value={form.event || ''} onChange={e => set('event', e.target.value)} placeholder="shipment_status_changed" /></div>
+          <div className="space-y-2"><Label>Evenement</Label><Input value={form.event || ''} onChange={e => setField('event', e.target.value)} placeholder="shipment_status_changed" /></div>
           <div className="space-y-2">
             <Label>Canal</Label>
-            <Select value={form.channel || 'email'} onValueChange={v => set('channel', v)}>
+            <Select value={form.channel || 'email'} onValueChange={v => setField('channel', v as NotificationTemplate['channel'])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="email">Email</SelectItem>
@@ -107,13 +118,13 @@ function TemplatesCard() {
               </SelectContent>
             </Select>
           </div>
-          {form.channel === 'email' && <div className="space-y-2"><Label>Sujet</Label><Input value={form.subject || ''} onChange={e => set('subject', e.target.value)} /></div>}
-          <div className="space-y-2"><Label>Corps du message</Label><Textarea value={form.body || ''} onChange={e => set('body', e.target.value)} rows={8} placeholder="Bonjour {client_name}, votre expedition {tracking_number}..." /></div>
-          <div className="flex items-center justify-between"><Label>Actif</Label><Switch checked={form.is_active !== false} onCheckedChange={v => set('is_active', v)} /></div>
-          {form.variables?.length > 0 && (
+          {form.channel === 'email' && <div className="space-y-2"><Label>Sujet</Label><Input value={form.subject || ''} onChange={e => setField('subject', e.target.value)} /></div>}
+          <div className="space-y-2"><Label>Corps du message</Label><Textarea value={form.body || ''} onChange={e => setField('body', e.target.value)} rows={8} placeholder="Bonjour {client_name}, votre expedition {tracking_number}..." /></div>
+          <div className="flex items-center justify-between"><Label>Actif</Label><Switch checked={form.is_active !== false} onCheckedChange={v => setField('is_active', v)} /></div>
+          {((form.variables?.length) ?? 0) > 0 && (
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Variables disponibles:</Label>
-              <div className="flex flex-wrap gap-1">{form.variables.map((v: string) => <Badge key={v} variant="secondary" className="text-xs">{`{${v}}`}</Badge>)}</div>
+              <div className="flex flex-wrap gap-1">{(form.variables ?? []).map((v: string) => <Badge key={v} variant="secondary" className="text-xs">{`{${v}}`}</Badge>)}</div>
             </div>
           )}
         </div>
@@ -122,18 +133,15 @@ function TemplatesCard() {
   )
 }
 
-function SmtpCard() {
-  const { data: smtp, isLoading } = useSmtpConfig()
+function SmtpCardForm({ initialSmtp }: { initialSmtp: SmtpConfig }) {
   const update = useUpdateSmtpConfig()
   const testSmtp = useTestSmtpConfig()
-  const [form, setForm] = useState<Partial<SmtpConfig>>({})
+  const [form, setForm] = useState<Partial<SmtpConfig>>(() => ({ ...initialSmtp }))
   const [testTo, setTestTo] = useState('')
-  useEffect(() => { if (smtp) setForm(smtp) }, [smtp])
-  const set = (k: keyof SmtpConfig, v: string | number) => setForm(p => ({ ...p, [k]: v }))
+  const set = (k: keyof SmtpConfig, v: string | number) => setForm((p) => ({ ...p, [k]: v }))
 
   return (
-    <SettingsCard title="Configuration SMTP (Email)" icon={Mail} isLoading={isLoading}>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2"><Label>Serveur SMTP</Label><Input value={form.host || ''} onChange={e => set('host', e.target.value)} placeholder="smtp.example.com" /></div>
           <div className="space-y-2"><Label>Port</Label><Input type="number" value={form.port ?? ''} onChange={e => set('port', Number(e.target.value))} placeholder="587" /></div>
@@ -175,24 +183,29 @@ function SmtpCard() {
             {update.isPending ? 'Enregistrement...' : 'Enregistrer SMTP'}
           </Button>
         </div>
-      </div>
+    </div>
+  )
+}
+
+function SmtpCard() {
+  const { data: smtp, isLoading, dataUpdatedAt } = useSmtpConfig()
+  return (
+    <SettingsCard title="Configuration SMTP (Email)" icon={Mail} isLoading={isLoading}>
+      {smtp ? <SmtpCardForm key={dataUpdatedAt} initialSmtp={smtp} /> : null}
     </SettingsCard>
   )
 }
 
-function TwilioCard() {
-  const { data: twilio, isLoading } = useTwilioConfig()
+function TwilioCardForm({ initialTwilio }: { initialTwilio: TwilioConfig }) {
   const update = useUpdateTwilioConfig()
   const testTwilio = useTestTwilioConfig()
-  const [form, setForm] = useState<Partial<TwilioConfig>>({})
+  const [form, setForm] = useState<Partial<TwilioConfig>>(() => ({ ...initialTwilio }))
   const [testTo, setTestTo] = useState('')
   const [testChannel, setTestChannel] = useState<'sms' | 'whatsapp'>('sms')
-  useEffect(() => { if (twilio) setForm(twilio) }, [twilio])
-  const set = <K extends keyof TwilioConfig>(k: K, v: TwilioConfig[K]) => setForm(p => ({ ...p, [k]: v }))
+  const set = <K extends keyof TwilioConfig>(k: K, v: TwilioConfig[K]) => setForm((p) => ({ ...p, [k]: v }))
 
   return (
-    <SettingsCard title="Configuration Twilio (SMS & WhatsApp)" icon={MessageSquare} isLoading={isLoading}>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2"><Label>Account SID</Label><Input value={form.account_sid || ''} onChange={e => set('account_sid', e.target.value)} placeholder="ACxxxxxxx" /></div>
           <div className="space-y-2"><Label>Auth Token</Label><Input type="password" value={form.auth_token || ''} onChange={e => set('auth_token', e.target.value)} placeholder="Laisser vide pour ne pas modifier" /></div>
@@ -245,7 +258,15 @@ function TwilioCard() {
             {update.isPending ? 'Enregistrement...' : 'Enregistrer Twilio'}
           </Button>
         </div>
-      </div>
+    </div>
+  )
+}
+
+function TwilioCard() {
+  const { data: twilio, isLoading, dataUpdatedAt } = useTwilioConfig()
+  return (
+    <SettingsCard title="Configuration Twilio (SMS & WhatsApp)" icon={MessageSquare} isLoading={isLoading}>
+      {twilio ? <TwilioCardForm key={dataUpdatedAt} initialTwilio={twilio} /> : null}
     </SettingsCard>
   )
 }

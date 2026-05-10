@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type SVGAttributes } from 'react'
+import { createElement, useState, type ComponentType, type SVGAttributes } from 'react'
 import { Globe } from 'lucide-react'
 import * as FlagIcons from 'country-flag-icons/react/3x2'
 import { cn } from '@/lib/utils'
@@ -18,27 +18,19 @@ function getBundledSvgFlag(iso: string): ComponentType<SvgFlagProps> | null {
   return C && typeof C === 'function' ? C : null
 }
 
-/**
- * Drapeau : image flagcdn en priorité (léger), puis SVG embarqué (country-flag-icons),
- * puis emoji base, puis globe.
- */
-export function CountryFlag({ emoji, iso2, code, className }: Props) {
-  const iso = pickIso2ForFlag(iso2, code)
+type IsoFlagDisplayProps = {
+  iso: string
+  frame: string
+  className?: string
+  stored?: string | null
+}
+
+/** Isolé avec key=iso : état CDN réinitialisé sans effet. */
+function IsoFlagDisplay({ iso, frame, className, stored }: IsoFlagDisplayProps) {
   const [cdnFailed, setCdnFailed] = useState(false)
+  const SvgFlag = getBundledSvgFlag(iso)
 
-  useEffect(() => {
-    setCdnFailed(false)
-  }, [iso])
-
-  const stored = emoji?.trim()
-  const SvgFlag = iso ? getBundledSvgFlag(iso) : null
-
-  const frame = cn(
-    'h-5 w-7 shrink-0 rounded-sm border border-black/10 object-cover dark:border-white/15',
-    className
-  )
-
-  if (iso && !cdnFailed) {
+  if (!cdnFailed) {
     return (
       <img
         src={`https://flagcdn.com/w40/${iso.toLowerCase()}.png`}
@@ -54,8 +46,42 @@ export function CountryFlag({ emoji, iso2, code, className }: Props) {
     )
   }
 
-  if (iso && cdnFailed && SvgFlag) {
-    return <SvgFlag className={cn(frame, 'object-contain')} aria-hidden />
+  if (SvgFlag) {
+    return createElement(SvgFlag, {
+      className: cn(frame, 'object-contain'),
+      'aria-hidden': true,
+    })
+  }
+
+  if (stored) {
+    return (
+      <span
+        className={cn('flex h-5 w-7 shrink-0 items-center justify-center text-lg leading-none', className)}
+        aria-hidden
+      >
+        {stored}
+      </span>
+    )
+  }
+
+  return <Globe className={cn('h-4 w-4 shrink-0 text-muted-foreground', className)} aria-hidden />
+}
+
+/**
+ * Drapeau : image flagcdn en priorité (léger), puis SVG embarqué (country-flag-icons),
+ * puis emoji base, puis globe.
+ */
+export function CountryFlag({ emoji, iso2, code, className }: Props) {
+  const iso = pickIso2ForFlag(iso2, code)
+  const stored = emoji?.trim()
+
+  const frame = cn(
+    'h-5 w-7 shrink-0 rounded-sm border border-black/10 object-cover dark:border-white/15',
+    className
+  )
+
+  if (iso) {
+    return <IsoFlagDisplay key={iso} iso={iso} frame={frame} className={className} stored={stored} />
   }
 
   if (stored) {

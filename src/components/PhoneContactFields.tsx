@@ -31,16 +31,13 @@ type RowProps = {
 
 function PhoneDialRow({ countries, value, onChange, disabled, onDialCountryChange }: RowProps) {
   const [open, setOpen] = useState(false)
-  const [countryId, setCountryId] = useState<number | null>(null)
-  const [national, setNational] = useState('')
 
   const byId = useMemo(() => new Map(countries.map((c) => [c.id, c])), [countries])
 
-  useEffect(() => {
-    const { countryId: cid, nationalDigits } = parseStoredInternational(value, countries)
-    setCountryId(cid)
-    setNational(nationalDigits)
-  }, [value, countries])
+  const { countryId, nationalDigits } = useMemo(
+    () => parseStoredInternational(value, countries),
+    [value, countries],
+  )
 
   useEffect(() => {
     onDialCountryChange?.(countryId)
@@ -88,9 +85,8 @@ function PhoneDialRow({ countries, value, onChange, disabled, onDialCountryChang
                       key={c.id}
                       value={`${c.name} ${label} ${c.iso2 ?? ''}`}
                       onSelect={() => {
-                        setCountryId(c.id)
                         setOpen(false)
-                        commit(c.id, national)
+                        commit(c.id, nationalDigits)
                       }}
                     >
                       <Check
@@ -113,10 +109,9 @@ function PhoneDialRow({ countries, value, onChange, disabled, onDialCountryChang
         inputMode="tel"
         autoComplete="tel-national"
         disabled={disabled}
-        value={national}
+        value={nationalDigits}
         onChange={(e) => {
           const v = e.target.value.replace(/[^\d\s]/g, '')
-          setNational(v)
           commit(countryId, v)
         }}
       />
@@ -153,11 +148,9 @@ export function PhoneContactFields({
   className,
   onPrimaryDialCountryChange,
 }: Props) {
-  const [showSecond, setShowSecond] = useState(() => secondary.trim().length > 0)
-
-  useEffect(() => {
-    if (secondary.trim().length > 0) setShowSecond(true)
-  }, [secondary])
+  const hasSecondaryContent = secondary.trim().length > 0
+  const [secondRowExpanded, setSecondRowExpanded] = useState(false)
+  const showSecond = hasSecondaryContent || secondRowExpanded
 
   const busy = disabled || isLoadingCountries
 
@@ -172,7 +165,7 @@ export function PhoneContactFields({
             size="sm"
             className="h-8 text-xs"
             disabled={busy}
-            onClick={() => setShowSecond(true)}
+            onClick={() => setSecondRowExpanded(true)}
           >
             Ajouter un numéro
           </Button>
@@ -201,7 +194,7 @@ export function PhoneContactFields({
                   disabled={busy}
                   onClick={() => {
                     onSecondaryChange('')
-                    setShowSecond(false)
+                    setSecondRowExpanded(false)
                   }}
                 >
                   Retirer

@@ -1,11 +1,9 @@
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/utils'
 import {
   Check,
   Clock,
   AlertCircle,
   Package,
-  Truck,
   CreditCard,
   User,
   type LucideIcon,

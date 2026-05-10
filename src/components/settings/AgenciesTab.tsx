@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Building2, Plus, Pencil } from 'lucide-react'
 import type { Agency } from '@/types/settings'
 import { displayLocalized } from '@/lib/localizedString'
+import { CountryNameWithFlag } from '@/components/CountryNameWithFlag'
 
 export default function AgenciesTab() {
   const { data: agencies, isLoading: loadingA } = agencyHooks.useList()
@@ -83,12 +84,22 @@ export default function AgenciesTab() {
               <div className="flex items-center gap-3">
                 <div>
                   <p className="font-medium text-sm">{displayLocalized(a.name as unknown)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Code {a.code}
-                    {a.city?.name || a.country?.name
-                      ? ` · ${[a.city?.name, a.country?.name].filter(Boolean).join(' · ')}`
-                      : ''}
-                    {a.users_count != null ? ` · ${a.users_count} utilisateur(s)` : ''}
+                  <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                    <span>Code {a.code}</span>
+                    {a.city?.name || a.country ? (
+                      <>
+                        <span aria-hidden>·</span>
+                        {a.city?.name ? <span>{a.city.name}</span> : null}
+                        {a.city?.name && a.country ? <span aria-hidden>·</span> : null}
+                        {a.country ? <CountryNameWithFlag country={a.country} flagSize="sm" /> : null}
+                      </>
+                    ) : null}
+                    {a.users_count != null ? (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>{a.users_count} utilisateur(s)</span>
+                      </>
+                    ) : null}
                   </p>
                 </div>
               </div>

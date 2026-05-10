@@ -10,12 +10,16 @@ export interface ShipmentStatusPayload {
 export const SHIPMENT_STATUS_FILTER_OPTIONS: { code: string; name: string }[] = [
   { code: 'draft', name: 'Brouillon' },
   { code: 'pending_drop_off', name: 'En attente de dépôt' },
+  { code: 'issue_reported', name: 'Problème signalé' },
   { code: 'received_at_hub', name: 'Réceptionné au hub' },
   { code: 'ready_for_dispatch', name: 'Prêt à l’expédition' },
   { code: 'in_transit', name: 'En transit' },
+  { code: 'customs_hold', name: 'Blocage douane' },
   { code: 'arrived_at_destination', name: 'Arrivé à destination' },
+  { code: 'delivery_failed', name: 'Échec de livraison' },
   { code: 'delivered', name: 'Livré' },
   { code: 'cancelled', name: 'Annulé' },
+  { code: 'expired', name: 'Expiré' },
 ]
 
 export interface ShipmentItem {
@@ -70,6 +74,8 @@ export interface Shipment {
   tracking_number: string
   reference_code: string | null
   status: ShipmentStatusPayload
+  pre_alert_id?: number | null
+  assisted_purchase_id?: number | null
   workflow_steps?: Array<{
     code: string
     label: string
@@ -135,6 +141,9 @@ export interface Shipment {
   notes: string | null
   delivery_notes: string | null
   signature_url: string | null
+  signed_form_path?: string | null
+  signed_form_url?: string | null
+  has_signed_form?: boolean
 
   estimated_delivery: string | null
   delivered_at: string | null

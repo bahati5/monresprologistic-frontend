@@ -20,22 +20,19 @@ interface KpiCardProps {
 }
 
 function useCountUp(end: number, duration = 1200, enabled = true) {
+  const shouldAnimate = enabled && typeof end === 'number'
   const [count, setCount] = useState(0)
   const rafRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    if (!enabled || typeof end !== 'number') {
-      setCount(end)
-      return
-    }
-    let start = 0
+    if (!shouldAnimate) return
     const startTime = performance.now()
 
     function tick(now: number) {
       const elapsed = now - startTime
       const progress = Math.min(elapsed / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
-      setCount(Math.round(start + (end - start) * eased))
+      setCount(Math.round(end * eased))
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(tick)
       }
@@ -43,9 +40,9 @@ function useCountUp(end: number, duration = 1200, enabled = true) {
 
     rafRef.current = requestAnimationFrame(tick)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [end, duration, enabled])
+  }, [end, duration, shouldAnimate])
 
-  return count
+  return shouldAnimate ? count : end
 }
 
 export function KpiCard({

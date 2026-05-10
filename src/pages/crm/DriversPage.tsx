@@ -3,6 +3,7 @@ import { ListCardsToggle } from '@/components/common/ListCardsToggle'
 import { loadViewMode, saveViewMode, type ListOrCards } from '@/lib/listViewMode'
 import { motion } from 'framer-motion'
 import { useDrivers, useCreateDriver, useUpdateDriver, useToggleDriverActive } from '@/hooks/useCrm'
+import type { Driver, DriverCreatePayload } from '@/types/crm'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +21,25 @@ import {
 } from 'lucide-react'
 import { displayLocalized } from '@/lib/localizedString'
 
+interface DriverRow {
+  id: number
+  name?: unknown
+  email?: string | null
+  phone?: string | null
+  vehicle_type?: string | null
+  license_plate?: string | null
+  is_active?: boolean
+  [key: string]: unknown
+}
+
+interface DriversListPayload {
+  data?: DriverRow[]
+  total?: number
+  last_page?: number
+  from?: number
+  to?: number
+}
+
 const VIEW_KEY = 'drivers-list-view'
 
 export default function DriversPage() {
@@ -31,27 +51,44 @@ export default function DriversPage() {
   const toggleStatus = useToggleDriverActive()
 
   const [formOpen, setFormOpen] = useState(false)
-  const [editItem, setEditItem] = useState<any>(null)
-  const [form, setForm] = useState<Record<string, any>>({})
+  const [editItem, setEditItem] = useState<DriverRow | null>(null)
+  const [form, setForm] = useState<Record<string, unknown>>({})
   const [viewMode, setViewMode] = useState<ListOrCards>(() => loadViewMode(VIEW_KEY))
 
   useEffect(() => {
     saveViewMode(VIEW_KEY, viewMode)
   }, [viewMode])
 
-  const drivers = Array.isArray(data) ? data : data?.data || []
-  const pagination = Array.isArray(data) ? {} : data || {}
+  const drivers: DriverRow[] = (Array.isArray(data) ? data : data?.data ?? []) as DriverRow[]
+  const pagination = (Array.isArray(data) ? {} : data) as DriversListPayload
 
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
+  const set = (k: string, v: unknown) => setForm(p => ({ ...p, [k]: v }))
 
   const openCreate = () => { setEditItem(null); setForm({}); setFormOpen(true) }
-  const openEdit = (d: any) => { setEditItem(d); setForm({ ...d }); setFormOpen(true) }
+  const openEdit = (d: DriverRow) => { setEditItem(d); setForm({ ...d }); setFormOpen(true) }
 
   const handleSubmit = () => {
     if (editItem) {
-      updateDriver.mutate({ id: editItem.id, data: form }, { onSuccess: () => setFormOpen(false) })
+      const dataPayload: Partial<Driver> = {
+        name: form.name != null ? String(form.name) : undefined,
+        email: form.email != null ? String(form.email) : undefined,
+        phone: form.phone != null ? String(form.phone) : undefined,
+        vehicle_type: form.vehicle_type != null ? String(form.vehicle_type) : undefined,
+        vehicle_plate: form.license_plate != null ? String(form.license_plate) : undefined,
+      }
+      updateDriver.mutate({ id: editItem.id, data: dataPayload }, { onSuccess: () => setFormOpen(false) })
     } else {
-      createDriver.mutate(form as any, { onSuccess: () => setFormOpen(false) })
+      const pwd = String(form.password ?? '')
+      const payload: DriverCreatePayload = {
+        name: String(form.name ?? ''),
+        email: String(form.email ?? ''),
+        phone: form.phone != null ? String(form.phone) : undefined,
+        password: pwd,
+        password_confirmation: pwd,
+        vehicle_type: form.vehicle_type != null ? String(form.vehicle_type) : undefined,
+        vehicle_plate: form.license_plate != null ? String(form.license_plate) : undefined,
+      }
+      createDriver.mutate(payload, { onSuccess: () => setFormOpen(false) })
     }
   }
 
@@ -60,7 +97,7 @@ export default function DriversPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Chauffeurs</h1>
-          <p className="text-sm text-muted-foreground">{(pagination as any).total ?? drivers.length} chauffeur(s)</p>
+          <p className="text-sm text-muted-foreground">{pagination.total ?? drivers.length} chauffeur(s)</p>
         </div>
         <Button onClick={openCreate}><Plus size={16} className="mr-1.5" />Nouveau chauffeur</Button>
       </div>
@@ -101,7 +138,7 @@ export default function DriversPage() {
                       <p className="text-muted-foreground">Aucun chauffeur</p>
                     </td></tr>
                   ) : (
-                    drivers.map((d: any) => (
+                    drivers.map((d) => (
                       <tr key={d.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-medium">{displayLocalized(d.name)}</td>
                         <td className="px-4 py-3 text-sm">{d.email || '-'}</td>
@@ -151,7 +188,7 @@ export default function DriversPage() {
             </CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {drivers.map((d: any) => (
+              {drivers.map((d) => (
                 <Card key={d.id}>
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
@@ -185,13 +222,13 @@ export default function DriversPage() {
         </div>
       )}
 
-      {((pagination as any).last_page ?? 1) > 1 && (
+      {(pagination.last_page ?? 1) > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{(pagination as any).from}-{(pagination as any).to} sur {(pagination as any).total}</p>
+          <p className="text-sm text-muted-foreground">{pagination.from}-{pagination.to} sur {pagination.total}</p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft size={14} className="mr-1" />Precedent</Button>
-            <span className="text-sm text-muted-foreground px-2">{page} / {(pagination as any).last_page}</span>
-            <Button variant="outline" size="sm" disabled={page >= ((pagination as any).last_page ?? 1)} onClick={() => setPage(page + 1)}>Suivant<ChevronRight size={14} className="ml-1" /></Button>
+            <span className="text-sm text-muted-foreground px-2">{page} / {pagination.last_page}</span>
+            <Button variant="outline" size="sm" disabled={page >= (pagination.last_page ?? 1)} onClick={() => setPage(page + 1)}>Suivant<ChevronRight size={14} className="ml-1" /></Button>
           </div>
         </div>
       )}
@@ -207,16 +244,16 @@ export default function DriversPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Nom *</Label><Input value={form.name || ''} onChange={e => set('name', e.target.value)} /></div>
-              <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Nom *</Label><Input value={String(form.name ?? '')} onChange={e => set('name', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Email</Label><Input type="email" value={String(form.email ?? '')} onChange={e => set('email', e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Telephone *</Label><Input value={form.phone || ''} onChange={e => set('phone', e.target.value)} /></div>
-              <div className="space-y-2"><Label>Plaque immatriculation</Label><Input value={form.license_plate || ''} onChange={e => set('license_plate', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Telephone *</Label><Input value={String(form.phone ?? '')} onChange={e => set('phone', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Plaque immatriculation</Label><Input value={String(form.license_plate ?? '')} onChange={e => set('license_plate', e.target.value)} /></div>
             </div>
-            <div className="space-y-2"><Label>Type de vehicule</Label><Input value={form.vehicle_type || ''} onChange={e => set('vehicle_type', e.target.value)} placeholder="Camionnette, Moto..." /></div>
+            <div className="space-y-2"><Label>Type de vehicule</Label><Input value={String(form.vehicle_type ?? '')} onChange={e => set('vehicle_type', e.target.value)} placeholder="Camionnette, Moto..." /></div>
             {!editItem && (
-              <div className="space-y-2"><Label>Mot de passe *</Label><Input type="password" value={form.password || ''} onChange={e => set('password', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Mot de passe *</Label><Input type="password" value={String(form.password ?? '')} onChange={e => set('password', e.target.value)} /></div>
             )}
           </div>
           <DialogFooter>

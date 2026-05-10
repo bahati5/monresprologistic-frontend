@@ -10,6 +10,7 @@ import {
   BookOpen,
   Shield,
   Settings,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -101,6 +102,19 @@ const SECTIONS: NavSection[] = [
         href: '/finance/ledger',
         icon: BookOpen,
         permission: 'manage_finances',
+      },
+    ],
+  },
+  {
+    id: 'analytics',
+    title: 'ANALYTIQUE',
+    items: [
+      {
+        id: 'analytics-dashboard',
+        label: 'Tableaux de bord',
+        href: '/analytics',
+        icon: BarChart3,
+        permission: 'view_analytics',
       },
     ],
   },

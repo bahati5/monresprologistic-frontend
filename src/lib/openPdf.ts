@@ -112,7 +112,7 @@ export async function printApiPdf(relativePath: string) {
     }
     win.focus()
     win.print()
-    setTimeout(cleanup, 2_000)
+    setTimeout(cleanup, 60_000)
   }
 }
 

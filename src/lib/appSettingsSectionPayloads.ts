@@ -58,8 +58,14 @@ export function buildExpeditionDefaultsPayload(form: Record<string, unknown>): R
   const vd = String(form.volumetric_divisor ?? '').trim()
   const parsed = vd === '' ? NaN : parseInt(vd, 10)
   const volumetric = Number.isFinite(parsed) && parsed >= 1 ? parsed : null
+  const ruleRaw = String(form.billable_weight_rule ?? '').trim()
+  const billable_weight_rule =
+    ruleRaw === 'max' || ruleRaw === 'min' || ruleRaw === 'real' || ruleRaw === 'volumetric'
+      ? ruleRaw
+      : 'max'
   return {
     volumetric_divisor: volumetric,
+    billable_weight_rule,
     default_insurance_pct: optNum(form.default_insurance_pct),
     default_customs_duty_pct: optNum(form.default_customs_duty_pct),
     default_tax_pct: optNum(form.default_tax_pct),

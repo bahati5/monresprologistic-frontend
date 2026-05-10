@@ -10,10 +10,12 @@ import { Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { displayLocalized } from '@/lib/localizedString'
 
+export type GenericListRow = Record<string, unknown> & { id?: string | number }
+
 interface Column {
   key: string
   label: string
-  render?: (row: any) => React.ReactNode
+  render?: (row: GenericListRow) => React.ReactNode
 }
 
 function cleanParams(params: Record<string, string | number | undefined>): Record<string, string | number> {
@@ -32,7 +34,7 @@ interface GenericListPageProps {
   columns: Column[]
   createPath?: string
   createLabel?: string
-  detailPath?: (row: any) => string
+  detailPath?: (row: GenericListRow) => string
   /** Clé localStorage pour mémoriser liste / cartes (défaut : generic-list-{dataKey}) */
   viewStorageKey?: string
   /** Logo institutionnel (ex. branding public) */
@@ -44,16 +46,19 @@ interface GenericListPageProps {
   filtersSlot?: ReactNode
 }
 
-function cellContent(col: Column, row: any): React.ReactNode {
+function cellContent(col: Column, row: GenericListRow): React.ReactNode {
   if (col.render) return col.render(row)
   const v = row[col.key]
   if (v != null && typeof v === 'object' && !Array.isArray(v)) {
-    return displayLocalized(v) || displayLocalized((v as Record<string, unknown>).name)
+    return displayLocalized(v) || displayLocalized((v as Record<string, unknown>).name) || '-'
   }
-  return v ?? '-'
+  if (v == null) return '-'
+  if (typeof v === 'string' || typeof v === 'number') return v
+  if (typeof v === 'boolean') return v ? 'Oui' : 'Non'
+  return String(v)
 }
 
-export default function GenericListPage({
+function GenericListPageInner({
   title,
   apiPath,
   dataKey,
@@ -70,10 +75,6 @@ export default function GenericListPage({
   const [searchParams, setSearchParams] = useSearchParams()
   const page = Number(searchParams.get('page') || '1')
   const [search, setSearch] = useState(() => searchParams.get('search') || '')
-
-  useEffect(() => {
-    setSearch(searchParams.get('search') || '')
-  }, [searchParams])
 
   const storageKey = viewStorageKey ?? `generic-list-${dataKey}`
   const [viewMode, setViewMode] = useState<ListOrCards>(() => loadViewMode(storageKey))
@@ -122,7 +123,8 @@ export default function GenericListPage({
     [mergeParams],
   )
 
-  const items = data?.[dataKey]?.data || data?.[dataKey] || []
+  const rawItems = data?.[dataKey]?.data ?? data?.[dataKey] ?? []
+  const items: GenericListRow[] = Array.isArray(rawItems) ? (rawItems as GenericListRow[]) : []
   const pagination = data?.[dataKey] || {}
 
   return (
@@ -200,8 +202,8 @@ export default function GenericListPage({
                       </td>
                     </tr>
                   ) : (
-                    items.map((row: any) => (
-                      <tr key={row.id} className="border-b hover:bg-muted/50">
+                    items.map((row) => (
+                      <tr key={String(row.id ?? '')} className="border-b hover:bg-muted/50">
                         {columns.map((col) => (
                           <td key={col.key} className="px-4 py-3 align-top">
                             {cellContent(col, row)}
@@ -244,8 +246,8 @@ export default function GenericListPage({
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((row: any) => (
-                <Card key={row.id} className="overflow-visible">
+              {items.map((row) => (
+                <Card key={String(row.id ?? '')} className="overflow-visible">
                   <CardContent className="space-y-3 overflow-visible p-4">
                     <dl className="space-y-2 text-sm">
                       {columns.map((col) => (
@@ -290,4 +292,10 @@ export default function GenericListPage({
       )}
     </div>
   )
+}
+
+export default function GenericListPage(props: GenericListPageProps) {
+  const [searchParams] = useSearchParams()
+  const searchKey = searchParams.get('search') ?? ''
+  return <GenericListPageInner key={searchKey} {...props} />
 }

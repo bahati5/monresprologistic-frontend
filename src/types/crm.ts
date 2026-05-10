@@ -15,6 +15,12 @@ export interface Client {
   locker_number: string | null
   is_active: boolean
   is_verified: boolean
+  is_client?: boolean
+  is_staff?: boolean
+  has_shipments_as_sender?: boolean
+  has_shipments_as_recipient?: boolean
+  shipments_as_sender_count?: number
+  shipments_as_recipient_count?: number
   total_shipments: number
   total_spent: number
   balance: number

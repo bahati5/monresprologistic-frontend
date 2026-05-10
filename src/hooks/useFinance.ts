@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
+import { getApiErrorMessage } from '@/lib/apiError'
 import { toast } from 'sonner'
 import type { FinanceDashboardData, Invoice, PaymentProof, LedgerEntry } from '@/types/finance'
 import type { PaginatedData } from '@/types'
@@ -13,7 +14,7 @@ export function useFinanceDashboard() {
   })
 }
 
-export function useInvoices(params: Record<string, any> = {}) {
+export function useInvoices(params: Record<string, unknown> = {}) {
   return useQuery<PaginatedData<Invoice>>({
     queryKey: ['finance', 'invoices', params],
     queryFn: () => api.get('/api/finance/invoices', { params }).then(r => r.data?.invoices ?? r.data),
@@ -23,7 +24,7 @@ export function useInvoices(params: Record<string, any> = {}) {
 export function useCreateInvoice() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: Record<string, any>) =>
+    mutationFn: (payload: Record<string, unknown>) =>
       api.post('/api/finance/invoices', payload).then(r => r.data),
     onSuccess: (_data, payload) => {
       qc.invalidateQueries({ queryKey: ['finance', 'invoices'] })
@@ -34,11 +35,11 @@ export function useCreateInvoice() {
       }
       toast.success('Facture creee')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err)),
   })
 }
 
-export function usePaymentProofs(params: Record<string, any> = {}) {
+export function usePaymentProofs(params: Record<string, unknown> = {}) {
   return useQuery<PaginatedData<PaymentProof>>({
     queryKey: ['finance', 'payment-proofs', params],
     queryFn: () => api.get('/api/finance/payment-proofs', { params }).then(r => r.data?.payment_proofs ?? r.data),
@@ -56,7 +57,7 @@ export function useSubmitPaymentProof() {
       qc.invalidateQueries({ queryKey: ['finance', 'payment-proofs'] })
       toast.success('Preuve de paiement soumise')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -69,7 +70,7 @@ export function useApprovePaymentProof() {
       qc.invalidateQueries({ queryKey: ['finance', 'payment-proofs'] })
       toast.success('Paiement approuve')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -82,11 +83,11 @@ export function useRejectPaymentProof() {
       qc.invalidateQueries({ queryKey: ['finance', 'payment-proofs'] })
       toast.success('Paiement rejete')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err)),
   })
 }
 
-export function useLedger(params: Record<string, any> = {}) {
+export function useLedger(params: Record<string, unknown> = {}) {
   return useQuery<LedgerEntry[]>({
     queryKey: ['finance', 'ledger', params],
     queryFn: () => api.get('/api/finance/ledger', { params }).then(r => r.data?.entries ?? r.data),

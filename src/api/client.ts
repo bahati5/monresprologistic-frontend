@@ -32,6 +32,9 @@ api.interceptors.request.use((config) => {
   if (LONG_RUNNING_URL.test(u)) {
     config.timeout = LONG_RUNNING_TIMEOUT_MS
   }
+  if (config.data instanceof FormData) {
+    delete (config.headers as Record<string, unknown>)['Content-Type']
+  }
   return config
 })
 

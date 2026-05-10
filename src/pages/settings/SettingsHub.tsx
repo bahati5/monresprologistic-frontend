@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import {
   Settings,
@@ -9,11 +10,21 @@ import {
   Bell,
   ShoppingBag,
   FileText,
+  Coins,
+  Plug,
+  AlertTriangle,
+  GitBranch,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   GeneralTab, AgenciesTab, ShippingTab, PricingTab,
   PaymentsTab, NotificationsTab, MerchantSettings, ReferenceSettingsTab,
+  ExchangeRatesTab,
+  SyncErrorsTab,
+  RolesPermissionsTab,
+  WorkflowsTab,
 } from '@/components/settings'
+import IntegrationsTab from '@/components/settings/IntegrationsTab'
 
 type TabValue =
   | 'general'
@@ -25,12 +36,17 @@ type TabValue =
   | 'notifications'
   | 'references'
   | 'merchants'
+  | 'exchange-rates'
+  | 'integrations'
+  | 'sync-errors'
+  | 'roles-permissions'
 
 const tabs: { value: TabValue; label: string; icon: typeof Settings; description: string }[] = [
   { value: 'general',       label: 'Général',           icon: Settings,   description: 'Identité, devise, langue' },
   { value: 'agencies',      label: 'Agences', icon: Building2,  description: 'Structure multi-agences' },
   { value: 'shipping',      label: 'Transport',         icon: Truck,      description: 'Modes, emballages, transporteurs' },
   { value: 'pricing',       label: 'Tarifs & extras',   icon: DollarSign, description: 'Lignes et extras de facturation' },
+  { value: 'exchange-rates', label: 'Devises', icon: Coins, description: 'Taux de change, historique et convertisseur' },
   { value: 'payments',      label: 'Paiements',         icon: CreditCard, description: 'Méthodes et passerelles' },
   { value: 'notifications', label: 'Notifications',     icon: Bell,       description: 'Modèles, SMTP, Twilio' },
   {
@@ -40,10 +56,34 @@ const tabs: { value: TabValue; label: string; icon: typeof Settings; description
     description: 'Casier, suivi, factures, formats de numérotation et compteurs',
   },
   { value: 'merchants',     label: 'Marchands',         icon: ShoppingBag, description: 'Shopping assisté, logos & domaines' },
+  { value: 'integrations',  label: 'Intégrations',      icon: Plug,       description: 'Freshsales, Odoo, FlexPay, WordPress' },
+  { value: 'sync-errors',   label: 'Erreurs sync',      icon: AlertTriangle, description: 'Odoo, Freshsales — retry et résolution' },
+  { value: 'workflows',     label: 'Workflows',       icon: GitBranch,    description: 'Délais, seuils et validations métier' },
+  { value: 'roles-permissions', label: 'Rôles & Permissions', icon: ShieldCheck, description: 'Matrice RBAC dynamique' },
 ]
 
+function tabFromSearchParams(searchParams: URLSearchParams): TabValue | null {
+  const t = searchParams.get('tab')
+  if (t === 'sync-errors' || t === 'integrations' || t === 'workflows' || t === 'roles-permissions') {
+    return t
+  }
+  return null
+}
+
 export default function SettingsHub() {
-  const [activeTab, setActiveTab] = useState<TabValue>('general')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlTab = tabFromSearchParams(searchParams)
+  const [manualTab, setManualTab] = useState<TabValue | null>(null)
+  const activeTab = urlTab ?? manualTab ?? 'general'
+
+  const selectTab = (value: TabValue) => {
+    setManualTab(value)
+    if (searchParams.has('tab')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('tab')
+      setSearchParams(next, { replace: true })
+    }
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -51,10 +91,15 @@ export default function SettingsHub() {
       case 'agencies':      return <AgenciesTab />
       case 'shipping':      return <ShippingTab />
       case 'pricing':       return <PricingTab />
+      case 'exchange-rates': return <ExchangeRatesTab />
       case 'payments':      return <PaymentsTab />
       case 'notifications': return <NotificationsTab />
       case 'references':    return <ReferenceSettingsTab />
       case 'merchants':     return <MerchantSettings />
+      case 'integrations':  return <IntegrationsTab />
+      case 'sync-errors':   return <SyncErrorsTab />
+      case 'workflows':     return <WorkflowsTab />
+      case 'roles-permissions': return <RolesPermissionsTab />
       default:              return null
     }
   }
@@ -113,7 +158,7 @@ export default function SettingsHub() {
                     return (
                       <motion.button
                         key={tab.value}
-                        onClick={() => setActiveTab(tab.value)}
+                        onClick={() => selectTab(tab.value)}
                         className="w-full relative"
                         whileHover={{ x: 4 }}
                         whileTap={{ scale: 0.98 }}

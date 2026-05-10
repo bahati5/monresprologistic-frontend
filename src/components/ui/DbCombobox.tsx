@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Check, ChevronsUpDown, Plus } from 'lucide-react'
+import { Check, ChevronsUpDown, Plus, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -142,38 +142,51 @@ export function DbCombobox({
             <CommandInput placeholder={searchPlaceholder} />
           )}
           <CommandList>
-            <CommandEmpty>
-              <div className="px-2 py-3 text-center text-sm">
-                <p className="text-muted-foreground">{emptyText}</p>
-                {canShortcutCreate && (
-                  <CreateShortcutButton
-                    label={`Créer « ${hint} »…`}
-                    onClick={() => handleOpenCreate(hint)}
-                  />
-                )}
+            {controlledFilter && isLoading ? (
+              <div
+                className="flex flex-col items-center justify-center gap-2 px-3 py-8"
+                role="status"
+                aria-busy="true"
+                aria-label="Recherche en cours">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+                <span className="text-sm text-muted-foreground">Recherche…</span>
               </div>
-            </CommandEmpty>
-            <CommandGroup>
-              {options.map((opt) => (
-                <CommandItem
-                  key={opt.value}
-                  value={opt.value}
-                  keywords={opt.keywords ?? []}
-                  onSelect={() => {
-                    onValueChange(String(opt.value))
-                    setOpen(false)
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      'mr-2 h-4 w-4',
-                      normVal(value) === normVal(opt.value) ? 'opacity-100' : 'opacity-0',
+            ) : (
+              <>
+                <CommandEmpty>
+                  <div className="px-2 py-3 text-center text-sm">
+                    <p className="text-muted-foreground">{emptyText}</p>
+                    {canShortcutCreate && (
+                      <CreateShortcutButton
+                        label={`Créer « ${hint} »…`}
+                        onClick={() => handleOpenCreate(hint)}
+                      />
                     )}
-                  />
-                  {opt.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+                  </div>
+                </CommandEmpty>
+                <CommandGroup>
+                  {options.map((opt) => (
+                    <CommandItem
+                      key={opt.value}
+                      value={opt.value}
+                      keywords={opt.keywords ?? []}
+                      onSelect={() => {
+                        onValueChange(String(opt.value))
+                        setOpen(false)
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          normVal(value) === normVal(opt.value) ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      {opt.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -265,10 +278,10 @@ export function DbComboboxAsync({
       variant="outline"
       role="combobox"
       aria-expanded={open}
-      disabled={disabled || isLoading}
+      disabled={disabled}
       className={cn('h-10 w-full justify-between px-3 font-normal', className)}
     >
-      <span className="truncate text-left">{isLoading ? 'Chargement…' : display ?? placeholder}</span>
+      <span className="truncate text-left">{display ?? placeholder}</span>
       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
     </Button>
   )
@@ -295,6 +308,15 @@ export function DbComboboxAsync({
           <CommandList>
             {belowMin ? (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">{hint}</div>
+            ) : isLoading ? (
+              <div
+                className="flex flex-col items-center justify-center gap-2 px-3 py-8"
+                role="status"
+                aria-busy="true"
+                aria-label="Recherche en cours">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+                <span className="text-sm text-muted-foreground">Recherche…</span>
+              </div>
             ) : options.length === 0 ? (
               <CommandEmpty>
                 <div className="px-2 py-3 text-center text-sm">

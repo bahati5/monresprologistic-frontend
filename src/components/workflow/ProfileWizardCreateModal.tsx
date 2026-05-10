@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -34,63 +34,75 @@ function parseNameHint(hint: string): { first: string; last: string } {
   return { first: t.slice(0, i).trim(), last: t.slice(i + 1).trim() }
 }
 
-export function ProfileWizardCreateModal({
-  open,
-  onOpenChange,
+function getInitialWizardCreateState(searchHint: string | undefined) {
+  const hint = searchHint?.trim() ?? ''
+  let firstName = ''
+  let lastName = ''
+  let phone = ''
+  const phoneSecondary = ''
+  let email = ''
+  if (hint.includes('@')) {
+    email = hint
+  } else if (/^[\d\s+().-]{6,}$/.test(hint)) {
+    phone = hint
+    const parsed = parseNameHint('')
+    firstName = parsed.first
+    lastName = parsed.last
+  } else {
+    const parsed = parseNameHint(hint)
+    firstName = parsed.first
+    lastName = parsed.last
+  }
+  return {
+    firstName,
+    lastName,
+    phone,
+    phoneSecondary,
+    email,
+    address: '',
+    landmark: '',
+    zipCode: '',
+    countryId: '',
+    stateId: '',
+    cityId: '',
+  }
+}
+
+type InnerProps = {
+  mode: ProfileWizardCreateMode
+  senderProfileId?: number
+  searchHint?: string
+  onCreated: (profileId: number) => void
+  onOpenChange: (open: boolean) => void
+}
+
+function ProfileWizardCreateForm({
   mode,
   senderProfileId,
   searchHint,
   onCreated,
-}: Props) {
+  onOpenChange,
+}: InnerProps) {
+  const initial = useMemo(() => getInitialWizardCreateState(searchHint), [searchHint])
   const createClient = useCreateClient()
   const createRecipient = useWizardCreateRecipient()
   const { data: phoneCountries = [], isLoading: loadingPhoneCountries } = usePhoneCountries()
 
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [phoneSecondary, setPhoneSecondary] = useState('')
-  const [email, setEmail] = useState('')
-  const [address, setAddress] = useState('')
-  const [landmark, setLandmark] = useState('')
-  const [zipCode, setZipCode] = useState('')
-  const [countryId, setCountryId] = useState('')
-  const [stateId, setStateId] = useState('')
-  const [cityId, setCityId] = useState('')
+  const [firstName, setFirstName] = useState(initial.firstName)
+  const [lastName, setLastName] = useState(initial.lastName)
+  const [phone, setPhone] = useState(initial.phone)
+  const [phoneSecondary, setPhoneSecondary] = useState(initial.phoneSecondary)
+  const [email, setEmail] = useState(initial.email)
+  const [address, setAddress] = useState(initial.address)
+  const [landmark, setLandmark] = useState(initial.landmark)
+  const [zipCode, setZipCode] = useState(initial.zipCode)
+  const [countryId, setCountryId] = useState(initial.countryId)
+  const [stateId, setStateId] = useState(initial.stateId)
+  const [cityId, setCityId] = useState(initial.cityId)
   const countryIdRef = useRef(countryId)
-  countryIdRef.current = countryId
-
   useEffect(() => {
-    if (!open) return
-    const hint = searchHint?.trim() ?? ''
-    if (hint.includes('@')) {
-      setEmail(hint)
-      setPhone('')
-      setPhoneSecondary('')
-      setFirstName('')
-      setLastName('')
-    } else if (/^[\d\s+().-]{6,}$/.test(hint)) {
-      setPhone(hint)
-      setPhoneSecondary('')
-      setEmail('')
-      const { first, last } = parseNameHint('')
-      setFirstName(first)
-      setLastName(last)
-    } else {
-      const { first, last } = parseNameHint(hint)
-      setFirstName(first)
-      setLastName(last)
-      setEmail('')
-      setPhone('')
-      setPhoneSecondary('')
-    }
-    setAddress('')
-    setLandmark('')
-    setZipCode('')
-    setCountryId('')
-    setStateId('')
-    setCityId('')
-  }, [open, searchHint])
+    countryIdRef.current = countryId
+  }, [countryId])
 
   const handlePrimaryDialCountryChange = useCallback((dialCountryId: number | null) => {
     if (dialCountryId == null) return
@@ -158,87 +170,111 @@ export function ProfileWizardCreateModal({
   }
 
   return (
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {mode === 'sender' ? 'Nouvel expéditeur (client)' : 'Nouveau destinataire'}
+        </DialogTitle>
+        <DialogDescription>
+          Les données sont enregistrées comme sur le CRM / l&apos;assistant (même API). La devise des tarifs est celle
+          des paramètres généraux.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-4 py-2 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label>Prénom *</Label>
+          <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Nom *</Label>
+          <Input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <PhoneContactFields
+            label="Téléphone *"
+            primary={phone}
+            secondary={phoneSecondary}
+            onPrimaryChange={setPhone}
+            onSecondaryChange={setPhoneSecondary}
+            countries={phoneCountries}
+            isLoadingCountries={loadingPhoneCountries}
+            onPrimaryDialCountryChange={handlePrimaryDialCountryChange}
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Email</Label>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Adresse (rue, n°, quartier) *</Label>
+          <Input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Ex. 12 av. de la Liberté, immeuble B"
+            autoComplete="street-address"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Code postal</Label>
+          <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} autoComplete="postal-code" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Pays, région et ville *</Label>
+          <LocationCascadeWithEnrichment
+            value={{
+              countryId: countryId === '' ? '' : Number(countryId),
+              stateId: stateId === '' ? '' : Number(stateId),
+              cityId: cityId === '' ? '' : Number(cityId),
+            }}
+            onChange={(loc) => {
+              setCountryId(loc.countryId === '' || loc.countryId == null ? '' : String(loc.countryId))
+              setStateId(loc.stateId === '' || loc.stateId == null ? '' : String(loc.stateId))
+              setCityId(loc.cityId === '' || loc.cityId == null ? '' : String(loc.cityId))
+            }}
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>{mode === 'recipient' ? 'Complément / repère (optionnel)' : 'Complément (optionnel)'}</Label>
+          <Input
+            value={landmark}
+            onChange={(e) => setLandmark(e.target.value)}
+            placeholder="Ex. près du marché, 2e porte à gauche, digicode…"
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          Annuler
+        </Button>
+        <Button type="button" onClick={handleSubmit} disabled={!canSubmit || pending}>
+          {pending ? 'Enregistrement…' : 'Créer'}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
+export function ProfileWizardCreateModal({
+  open,
+  onOpenChange,
+  mode,
+  senderProfileId,
+  searchHint,
+  onCreated,
+}: Props) {
+  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] w-[min(100vw-1.5rem,720px)] max-w-[720px] overflow-y-auto sm:max-w-[720px]">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === 'sender' ? 'Nouvel expéditeur (client)' : 'Nouveau destinataire'}
-          </DialogTitle>
-          <DialogDescription>
-            Les données sont enregistrées comme sur le CRM / l&apos;assistant (même API). La devise des tarifs est celle
-            des paramètres généraux.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-2 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Prénom *</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Nom *</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <PhoneContactFields
-              label="Téléphone *"
-              primary={phone}
-              secondary={phoneSecondary}
-              onPrimaryChange={setPhone}
-              onSecondaryChange={setPhoneSecondary}
-              countries={phoneCountries}
-              isLoadingCountries={loadingPhoneCountries}
-              onPrimaryDialCountryChange={handlePrimaryDialCountryChange}
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Email</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Adresse (rue, n°, quartier) *</Label>
-            <Input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Ex. 12 av. de la Liberté, immeuble B"
-              autoComplete="street-address"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Code postal</Label>
-            <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} autoComplete="postal-code" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Pays, région et ville *</Label>
-            <LocationCascadeWithEnrichment
-              value={{
-                countryId: countryId === '' ? '' : Number(countryId),
-                stateId: stateId === '' ? '' : Number(stateId),
-                cityId: cityId === '' ? '' : Number(cityId),
-              }}
-              onChange={(loc) => {
-                setCountryId(loc.countryId === '' || loc.countryId == null ? '' : String(loc.countryId))
-                setStateId(loc.stateId === '' || loc.stateId == null ? '' : String(loc.stateId))
-                setCityId(loc.cityId === '' || loc.cityId == null ? '' : String(loc.cityId))
-              }}
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>{mode === 'recipient' ? 'Complément / repère (optionnel)' : 'Complément (optionnel)'}</Label>
-            <Input
-              value={landmark}
-              onChange={(e) => setLandmark(e.target.value)}
-              placeholder="Ex. près du marché, 2e porte à gauche, digicode…"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button type="button" onClick={handleSubmit} disabled={!canSubmit || pending}>
-            {pending ? 'Enregistrement…' : 'Créer'}
-          </Button>
-        </DialogFooter>
+        {open ? (
+          <ProfileWizardCreateForm
+            key={`${mode}-${searchHint ?? ''}`}
+            mode={mode}
+            senderProfileId={senderProfileId}
+            searchHint={searchHint}
+            onCreated={onCreated}
+            onOpenChange={onOpenChange}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   )

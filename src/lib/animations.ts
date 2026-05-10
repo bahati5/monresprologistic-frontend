@@ -59,22 +59,27 @@ export const cardHover = {
 }
 
 export const STATUS_COLORS: Record<string, string> = {
+  /* Anciens codes / UI */
   created: '#3B82F6',
   accepted: '#14B8A6',
   preparing: '#F59E0B',
   collected: '#6366F1',
-  in_transit: '#8B5CF6',
   customs: '#EC4899',
   arrived: '#06B6D4',
   out_for_delivery: '#F97316',
-  delivered: '#10B981',
-  cancelled: '#EF4444',
-  /* Flux unifié (enum ShipmentStatus) */
-  draft: '#64748b',
-  pending_drop_off: '#0ea5e9',
-  received_at_hub: '#14b8a6',
-  ready_for_dispatch: '#f59e0b',
-  arrived_at_destination: '#06b6d4',
+  /* Flux unifié (enum ShipmentStatus) + lisibilité sur fond clair */
+  draft: '#475569',
+  pending_drop_off: '#0284c7',
+  issue_reported: '#c2410c',
+  received_at_hub: '#0d9488',
+  ready_for_dispatch: '#d97706',
+  in_transit: '#7c3aed',
+  customs_hold: '#db2777',
+  arrived_at_destination: '#0891b2',
+  delivery_failed: '#dc2626',
+  delivered: '#059669',
+  cancelled: '#dc2626',
+  expired: '#64748b',
   /* Ramassages (PickupStatus) */
   driver_assigned: '#6366f1',
   completed: '#10b981',

@@ -2,45 +2,20 @@ import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { useAppSettings, useUpdateAppSettingsPartial } from '@/hooks/useSettings'
-import { SettingsCard } from './SettingsCard'
-import { LockerSettings } from './LockerSettings'
-import { NomenclaturePatternPanel } from './NomenclaturePatternPanel'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { settingsInnerTabsContent, settingsInnerTabsList, settingsInnerTabsTrigger } from './innerTabStyles'
-import {
-  buildLockerPayload,
-  buildTrackingPayload,
-  buildShipmentInvoicePdfPayload,
-  buildExpeditionDefaultsPayload,
-  buildFinanceInvoicePayload,
-  buildPrealertPayload,
-  buildPurchaseOrderPayload,
-  buildCustomerPackagePayload,
-} from '@/lib/appSettingsSectionPayloads'
-import { resolveMoneySymbol } from '@/lib/formatCurrency'
-import {
-  MapPin,
-  Route,
-  Receipt,
-  Box,
-  FileSpreadsheet,
-  ClipboardList,
-  ShoppingCart,
-  Package,
-  Hash,
-} from 'lucide-react'
-import type { AppSettings } from '@/types/settings'
+import { Hash } from 'lucide-react'
+import { toFormRecord } from './reference/toFormRecord'
+import { ReferenceLockerSection } from './reference/ReferenceLockerSection'
+import { ReferenceTrackingSection } from './reference/ReferenceTrackingSection'
+import { ReferenceShipmentInvoiceSection } from './reference/ReferenceShipmentInvoiceSection'
+import { ReferenceExpeditionDefaultsSection } from './reference/ReferenceExpeditionDefaultsSection'
+import { ReferenceFinanceInvoiceSection } from './reference/ReferenceFinanceInvoiceSection'
+import { ReferencePrealertSection } from './reference/ReferencePrealertSection'
+import { ReferencePurchaseOrderSection } from './reference/ReferencePurchaseOrderSection'
+import { ReferenceCustomerPackageSection } from './reference/ReferenceCustomerPackageSection'
 
-function toFormRecord(s: AppSettings | undefined): Record<string, unknown> {
-  if (!s) return {}
-  return { ...(s as unknown as Record<string, unknown>) }
-}
-
+/* eslint-disable react-hooks/set-state-in-effect */
 export default function ReferenceSettingsTab() {
   const { data: settings, isLoading } = useAppSettings()
   const updatePartial = useUpdateAppSettingsPartial()
@@ -61,6 +36,10 @@ export default function ReferenceSettingsTab() {
     setShipInv(f)
     setExpDef({
       volumetric_divisor: f.volumetric_divisor != null && f.volumetric_divisor !== '' ? String(f.volumetric_divisor) : '',
+      billable_weight_rule: (() => {
+        const r = String((f as Record<string, unknown>).billable_weight_rule ?? '').trim()
+        return r === 'max' || r === 'min' || r === 'real' || r === 'volumetric' ? r : 'max'
+      })(),
       default_insurance_pct: f.default_insurance_pct ?? '',
       default_customs_duty_pct: f.default_customs_duty_pct ?? '',
       default_tax_pct: f.default_tax_pct ?? '',
@@ -88,6 +67,8 @@ export default function ReferenceSettingsTab() {
     },
     [updatePartial],
   )
+
+  const isPending = updatePartial.isPending
 
   if (isLoading) {
     return (
@@ -143,488 +124,35 @@ export default function ReferenceSettingsTab() {
         </TabsList>
 
         <TabsContent value="locker" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Casier virtuel"
-            icon={MapPin}
-            description="Adresse du hub et format du numéro de casier client"
-            actions={
-              <Button
-                size="sm"
-                disabled={updatePartial.isPending}
-                onClick={() => save('Casier', buildLockerPayload(locker))}
-              >
-                Enregistrer
-              </Button>
-            }
-          >
-            <LockerSettings form={locker} set={setL} />
-          </SettingsCard>
+          <ReferenceLockerSection locker={locker} setL={setL} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="tracking" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Numéro de suivi public"
-            icon={Route}
-            description="Format affiché au client pour suivre une expédition"
-            actions={
-              <Button
-                size="sm"
-                disabled={updatePartial.isPending}
-                onClick={() => save('Suivi', buildTrackingPayload(tracking))}
-              >
-                Enregistrer
-              </Button>
-            }
-          >
-            <NomenclaturePatternPanel
-              profile="tracking"
-              pattern={String(tracking.shipment_tracking_format ?? '{prefix}-{random}')}
-              onPatternChange={(v) => setT('shipment_tracking_format', v)}
-              previewForm={tracking}
-              nextSeqKey="shipment_tracking_next_seq"
-              sectionDescription="Numéro public de suivi d’expédition. Sans {seq}, seul l’aléatoire est utilisé."
-            >
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-2">
-                  <Label>Préfixe</Label>
-                  <Input
-                    value={String(tracking.tracking_prefix ?? 'MRP')}
-                    onChange={(e) => setT('tracking_prefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Longueur aléatoire ({'{random}'})</Label>
-                  <Input
-                    type="number"
-                    min={4}
-                    max={32}
-                    value={String(tracking.tracking_number_length ?? '8')}
-                    onChange={(e) => setT('tracking_number_length', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padding {'{seq}'}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={String(tracking.shipment_tracking_seq_pad ?? '6')}
-                    onChange={(e) => setT('shipment_tracking_seq_pad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Prochain compteur {'{seq}'}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={String(tracking.shipment_tracking_next_seq ?? '1')}
-                    onChange={(e) => setT('shipment_tracking_next_seq', e.target.value)}
-                  />
-                </div>
-              </div>
-            </NomenclaturePatternPanel>
-          </SettingsCard>
+          <ReferenceTrackingSection tracking={tracking} setT={setT} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="ship-inv" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Facture PDF expédition"
-            icon={Receipt}
-            description="Numéro sur le document, termes et signatures"
-            actions={
-              <Button
-                size="sm"
-                disabled={updatePartial.isPending}
-                onClick={() => save('Facture expédition', buildShipmentInvoicePdfPayload(shipInv))}
-              >
-                Enregistrer
-              </Button>
-            }
-          >
-            <NomenclaturePatternPanel
-              profile="shipment_invoice"
-              pattern={String(shipInv.shipment_invoice_format ?? '{prefix}-{year}-{seq}')}
-              onPatternChange={(v) => setS('shipment_invoice_format', v)}
-              previewForm={shipInv}
-              nextSeqKey="shipment_invoice_next_seq"
-              sectionDescription="Numéro sur le PDF de facture d’expédition. {id} = identifiant interne de l’expédition (aperçu fictif)."
-            >
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-2">
-                  <Label>Préfixe</Label>
-                  <Input
-                    value={String(shipInv.shipment_invoice_prefix ?? 'FAC')}
-                    onChange={(e) => setS('shipment_invoice_prefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padding compteur</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={String(shipInv.shipment_invoice_seq_pad ?? '6')}
-                    onChange={(e) => setS('shipment_invoice_seq_pad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Prochain numéro séquentiel</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={String(shipInv.shipment_invoice_next_seq ?? '1')}
-                    onChange={(e) => setS('shipment_invoice_next_seq', e.target.value)}
-                  />
-                </div>
-              </div>
-            </NomenclaturePatternPanel>
-            <Separator className="my-8" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Termes légaux (PDF)</Label>
-                <Textarea
-                  rows={6}
-                  value={String(shipInv.invoice_terms ?? '')}
-                  onChange={(e) => setS('invoice_terms', e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label>
-                  Prise en charge entreprise par défaut (
-                  {resolveMoneySymbol({
-                    currency: String(shipInv.currency ?? 'EUR'),
-                    currency_symbol: String(shipInv.currency_symbol ?? ''),
-                  })}
-                  )
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={
-                    shipInv.default_company_coverage_amount === undefined || shipInv.default_company_coverage_amount === ''
-                      ? ''
-                      : String(shipInv.default_company_coverage_amount)
-                  }
-                  onChange={(e) => setS('default_company_coverage_amount', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Libellé signature entreprise</Label>
-                <Input value={String(shipInv.signing_company ?? '')} onChange={(e) => setS('signing_company', e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Libellé signature client</Label>
-                <Input value={String(shipInv.signing_customer ?? '')} onChange={(e) => setS('signing_customer', e.target.value)} />
-              </div>
-            </div>
-          </SettingsCard>
+          <ReferenceShipmentInvoiceSection shipInv={shipInv} setS={setS} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="exp-defaults" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Paramètres expédition (défauts)"
-            icon={Box}
-            description="Cubage et pourcentages indicatifs utilisés côté expédition"
-            actions={
-              <Button
-                size="sm"
-                disabled={updatePartial.isPending}
-                onClick={() => save('Défauts expédition', buildExpeditionDefaultsPayload(expDef))}
-              >
-                Enregistrer
-              </Button>
-            }
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Diviseur volumétrique (cm³ / kg)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={String(expDef.volumetric_divisor ?? '')}
-                  onChange={(e) => setE('volumetric_divisor', e.target.value)}
-                  placeholder="Ex. 5000"
-                />
-                <p className="text-xs text-muted-foreground">Laisser vide pour ne pas fixer de valeur globale.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Assurance par défaut (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  value={String(expDef.default_insurance_pct ?? '')}
-                  onChange={(e) => setE('default_insurance_pct', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Droits de douane par défaut (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  value={String(expDef.default_customs_duty_pct ?? '')}
-                  onChange={(e) => setE('default_customs_duty_pct', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Taxe par défaut (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  value={String(expDef.default_tax_pct ?? '')}
-                  onChange={(e) => setE('default_tax_pct', e.target.value)}
-                />
-              </div>
-            </div>
-          </SettingsCard>
+          <ReferenceExpeditionDefaultsSection expDef={expDef} setE={setE} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="fin-inv" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Factures finance (portail)"
-            icon={FileSpreadsheet}
-            description="Numérotation des factures émises depuis la partie finance"
-            actions={
-              <Button
-                size="sm"
-                disabled={updatePartial.isPending}
-                onClick={() => save('Facture finance', buildFinanceInvoicePayload(finInv))}
-              >
-                Enregistrer
-              </Button>
-            }
-          >
-            <NomenclaturePatternPanel
-              profile="configurable_seq"
-              pattern={String(finInv.finance_invoice_format ?? '{prefix}-{seq}')}
-              onPatternChange={(v) => setF('finance_invoice_format', v)}
-              previewForm={finInv}
-              nextSeqKey="finance_invoice_next_seq"
-              sectionDescription="Références des factures créées depuis la partie finance."
-              configurable={{
-                keys: {
-                  prefixKey: 'finance_invoice_prefix',
-                  padKey: 'finance_invoice_seq_pad',
-                  nextSeqKey: 'finance_invoice_next_seq',
-                },
-                defaults: { prefix: 'INV', pad: 6 },
-              }}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-2">
-                  <Label>Préfixe</Label>
-                  <Input
-                    value={String(finInv.finance_invoice_prefix ?? 'INV')}
-                    onChange={(e) => setF('finance_invoice_prefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padding</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={String(finInv.finance_invoice_seq_pad ?? '6')}
-                    onChange={(e) => setF('finance_invoice_seq_pad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Prochain compteur</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={String(finInv.finance_invoice_next_seq ?? '1')}
-                    onChange={(e) => setF('finance_invoice_next_seq', e.target.value)}
-                  />
-                </div>
-              </div>
-            </NomenclaturePatternPanel>
-          </SettingsCard>
+          <ReferenceFinanceInvoiceSection finInv={finInv} setF={setF} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="prealert" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Préalertes (ASN)"
-            icon={ClipboardList}
-            actions={
-              <Button
-                size="sm"
-                disabled={updatePartial.isPending}
-                onClick={() => save('Préalertes', buildPrealertPayload(prealert))}
-              >
-                Enregistrer
-              </Button>
-            }
-          >
-            <NomenclaturePatternPanel
-              profile="configurable_seq"
-              pattern={String(prealert.prealert_reference_format ?? '{prefix}-{seq}')}
-              onPatternChange={(v) => setP('prealert_reference_format', v)}
-              previewForm={prealert}
-              nextSeqKey="prealert_next_seq"
-              sectionDescription="Références des préalertes (ASN)."
-              configurable={{
-                keys: {
-                  prefixKey: 'prealert_reference_prefix',
-                  padKey: 'prealert_reference_seq_pad',
-                  nextSeqKey: 'prealert_next_seq',
-                },
-                defaults: { prefix: 'ASN', pad: 4 },
-              }}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-2">
-                  <Label>Préfixe</Label>
-                  <Input
-                    value={String(prealert.prealert_reference_prefix ?? 'ASN')}
-                    onChange={(e) => setP('prealert_reference_prefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padding</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={String(prealert.prealert_reference_seq_pad ?? '4')}
-                    onChange={(e) => setP('prealert_reference_seq_pad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Prochain compteur</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={String(prealert.prealert_next_seq ?? '1')}
-                    onChange={(e) => setP('prealert_next_seq', e.target.value)}
-                  />
-                </div>
-              </div>
-            </NomenclaturePatternPanel>
-          </SettingsCard>
+          <ReferencePrealertSection prealert={prealert} setP={setP} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="po" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Bons d&apos;achat (PO)"
-            icon={ShoppingCart}
-            actions={
-              <Button size="sm" disabled={updatePartial.isPending} onClick={() => save("Bons d'achat", buildPurchaseOrderPayload(po))}>
-                Enregistrer
-              </Button>
-            }
-          >
-            <NomenclaturePatternPanel
-              profile="configurable_seq"
-              pattern={String(po.purchase_order_reference_format ?? '{prefix}-{seq}')}
-              onPatternChange={(v) => setO('purchase_order_reference_format', v)}
-              previewForm={po}
-              nextSeqKey="purchase_order_next_seq"
-              sectionDescription="Références des bons d’achat (PO)."
-              configurable={{
-                keys: {
-                  prefixKey: 'purchase_order_reference_prefix',
-                  padKey: 'purchase_order_reference_seq_pad',
-                  nextSeqKey: 'purchase_order_next_seq',
-                },
-                defaults: { prefix: 'PO', pad: 4 },
-              }}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-2">
-                  <Label>Préfixe</Label>
-                  <Input
-                    value={String(po.purchase_order_reference_prefix ?? 'PO')}
-                    onChange={(e) => setO('purchase_order_reference_prefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padding</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={String(po.purchase_order_reference_seq_pad ?? '4')}
-                    onChange={(e) => setO('purchase_order_reference_seq_pad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Prochain compteur</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={String(po.purchase_order_next_seq ?? '1')}
-                    onChange={(e) => setO('purchase_order_next_seq', e.target.value)}
-                  />
-                </div>
-              </div>
-            </NomenclaturePatternPanel>
-          </SettingsCard>
+          <ReferencePurchaseOrderSection po={po} setO={setO} save={save} isPending={isPending} />
         </TabsContent>
 
         <TabsContent value="pkg" className={settingsInnerTabsContent}>
-          <SettingsCard
-            title="Colis réception (PKG)"
-            icon={Package}
-            actions={
-              <Button size="sm" disabled={updatePartial.isPending} onClick={() => save('Colis réception', buildCustomerPackagePayload(pkg))}>
-                Enregistrer
-              </Button>
-            }
-          >
-            <NomenclaturePatternPanel
-              profile="configurable_seq"
-              pattern={String(pkg.customer_package_reference_format ?? '{prefix}-{seq}')}
-              onPatternChange={(v) => setK('customer_package_reference_format', v)}
-              previewForm={pkg}
-              nextSeqKey="customer_package_next_seq"
-              sectionDescription="Références des colis en réception (PKG)."
-              configurable={{
-                keys: {
-                  prefixKey: 'customer_package_reference_prefix',
-                  padKey: 'customer_package_reference_seq_pad',
-                  nextSeqKey: 'customer_package_next_seq',
-                },
-                defaults: { prefix: 'PKG', pad: 4 },
-              }}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-2">
-                  <Label>Préfixe</Label>
-                  <Input
-                    value={String(pkg.customer_package_reference_prefix ?? 'PKG')}
-                    onChange={(e) => setK('customer_package_reference_prefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padding</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={12}
-                    value={String(pkg.customer_package_reference_seq_pad ?? '4')}
-                    onChange={(e) => setK('customer_package_reference_seq_pad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Prochain compteur</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={String(pkg.customer_package_next_seq ?? '1')}
-                    onChange={(e) => setK('customer_package_next_seq', e.target.value)}
-                  />
-                </div>
-              </div>
-            </NomenclaturePatternPanel>
-          </SettingsCard>
+          <ReferenceCustomerPackageSection pkg={pkg} setK={setK} save={save} isPending={isPending} />
         </TabsContent>
       </Tabs>
     </div>

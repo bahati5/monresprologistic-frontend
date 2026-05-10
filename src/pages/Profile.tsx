@@ -1,85 +1,161 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/stores/authStore'
-import { useThemeStore } from '@/stores/themeStore'
 import api from '@/api/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Sun, Moon, Monitor } from 'lucide-react'
 import { toast } from 'sonner'
+import { getApiErrorMessage } from '@/lib/apiError'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+
+import { ProfileInfoSection } from '@/components/profile/ProfileInfoSection'
+import { ProfilePasswordSection } from '@/components/profile/ProfilePasswordSection'
+import { ProfilePreferencesSection } from '@/components/profile/ProfilePreferencesSection'
+
+function useProfileData() {
+  return useQuery({
+    queryKey: ['profile-full'],
+    queryFn: () => api.get('/api/profile').then((r) => r.data),
+  })
+}
 
 export default function Profile() {
   const { user, setUser } = useAuthStore()
-  const { theme, setTheme } = useThemeStore()
+  const queryClient = useQueryClient()
+  const { data: profileData } = useProfileData()
+  const profile = profileData?.profile
+
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
+  const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPw, setChangingPw] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '')
+      setEmail(user.email || '')
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (profile?.phone) {
+      setPhone(profile.phone)
+    }
+  }, [profile])
+
+  const { data: prefsData } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: () => api.get('/api/client/notification-preferences').then((r) => r.data.preferences),
+  })
+
+  const prefs = prefsData ?? { sms: true, email: true, in_app: true }
+
+  const { data: addressBookData } = useQuery({
+    queryKey: ['address-book-profile'],
+    queryFn: () => api.get('/api/address-book', { params: { per_page: 8 } }).then((r) => r.data),
+    retry: false,
+  })
+
+  const rawBook = addressBookData?.address_book
+  const addressRows = Array.isArray(rawBook?.data) ? rawBook.data : Array.isArray(rawBook) ? rawBook : []
+
+  const updatePrefsMutation = useMutation({
+    mutationFn: (newPrefs: Record<string, boolean>) =>
+      api.patch('/api/client/notification-preferences', newPrefs).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification-preferences'] })
+      toast.success('Preferences de notification mises a jour.')
+    },
+    onError: () => toast.error('Erreur lors de la mise a jour des preferences.'),
+  })
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      const { data } = await api.patch('/api/profile', { name, email })
+      const { data } = await api.patch('/api/profile', { name, email, phone })
       setUser(data.user)
+      queryClient.invalidateQueries({ queryKey: ['profile-full'] })
       toast.success('Profil mis a jour.')
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la mise a jour.')
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Erreur lors de la mise a jour.'))
     } finally {
       setSaving(false)
     }
   }
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas.')
+      return
+    }
+    if (newPassword.length < 8) {
+      toast.error('Le mot de passe doit contenir au moins 8 caracteres.')
+      return
+    }
+    setChangingPw(true)
+    try {
+      await api.put('/api/password', {
+        current_password: currentPassword,
+        password: newPassword,
+        password_confirmation: confirmPassword,
+      })
+      toast.success('Mot de passe modifie avec succes.')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Erreur lors du changement de mot de passe.'))
+    } finally {
+      setChangingPw(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold">Profil</h1>
+      <div className="flex items-center gap-3">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
+          {(user?.name || 'U').charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">{user?.name || 'Mon profil'}</h1>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations personnelles</CardTitle>
-          <CardDescription>Mettez a jour vos informations de profil.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleUpdate}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nom</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </div>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
-          </CardContent>
-        </form>
-      </Card>
+      <ProfileInfoSection
+        profile={profile}
+        user={user}
+        addressRows={addressRows}
+        name={name}
+        email={email}
+        phone={phone}
+        saving={saving}
+        onNameChange={setName}
+        onEmailChange={setEmail}
+        onPhoneChange={setPhone}
+        onProfileSubmit={handleUpdate}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Apparence</CardTitle>
-          <CardDescription>Choisissez votre theme prefere.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3">
-            {([
-              { value: 'light' as const, label: 'Clair', icon: <Sun size={18} /> },
-              { value: 'dark' as const, label: 'Sombre', icon: <Moon size={18} /> },
-              { value: 'system' as const, label: 'Systeme', icon: <Monitor size={18} /> },
-            ]).map((opt) => (
-              <Button
-                key={opt.value}
-                variant={theme === opt.value ? 'default' : 'outline'}
-                className="flex items-center gap-2"
-                onClick={() => setTheme(opt.value)}
-              >
-                {opt.icon} {opt.label}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <ProfilePasswordSection
+        currentPassword={currentPassword}
+        newPassword={newPassword}
+        confirmPassword={confirmPassword}
+        changingPw={changingPw}
+        onCurrentPasswordChange={setCurrentPassword}
+        onNewPasswordChange={setNewPassword}
+        onConfirmPasswordChange={setConfirmPassword}
+        onPasswordSubmit={handleChangePassword}
+      />
+
+      <ProfilePreferencesSection
+        prefs={prefs}
+        user={user}
+        updatePrefsMutation={updatePrefsMutation}
+      />
     </div>
   )
 }

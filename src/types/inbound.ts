@@ -1,4 +1,4 @@
-/* ── Inbound (Shipment Notices, Purchase Orders, Customer Packages) ── */
+/* ── Inbound (Shipment Notices, Customer Packages) ── */
 
 import type { StatusData } from '.'
 
@@ -37,46 +37,6 @@ export interface ShipmentNoticeCreatePayload {
   purchase_date?: string
   estimated_arrival_date?: string
   attachment?: File
-}
-
-export interface PurchaseOrderItem {
-  id?: number
-  product_url: string
-  description: string
-  size: string | null
-  color: string | null
-  quantity: number
-  unit_price: number
-}
-
-export interface PurchaseOrder {
-  id: number
-  reference_code: string
-  client_id: number
-  client?: { id: number; name: string; email: string }
-  cart_url: string | null
-  status: StatusData
-  items: PurchaseOrderItem[]
-  quote_amount: number | null
-  commission_amount: number | null
-  shipping_amount: number | null
-  total_amount: number | null
-  notes: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface PurchaseOrderCreatePayload {
-  cart_url?: string
-  notes?: string
-  items: Array<{
-    product_url: string
-    description: string
-    size?: string
-    color?: string
-    quantity: number
-    unit_price: number
-  }>
 }
 
 export interface CustomerPackage {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Box, Copy, Eye, Lightbulb, MapPin } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -65,8 +65,6 @@ function PreviewRow({
 }
 
 export function LockerSettings({ form, set }: Props) {
-  const lastEmittedRef = useRef<string | null>(null)
-
   const lockerModeOptions: SearchableOption[] = useMemo(
     () => [
       { value: 'random', label: 'Aléatoire', keywords: ['random', 'aleatoire'] },
@@ -75,24 +73,14 @@ export function LockerSettings({ form, set }: Props) {
     [],
   )
 
-  const [hub, setHub] = useState<LockerHubFields>(() =>
-    parseLockerAddressTemplate(String(form.locker_address ?? '')),
+  const hub = useMemo(
+    () => parseLockerAddressTemplate(String(form.locker_address ?? '')),
+    [form.locker_address],
   )
-
-  useEffect(() => {
-    const fromForm = String(form.locker_address ?? '')
-    if (fromForm === lastEmittedRef.current) {
-      lastEmittedRef.current = null
-      return
-    }
-    setHub(parseLockerAddressTemplate(fromForm))
-  }, [form.locker_address])
 
   const pushTemplate = useCallback(
     (next: LockerHubFields) => {
-      setHub(next)
       const built = buildLockerAddressTemplate(next)
-      lastEmittedRef.current = built
       set('locker_address', built)
     },
     [set],

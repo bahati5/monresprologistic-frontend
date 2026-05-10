@@ -4,10 +4,9 @@ import { cn } from '@/lib/utils'
 import { displayLocalized, resolveLocalized } from '@/lib/localizedString'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Filter, X, ArrowUpDown,
+  ArrowUpDown,
 } from 'lucide-react'
 
 export interface Column<T> {
@@ -53,7 +52,13 @@ const defaultStatusColors: Record<string, { bg: string; text: string }> = {
   rejected:   { bg: 'bg-red-100 dark:bg-red-500/15', text: 'text-red-700 dark:text-red-400' },
 }
 
-export function DataTable<T extends Record<string, any>>({
+function rowKey<T extends Record<string, unknown>>(row: T, index: number): string | number {
+  const id = row['id']
+  if (typeof id === 'string' || typeof id === 'number') return id
+  return index
+}
+
+export function DataTable<T extends Record<string, unknown>>({
   data,
   columns,
   loading = false,
@@ -103,15 +108,16 @@ export function DataTable<T extends Record<string, any>>({
       })
     : data
 
-  function renderCell(row: T, col: Column<T>, idx: number) {
+  function renderCell(row: T, col: Column<T>, idx: number): ReactNode {
     if (col.render) return col.render(row, idx)
 
     const val = row[col.key]
 
     if (statusColumn && col.key === statusColumn.key) {
-      const statusName = typeof val === 'object' && val != null ? displayLocalized(val.name, '-') : displayLocalized(val, '-')
-      const statusCode = typeof val === 'object' && val != null
-        ? String(val.code || resolveLocalized(val.name) || '').toLowerCase()
+      const statusObj = typeof val === 'object' && val != null ? (val as Record<string, unknown>) : null
+      const statusName = statusObj != null ? displayLocalized(statusObj.name, '-') : displayLocalized(val, '-')
+      const statusCode = statusObj != null
+        ? String(statusObj.code || resolveLocalized(statusObj.name) || '').toLowerCase()
         : String(val || '').toLowerCase()
       const colors = statusColumn.colors || defaultStatusColors
       const c = colors[statusCode] || { bg: 'bg-secondary', text: 'text-secondary-foreground' }
@@ -126,7 +132,9 @@ export function DataTable<T extends Record<string, any>>({
       const s = resolveLocalized(val) || resolveLocalized((val as Record<string, unknown>).name)
       return s || '-'
     }
-    return val ?? '-'
+    if (val == null) return '-'
+    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return String(val)
+    return '-'
   }
 
   return (
@@ -202,7 +210,7 @@ export function DataTable<T extends Record<string, any>>({
               ) : (
                 sorted.map((row, idx) => (
                   <RowContent
-                    key={(row as any).id ?? idx}
+                    key={rowKey(row, idx)}
                     row={row}
                     idx={idx}
                     columns={columns}
@@ -249,7 +257,7 @@ export function DataTable<T extends Record<string, any>>({
   )
 }
 
-function RowContent<T extends Record<string, any>>({
+function RowContent<T extends Record<string, unknown>>({
   row,
   idx,
   columns,

@@ -58,18 +58,66 @@ export function mapAppSettingsFromApi(
       ? (data.settings as Record<string, unknown>)
       : (data as Record<string, unknown>)
 
-  return {
+  const defaults: AppSettings = {
+    app_name: '',
+    hub_brand_name: '',
+    app_url: '',
+    app_email: '',
+    nit: '',
+    phone: '',
+    mobile: '',
+    phone_secondary: '',
+    mobile_secondary: '',
+    address: '',
+    country: '',
+    country_id: '',
+    state_id: '',
+    city_id: '',
+    city: '',
+    postal_code: '',
+    locker_address: '',
+    locker_prefix: '',
+    locker_digits: 4,
+    locker_mode: 'random',
+    auto_verify: false,
+    allow_registration: false,
+    admin_notification: false,
+    timezone: '',
+    language: '',
+    currency: '',
+    currency_symbol: '',
+    currency_position: 'before',
+    decimals: 2,
+    number_format: '',
+    logo_url: null,
+    favicon_url: null,
+    show_sidebar_brand_with_logo: true,
+  }
+
+  const mapped = {
+    ...defaults,
     ...raw,
     app_name: String(raw.site_name ?? ''),
     hub_brand_name: String(raw.hub_brand_name ?? ''),
     app_url: String(raw.site_url ?? ''),
     app_email: String(raw.site_email ?? ''),
+    nit: String(raw.nit ?? ''),
     phone: String(raw.phone_fixed ?? ''),
     mobile: String(raw.phone_mobile ?? ''),
     phone_secondary: String(raw.phone_fixed_secondary ?? ''),
     mobile_secondary: String(raw.phone_mobile_secondary ?? ''),
+    address: String(raw.address ?? ''),
+    country: String(raw.country ?? ''),
+    city: String(raw.city ?? ''),
     postal_code: String(raw.zip_code ?? ''),
     locker_address: String(raw.locker_address_template ?? ''),
+    locker_prefix: String(raw.locker_prefix ?? ''),
+    locker_mode: String(raw.locker_mode ?? 'random') === 'sequential' ? 'sequential' : 'random',
+    timezone: String(raw.timezone ?? ''),
+    language: String(raw.language ?? ''),
+    number_format: String(raw.number_format ?? ''),
+    logo_url: raw.logo_url ? String(raw.logo_url) : null,
+    favicon_url: raw.favicon_url ? String(raw.favicon_url) : null,
     currency_position: raw.symbol_position === 'suffix' ? 'after' : 'before',
     auto_verify: truthy(raw.auto_verification),
     allow_registration: truthy(raw.registration_enabled),
@@ -86,7 +134,9 @@ export function mapAppSettingsFromApi(
     currency: String(raw.currency ?? ''),
     currency_symbol: String(raw.currency_symbol ?? ''),
     show_sidebar_brand_with_logo: truthy(raw.show_sidebar_brand_with_logo ?? '1'),
-  } as AppSettings
+  }
+
+  return mapped as unknown as AppSettings
 }
 
 export function mapAppSettingsToApi(form: Record<string, unknown>) {

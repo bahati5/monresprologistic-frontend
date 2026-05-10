@@ -1,11 +1,32 @@
-import { createBrowserRouter } from 'react-router-dom'
+/* eslint-disable react-refresh/only-export-components */
+import { createBrowserRouter, Link } from 'react-router-dom'
 import { displayLocalized } from '@/lib/localizedString'
 import { useFormatMoney } from '@/hooks/useSettings'
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, type ComponentType } from 'react'
 import RequireAuth from '@/components/auth/RequireAuth'
 import GuestOnly from '@/components/auth/GuestOnly'
+import ClientPortalOnly from '@/components/auth/ClientPortalOnly'
 import SidebarLayout from '@/layouts/SidebarLayout'
 import GenericListPage from '@/pages/GenericListPage'
+
+type ListRow = Record<string, unknown>
+
+function readNestedName(obj: unknown): unknown {
+  if (obj && typeof obj === 'object' && 'name' in obj) return (obj as { name: unknown }).name
+  return undefined
+}
+
+function makeLazyRoute(factory: () => Promise<{ default: ComponentType }>) {
+  const LazyPage = lazy(factory)
+  function LazyRoute() {
+    return (
+      <Suspense fallback={<Loader />}>
+        <LazyPage />
+      </Suspense>
+    )
+  }
+  return LazyRoute
+}
 
 const Loader = () => (
   <div className="flex h-64 items-center justify-center">
@@ -13,53 +34,55 @@ const Loader = () => (
   </div>
 )
 
-function lazily(factory: () => Promise<{ default: React.ComponentType }>) {
-  const Component = lazy(factory)
-  return (
-    <Suspense fallback={<Loader />}>
-      <Component />
-    </Suspense>
-  )
-}
-
 // Auth
-const Login = () => lazily(() => import('@/pages/auth/Login'))
-const Register = () => lazily(() => import('@/pages/auth/Register'))
+const Login = makeLazyRoute(() => import('@/pages/auth/Login'))
+const Register = makeLazyRoute(() => import('@/pages/auth/Register'))
+const PublicTrackingPage = makeLazyRoute(() => import('@/pages/public/PublicTrackingPage'))
 
 // Core
-const Dashboard = () => lazily(() => import('@/pages/Dashboard'))
-const Profile = () => lazily(() => import('@/pages/Profile'))
+const Dashboard = makeLazyRoute(() => import('@/pages/Dashboard'))
+const Profile = makeLazyRoute(() => import('@/pages/Profile'))
 
 // Shipments
-const ShipmentsList = () => lazily(() => import('@/pages/shipments/ShipmentsList'))
-const ShipmentDetail = () => lazily(() => import('@/pages/shipments/ShipmentDetail'))
-const ShipmentCreate = () => lazily(() => import('@/pages/shipments/ShipmentCreate'))
+const ShipmentsList = makeLazyRoute(() => import('@/pages/shipments/ShipmentsList'))
+const ShipmentDetail = makeLazyRoute(() => import('@/pages/shipments/ShipmentDetail'))
+const ShipmentCreate = makeLazyRoute(() => import('@/pages/shipments/ShipmentCreate'))
 
 // Operations
-const PickupsPage = () => lazily(() => import('@/pages/operations/PickupsPage'))
-const RegroupementsPage = () => lazily(() => import('@/pages/operations/RegroupementsPage'))
+const PickupsPage = makeLazyRoute(() => import('@/pages/operations/PickupsPage'))
+const RegroupementsPage = makeLazyRoute(() => import('@/pages/operations/RegroupementsPage'))
 
 // Finance
-const FinanceDashboardPage = () => lazily(() => import('@/pages/finance/FinanceDashboardPage'))
+const FinanceDashboardPage = makeLazyRoute(() => import('@/pages/finance/FinanceDashboardPage'))
 
 // CRM
-const ClientsPage = () => lazily(() => import('@/pages/crm/ClientsPage'))
-const ClientDetailPage = () => lazily(() => import('@/pages/crm/ClientDetailPage'))
-const UsersPage = () => lazily(() => import('@/pages/crm/UsersPage'))
-const DriversPage = () => lazily(() => import('@/pages/crm/DriversPage'))
+const ClientsPage = makeLazyRoute(() => import('@/pages/crm/ClientsPage'))
+const ClientDetailPage = makeLazyRoute(() => import('@/pages/crm/ClientDetailPage'))
+const UsersPage = makeLazyRoute(() => import('@/pages/crm/UsersPage'))
+const DriversPage = makeLazyRoute(() => import('@/pages/crm/DriversPage'))
 
 // Reports
-const ReportsHub = () => lazily(() => import('@/pages/reports/ReportsHub'))
+const ReportsHub = makeLazyRoute(() => import('@/pages/reports/ReportsHub'))
 
 // Settings
-const SettingsHub = () => lazily(() => import('@/pages/settings/SettingsHub'))
+const SettingsHub = makeLazyRoute(() => import('@/pages/settings/SettingsHub'))
+
+// New pages
+const RefundsPage = makeLazyRoute(() => import('@/pages/finance/RefundsPage'))
+const AnalyticsDashboard = makeLazyRoute(() => import('@/pages/analytics/AnalyticsDashboard'))
+const OverdueDashboardPage = makeLazyRoute(() => import('@/pages/analytics/OverdueDashboardPage'))
+const QuoteConversionPage = makeLazyRoute(() => import('@/pages/analytics/QuoteConversionPage'))
+const ClientDashboard = makeLazyRoute(() => import('@/pages/portal/ClientDashboard'))
+const ClientLockerPage = makeLazyRoute(() => import('@/pages/portal/ClientLockerPage'))
+const ClientInvoicesPage = makeLazyRoute(() => import('@/pages/portal/ClientInvoicesPage'))
+const FlexPayPage = makeLazyRoute(() => import('@/pages/portal/FlexPayPage'))
 
 // Shopping assisté & colis attendus (création)
-const AssistedShoppingNewPage = () => lazily(() => import('@/pages/shopping/AssistedShoppingNewPage'))
-const AssistedPurchasesListPage = () => lazily(() => import('@/pages/shopping/AssistedPurchasesListPage'))
-const ClientAssistedPurchaseDetailPage = () => lazily(() => import('@/pages/shopping/ClientAssistedPurchaseDetailPage'))
-const AssistedPurchaseQuotePage = () => lazily(() => import('@/pages/shopping/AssistedPurchaseQuotePage'))
-const ShipmentNoticeCreatePage = () => lazily(() => import('@/pages/inbound/ShipmentNoticeCreatePage'))
+const AssistedShoppingNewPage = makeLazyRoute(() => import('@/pages/shopping/AssistedShoppingNewPage'))
+const AssistedPurchasesListPage = makeLazyRoute(() => import('@/pages/shopping/AssistedPurchasesListPage'))
+const ClientAssistedPurchaseDetailPage = makeLazyRoute(() => import('@/pages/shopping/ClientAssistedPurchaseDetailPage'))
+const AssistedPurchaseQuotePage = makeLazyRoute(() => import('@/pages/shopping/AssistedPurchaseQuotePage'))
+const ShipmentNoticeCreatePage = makeLazyRoute(() => import('@/pages/inbound/ShipmentNoticeCreatePage'))
 
 // Inbound — still using GenericListPage (will get dedicated pages in Phase 4)
 function ShipmentNotices() {
@@ -74,14 +97,28 @@ function ShipmentNotices() {
         {
           key: 'vendor_tracking_number',
           label: 'Suivi',
-          render: (r: any) => r.vendor_tracking_number || r.tracking_number || '—',
+          render: (r: ListRow) => {
+            const vendor = r['vendor_tracking_number']
+            const tracking = r['tracking_number']
+            const pick = vendor ?? tracking
+            if (typeof pick === 'string' && pick) return pick
+            if (typeof pick === 'number') return String(pick)
+            return '—'
+          },
         },
-        { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
+        { key: 'status', label: 'Statut', render: (r: ListRow) => displayLocalized(readNestedName(r['status'])) },
+        {
+          key: 'created_at',
+          label: 'Date',
+          render: (r: ListRow) => {
+            const d = r['created_at']
+            return typeof d === 'string' ? new Date(d).toLocaleDateString('fr-FR') : '—'
+          },
+        },
       ]}
       createPath="/shipment-notices/create"
       createLabel="Nouveau Colis Attendu"
-      detailPath={(r: any) => `/shipment-notices/${r.id}`}
+      detailPath={(r: ListRow) => `/shipment-notices/${String(r['id'] ?? '')}`}
     />
   )
 }
@@ -94,20 +131,28 @@ function CustomerPackages() {
       dataKey="packages"
       columns={[
         { key: 'reference_code', label: 'Reference' },
-        { key: 'user', label: 'Client', render: (r: any) => displayLocalized(r.user?.name) },
-        { key: 'status', label: 'Statut', render: (r: any) => displayLocalized(r.status?.name) },
-        { key: 'received_at', label: 'Recu le', render: (r: any) => r.received_at ? new Date(r.received_at).toLocaleDateString('fr-FR') : '-' },
+        { key: 'user', label: 'Client', render: (r: ListRow) => displayLocalized(readNestedName(r['user'])) },
+        { key: 'status', label: 'Statut', render: (r: ListRow) => displayLocalized(readNestedName(r['status'])) },
+        {
+          key: 'received_at',
+          label: 'Recu le',
+          render: (r: ListRow) => {
+            const d = r['received_at']
+            return typeof d === 'string' ? new Date(d).toLocaleDateString('fr-FR') : '-'
+          },
+        },
       ]}
-      detailPath={(r: any) => `/customer-packages/${r.id}`}
+      detailPath={(r: ListRow) => `/customer-packages/${String(r['id'] ?? '')}`}
     />
   )
 }
 
-function LedgerAmountCell({ row }: { row: { amount?: unknown } }) {
+function LedgerAmountCell({ row }: { row: ListRow }) {
   const { formatMoney } = useFormatMoney()
-  if (row.amount == null || row.amount === '') return '-'
-  const n = typeof row.amount === 'number' ? row.amount : Number(row.amount)
-  if (!Number.isFinite(n)) return String(row.amount)
+  const amount = row['amount']
+  if (amount == null || amount === '') return '-'
+  const n = typeof amount === 'number' ? amount : Number(amount)
+  if (!Number.isFinite(n)) return String(amount)
   return formatMoney(n)
 }
 
@@ -124,34 +169,23 @@ function LedgerEntries() {
         {
           key: 'amount',
           label: 'Montant',
-          render: (r: any) => <LedgerAmountCell row={r} />,
+          render: (r: ListRow) => <LedgerAmountCell row={r} />,
         },
-        { key: 'description', label: 'Description', render: (r: any) => r.description ?? '-' },
+        { key: 'description', label: 'Description', render: (r: ListRow) => String(r['description'] ?? '-') },
         {
           key: 'created_at',
           label: 'Date',
-          render: (r: any) => (r.created_at ? new Date(r.created_at).toLocaleString('fr-FR') : '-'),
+          render: (r: ListRow) => {
+            const d = r['created_at']
+            return typeof d === 'string' ? new Date(d).toLocaleString('fr-FR') : '-'
+          },
         },
       ]}
     />
   )
 }
 
-function Invoices() {
-  return (
-    <GenericListPage
-      title="Facturation"
-      apiPath="/api/finance/invoices"
-      dataKey="invoices"
-      columns={[
-        { key: 'id', label: '#' },
-        { key: 'amount', label: 'Montant' },
-        { key: 'status', label: 'Statut' },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
-      ]}
-    />
-  )
-}
+const InvoicesPage = makeLazyRoute(() => import('@/pages/finance/InvoicesPage'))
 
 function PaymentProofs() {
   return (
@@ -163,7 +197,10 @@ function PaymentProofs() {
         { key: 'id', label: '#' },
         { key: 'amount', label: 'Montant' },
         { key: 'status', label: 'Statut' },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
+        { key: 'created_at', label: 'Date', render: (r: ListRow) => {
+            const d = r['created_at']
+            return typeof d === 'string' ? new Date(d).toLocaleDateString('fr-FR') : '—'
+          } },
       ]}
     />
   )
@@ -176,9 +213,32 @@ function Notifications() {
       apiPath="/api/notifications"
       dataKey="notifications"
       columns={[
-        { key: 'title', label: 'Titre', render: (r: any) => displayLocalized(r.data?.title || r.title) },
-        { key: 'read_at', label: 'Lu', render: (r: any) => r.read_at ? 'Oui' : 'Non' },
-        { key: 'created_at', label: 'Date', render: (r: any) => new Date(r.created_at).toLocaleDateString('fr-FR') },
+        {
+          key: 'title',
+          label: 'Titre',
+          render: (r: ListRow) => {
+            const data = r['data']
+            const dataTitle =
+              data && typeof data === 'object' && data !== null && 'title' in data
+                ? (data as { title?: unknown }).title
+                : undefined
+            const fallback = r['title']
+            return displayLocalized(dataTitle ?? fallback)
+          },
+        },
+        {
+          key: 'read_at',
+          label: 'Lu',
+          render: (r: ListRow) => (r['read_at'] ? 'Oui' : 'Non'),
+        },
+        {
+          key: 'created_at',
+          label: 'Date',
+          render: (r: ListRow) => {
+            const d = r['created_at']
+            return typeof d === 'string' ? new Date(d).toLocaleDateString('fr-FR') : '—'
+          },
+        },
       ]}
     />
   )
@@ -191,7 +251,7 @@ function NotFound() {
     <div className="flex h-96 flex-col items-center justify-center text-center">
       <h1 className="text-4xl font-bold">404</h1>
       <p className="mt-2 text-muted-foreground">Page non trouvee</p>
-      <a href="/dashboard" className="mt-4 text-primary hover:underline">Retour au tableau de bord</a>
+      <Link to="/dashboard" className="mt-4 text-primary hover:underline">Retour au tableau de bord</Link>
     </div>
   )
 }
@@ -205,9 +265,24 @@ export const router = createBrowserRouter(
       { path: '/register', element: <Register /> },
     ],
   },
+  { path: '/track', element: <PublicTrackingPage /> },
+  { path: '/suivi', element: <PublicTrackingPage /> },
   {
     element: <RequireAuth />,
     children: [
+      {
+        path: '/portal',
+        element: <ClientPortalOnly />,
+        children: [
+          { index: true, element: <ClientDashboard /> },
+          { path: 'expeditions', element: <ShipmentsList /> },
+          { path: 'achats', element: <AssistedPurchasesListPage /> },
+          { path: 'casier', element: <ClientLockerPage /> },
+          { path: 'factures', element: <ClientInvoicesPage /> },
+          { path: 'paiement', element: <FlexPayPage /> },
+          { path: 'profil', element: <Profile /> },
+        ],
+      },
       {
         element: <SidebarLayout />,
         children: [
@@ -218,6 +293,7 @@ export const router = createBrowserRouter(
           // Shipments
           { path: '/shipments', element: <ShipmentsList /> },
           { path: '/shipments/create', element: <ShipmentCreate /> },
+          { path: '/shipments/:id/edit', element: <ShipmentCreate /> },
           { path: '/shipments/:id', element: <ShipmentDetail /> },
 
           // Inbound
@@ -236,9 +312,15 @@ export const router = createBrowserRouter(
           // Finance
           { path: '/finance', element: <FinanceDashboardPage /> },
           { path: '/finance/dashboard', element: <FinanceDashboardPage /> },
-          { path: '/finance/invoices', element: <Invoices /> },
+          { path: '/finance/invoices', element: <InvoicesPage /> },
           { path: '/finance/ledger', element: <LedgerEntries /> },
           { path: '/finance/payment-proofs', element: <PaymentProofs /> },
+          { path: '/finance/refunds', element: <RefundsPage /> },
+
+          // Analytics
+          { path: '/analytics', element: <AnalyticsDashboard /> },
+          { path: '/analytics/overdue', element: <OverdueDashboardPage /> },
+          { path: '/analytics/devis', element: <QuoteConversionPage /> },
 
           // Reports
           { path: '/reports', element: <ReportsHub /> },
@@ -259,9 +341,4 @@ export const router = createBrowserRouter(
   { path: '/', element: <Login /> },
   { path: '*', element: <NotFound /> },
   ],
-  {
-    future: {
-      v7_startTransition: true,
-    },
-  }
 )

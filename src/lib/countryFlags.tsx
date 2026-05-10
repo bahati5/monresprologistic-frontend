@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, type CSSProperties } from 'react'
 
 const BASE = 0x1f1e6

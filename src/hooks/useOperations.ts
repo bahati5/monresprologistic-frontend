@@ -2,12 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
+import { getApiErrorMessage } from '@/lib/apiError'
 import { toast } from 'sonner'
 import type { Pickup, PickupCreatePayload } from '@/types/operations'
 import type { PaginatedData } from '@/types'
 
 // ── Pickups ──
-export function usePickups(params: Record<string, any> = {}) {
+export function usePickups(params: Record<string, unknown> = {}) {
   return useQuery<PaginatedData<Pickup>>({
     queryKey: ['pickups', params],
     queryFn: () => api.get('/api/pickups', { params }).then(r => r.data?.pickups ?? r.data),
@@ -23,7 +24,7 @@ export function useCreatePickup() {
       qc.invalidateQueries({ queryKey: ['pickups'] })
       toast.success('Ramassage cree')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -31,25 +32,41 @@ export function useAssignPickupDriver() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, driver_id }: { id: number; driver_id: number }) =>
-      api.post(`/api/pickups/${id}/assign`, { driver_id }).then(r => r.data),
+      api.post(`/api/pickups/${id}/assign`, { assigned_driver_id: driver_id }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pickups'] })
       toast.success('Chauffeur assigne')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }
 
 export function useUpdatePickupStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, status, notes }: { id: number; status: string; notes?: string }) =>
-      api.post(`/api/pickups/${id}/update-status`, { status, notes }).then((r) => r.data),
+    mutationFn: ({
+      id,
+      status,
+      failure_reason,
+      completion_notes,
+    }: {
+      id: number
+      status: string
+      failure_reason?: string
+      completion_notes?: string
+    }) =>
+      api
+        .post(`/api/pickups/${id}/update-status`, {
+          status,
+          failure_reason: failure_reason || undefined,
+          completion_notes: completion_notes || undefined,
+        })
+        .then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pickups'] })
       toast.success('Statut mis a jour')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -109,7 +126,7 @@ export function useCreateRegroupement() {
       qc.invalidateQueries({ queryKey: ['shipments'] })
       toast.success('Lot créé')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -123,7 +140,7 @@ export function useUpdateRegroupementStatus() {
       qc.invalidateQueries({ queryKey: ['shipments'] })
       toast.success('Statut mis à jour')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -148,7 +165,7 @@ export function useAttachShipmentToRegroupement() {
       qc.invalidateQueries({ queryKey: ['shipments'] })
       toast.success('Colis ajouté au regroupement')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }
 
@@ -164,6 +181,6 @@ export function useAttachShipmentsToRegroupement() {
       qc.invalidateQueries({ queryKey: ['shipments'] })
       toast.success('Expéditions ajoutées au regroupement')
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur'),
+    onError: (err: Error) => toast.error(getApiErrorMessage(err)),
   })
 }

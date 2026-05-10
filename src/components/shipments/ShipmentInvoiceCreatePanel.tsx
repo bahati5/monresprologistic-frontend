@@ -1,45 +1,17 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import api from '@/api/client'
-import { toast } from 'sonner'
 import { useAppSettings, useFormatMoney } from '@/hooks/useSettings'
 import { resolveMoneySymbol } from '@/lib/formatCurrency'
 import { useCreateInvoice } from '@/hooks/useFinance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
 import type { BillingExtra } from '@/types/settings'
-import { displayLocalized } from '@/lib/localizedString'
-
-type ExtraRow = {
-  key: string
-  billing_extra_id: number | null
-  label: string
-  calculation_description: string
-  type: 'percentage' | 'fixed'
-  value: string
-}
-
-function computeLineAmount(base: number, type: 'percentage' | 'fixed', value: number): number {
-  if (type === 'fixed') return Math.round(Math.max(value, 0) * 100) / 100
-  return Math.round(Math.max(base, 0) * Math.max(value, 0) * 100) / 10000
-}
+import { NewBillingExtraCatalogDialog } from './invoice/NewBillingExtraCatalogDialog'
+import { ShipmentInvoiceExtrasEditor } from './invoice/ShipmentInvoiceExtrasEditor'
+import { computeLineAmount, type ExtraRow } from './invoice/ShipmentInvoiceExtrasTypes'
+import { ShipmentInvoiceModeToggle } from '@/components/shipments/invoice/ShipmentInvoiceModeToggle'
+import { ShipmentInvoiceSimpleAmountFields } from '@/components/shipments/invoice/ShipmentInvoiceSimpleAmountFields'
 
 export function ShipmentInvoiceCreatePanel({
   shipmentId,
@@ -50,7 +22,6 @@ export function ShipmentInvoiceCreatePanel({
   defaultBaseAmount: number
   currencyHint?: string | null
 }) {
-  const qc = useQueryClient()
   const { data: appSettings } = useAppSettings()
   const { formatMoney } = useFormatMoney()
   const { data: catalog = [] } = useQuery({
@@ -74,23 +45,6 @@ export function ShipmentInvoiceCreatePanel({
   const [extraRows, setExtraRows] = useState<ExtraRow[]>([])
 
   const [newExtraOpen, setNewExtraOpen] = useState(false)
-  const [newExtraForm, setNewExtraForm] = useState({
-    label: '',
-    calculation_description: '',
-    type: 'percentage' as 'percentage' | 'fixed',
-    value: '',
-  })
-  const createCatalogExtra = useMutation({
-    mutationFn: (payload: Record<string, unknown>) =>
-      api.post('/api/finance/billing-extras', payload).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['finance', 'billing-extras-catalog'] })
-      qc.invalidateQueries({ queryKey: ['settings', 'billing_extras'] })
-      toast.success('Extra créé')
-    },
-    onError: (err: { response?: { data?: { message?: string } } }) =>
-      toast.error(err.response?.data?.message || 'Erreur'),
-  })
 
   const baseNum = Number(baseAmount) || 0
   const extrasTotal = useMemo(() => {
@@ -177,137 +131,35 @@ export function ShipmentInvoiceCreatePanel({
           <CardTitle className="text-base">Créer une facture</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={!useExtras ? 'default' : 'outline'}
-              onClick={() => setUseExtras(false)}
-            >
-              Montant simple
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={useExtras ? 'default' : 'outline'}
-              onClick={() => setUseExtras(true)}
-            >
-              Base + extras
-            </Button>
-          </div>
+          <ShipmentInvoiceModeToggle
+            useExtras={useExtras}
+            onSimple={() => setUseExtras(false)}
+            onExtras={() => setUseExtras(true)}
+          />
 
           {!useExtras ? (
-            <div className="space-y-2">
-              <Label>Montant ({currencyUi})</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={simpleAmount}
-                onChange={(e) => setSimpleAmount(e.target.value)}
-              />
-            </div>
+            <ShipmentInvoiceSimpleAmountFields
+              currencyUi={currencyUi}
+              value={simpleAmount}
+              onChange={setSimpleAmount}
+            />
           ) : (
-            <>
-              <div className="space-y-2">
-                <Label>Montant de base ({currencyUi})</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={baseAmount}
-                  onChange={(e) => setBaseAmount(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label>Extras</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Select
-                      onValueChange={(v) => {
-                        const id = Number(v)
-                        const found = catalog.find((x) => x.id === id)
-                        if (found) addFromCatalog(found)
-                      }}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Ajouter du catalogue" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {catalog.map((e) => (
-                          <SelectItem key={e.id} value={String(e.id)}>
-                            {displayLocalized(e.label as unknown)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="sm" onClick={addAdHocRow}>
-                      Ligne libre
-                    </Button>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => setNewExtraOpen(true)}>
-                      Nouvel extra (catalogue)
-                    </Button>
-                  </div>
-                </div>
-
-                {extraRows.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aucune ligne d&apos;extra.</p>
-                ) : (
-                  <div className="space-y-3 rounded-md border p-3">
-                    {extraRows.map((r) => (
-                      <div key={r.key} className="grid gap-2 border-b pb-3 last:border-0 last:pb-0 md:grid-cols-2">
-                        <div className="space-y-1 md:col-span-2">
-                          <Label className="text-xs">Libellé</Label>
-                          <Input
-                            value={r.label}
-                            disabled={r.billing_extra_id != null}
-                            onChange={(e) => updateRow(r.key, { label: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Type</Label>
-                          <Select
-                            value={r.type}
-                            disabled={r.billing_extra_id != null}
-                            onValueChange={(v) => updateRow(r.key, { type: v as ExtraRow['type'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percentage">Pourcentage</SelectItem>
-                              <SelectItem value="fixed">Fixe</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Valeur</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={r.value}
-                            disabled={r.billing_extra_id != null}
-                            onChange={(e) => updateRow(r.key, { value: e.target.value })}
-                          />
-                        </div>
-                        <div className="flex items-end md:col-span-2">
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(r.key)}>
-                            Retirer
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Total estimé : <strong>{formatMoney(previewTotal)}</strong> (base {formatMoney(baseNum)} + extras{' '}
-                {formatMoney(extrasTotal)})
-              </p>
-            </>
+            <ShipmentInvoiceExtrasEditor
+              catalog={catalog}
+              currencyUi={currencyUi}
+              baseAmount={baseAmount}
+              onBaseAmountChange={setBaseAmount}
+              extraRows={extraRows}
+              formatMoney={formatMoney}
+              previewTotal={previewTotal}
+              baseNum={baseNum}
+              extrasTotal={extrasTotal}
+              onOpenNewCatalogExtra={() => setNewExtraOpen(true)}
+              addFromCatalog={addFromCatalog}
+              addAdHocRow={addAdHocRow}
+              updateRow={updateRow}
+              removeRow={removeRow}
+            />
           )}
 
           <Button type="button" onClick={submit} disabled={createInvoice.isPending}>
@@ -316,91 +168,7 @@ export function ShipmentInvoiceCreatePanel({
         </CardContent>
       </Card>
 
-      <Dialog open={newExtraOpen} onOpenChange={setNewExtraOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nouvel extra (catalogue)</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label>Libellé</Label>
-              <Input
-                value={newExtraForm.label}
-                onChange={(e) => setNewExtraForm((p) => ({ ...p, label: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Mode de calcul</Label>
-              <Textarea
-                rows={2}
-                value={newExtraForm.calculation_description}
-                onChange={(e) => setNewExtraForm((p) => ({ ...p, calculation_description: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Type</Label>
-              <Select
-                value={newExtraForm.type}
-                onValueChange={(v) =>
-                  setNewExtraForm((p) => ({ ...p, type: v as typeof p.type }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="percentage">Pourcentage</SelectItem>
-                  <SelectItem value="fixed">Fixe</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Valeur</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={newExtraForm.value}
-                onChange={(e) => setNewExtraForm((p) => ({ ...p, value: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setNewExtraOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              type="button"
-              disabled={createCatalogExtra.isPending || !newExtraForm.label.trim()}
-              onClick={() => {
-                const v = Number(newExtraForm.value) || 0
-                createCatalogExtra.mutate(
-                  {
-                    label: newExtraForm.label.trim(),
-                    calculation_description: newExtraForm.calculation_description.trim() || null,
-                    type: newExtraForm.type,
-                    value: v,
-                    is_active: true,
-                  } as Record<string, unknown>,
-                  {
-                    onSuccess: () => {
-                      setNewExtraOpen(false)
-                      setNewExtraForm({
-                        label: '',
-                        calculation_description: '',
-                        type: 'percentage',
-                        value: '',
-                      })
-                    },
-                  },
-                )
-              }}
-            >
-              {createCatalogExtra.isPending ? 'Création…' : 'Créer dans le catalogue'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NewBillingExtraCatalogDialog open={newExtraOpen} onOpenChange={setNewExtraOpen} />
     </>
   )
 }

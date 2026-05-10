@@ -3,14 +3,51 @@ import { useFinanceDashboard } from '@/hooks/useFinance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  DollarSign, TrendingUp, TrendingDown, CreditCard, Receipt,
+  DollarSign, TrendingUp, CreditCard, Receipt,
   ArrowUpRight, ArrowDownRight,
+  type LucideIcon,
 } from 'lucide-react'
 import { displayLocalized } from '@/lib/localizedString'
 import { useFormatMoney } from '@/hooks/useSettings'
 
+interface RecentInvoiceRow {
+  id: number
+  reference?: string
+  amount?: number
+  status?: string
+  client_name?: unknown
+  client?: { name?: unknown }
+}
+
+interface RecentPaymentRow {
+  id: number
+  amount?: number
+  method?: string
+  created_at?: string
+  client_name?: unknown
+  user?: { name?: unknown }
+}
+
+interface MonthlyBreakdownRow {
+  month?: string
+  invoiced?: number
+  paid?: number
+  balance?: number
+}
+
+interface FinanceDashboardData extends Record<string, unknown> {
+  total_revenue?: number
+  revenue_trend?: number
+  total_receivables?: number
+  total_paid?: number
+  paid_trend?: number
+  recent_invoices?: RecentInvoiceRow[]
+  recent_payments?: RecentPaymentRow[]
+  monthly_breakdown?: MonthlyBreakdownRow[]
+}
+
 function StatCard({ title, value, icon: Icon, trend, trendLabel, color }: {
-  title: string; value: string | number; icon: any; trend?: number; trendLabel?: string; color: string
+  title: string; value: string | number; icon: LucideIcon; trend?: number; trendLabel?: string; color: string
 }) {
   const isPositive = (trend ?? 0) >= 0
   return (
@@ -54,7 +91,7 @@ export default function FinanceDashboardPage() {
     )
   }
 
-  const d = data || {} as any
+  const d = (data || {}) as FinanceDashboardData
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -101,7 +138,7 @@ export default function FinanceDashboardPage() {
           <CardContent>
             {d.recent_invoices && d.recent_invoices.length > 0 ? (
               <div className="space-y-2">
-                {d.recent_invoices.map((inv: any) => (
+                {d.recent_invoices.map((inv: RecentInvoiceRow) => (
                   <div key={inv.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <p className="text-sm font-medium">{inv.reference || `INV-${inv.id}`}</p>
@@ -134,11 +171,14 @@ export default function FinanceDashboardPage() {
           <CardContent>
             {d.recent_payments && d.recent_payments.length > 0 ? (
               <div className="space-y-2">
-                {d.recent_payments.map((pay: any) => (
+                {d.recent_payments.map((pay: RecentPaymentRow) => (
                   <div key={pay.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <p className="text-sm font-medium">{displayLocalized(pay.client_name || pay.user?.name)}</p>
-                      <p className="text-xs text-muted-foreground">{pay.method} — {new Date(pay.created_at).toLocaleDateString('fr-FR')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {pay.method} —{' '}
+                        {pay.created_at ? new Date(pay.created_at).toLocaleDateString('fr-FR') : '—'}
+                      </p>
                     </div>
                     <p className="text-sm font-bold text-emerald-600">
                       +{formatMoney(Number(pay.amount ?? 0))}
@@ -173,7 +213,7 @@ export default function FinanceDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {d.monthly_breakdown.map((m: any, i: number) => (
+                  {d.monthly_breakdown.map((m: MonthlyBreakdownRow, i: number) => (
                     <tr key={i} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-3 font-medium">{m.month}</td>
                       <td className="px-4 py-3 text-right">

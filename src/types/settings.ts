@@ -74,7 +74,7 @@ export interface Agency {
   country_id?: number | null
   state_id?: number | null
   city_id?: number | null
-  country?: { id: number; name: string } | null
+  country?: { id: number; name: string; code?: string | null; iso2?: string | null; emoji?: string | null } | null
   state?: { id: number; name: string } | null
   city?: { id: number; name: string } | null
 }
@@ -173,7 +173,7 @@ export interface PricingRule {
   id: number
   name: string
   type: string
-  conditions: Record<string, any>
+  conditions: Record<string, unknown>
   value: number
   is_active: boolean
 }
@@ -207,6 +207,7 @@ export interface WorkflowTransition {
 
 export interface PaymentMethod {
   id: number
+  code?: string | null
   name: string
   description: string | null
   is_active: boolean

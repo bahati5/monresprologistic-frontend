@@ -1,7 +1,5 @@
 /* ── Finance entity types ── */
 
-import type { StatusData } from '.'
-
 export interface Invoice {
   id: number
   reference: string
