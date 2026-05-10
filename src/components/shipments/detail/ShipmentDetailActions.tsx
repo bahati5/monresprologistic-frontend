@@ -2,13 +2,8 @@ import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Copy,
   CopyPlus,
   Download,
-  FileText,
-  FileUp,
-  Loader2,
-  MoreHorizontal,
   RefreshCw,
   UserPlus,
   CreditCard,
@@ -16,14 +11,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { openApiPdf, downloadApiPdf } from '@/lib/openPdf'
+import { openApiPdf } from '@/lib/openPdf'
 import { userCan } from '@/lib/permissions'
 import { fadeInUp } from '@/lib/animations'
 import type { AuthUser } from '@/types'
@@ -57,11 +45,8 @@ type AssignDriverMutation = {
 
 export interface ShipmentDetailActionsProps {
   shipmentId: string | undefined
-  trackingNumber: string | undefined
   shipmentStatusRaw: unknown
   user: AuthUser | null
-  onOpenDigitalFormSection: () => void
-  onCopyTracking: () => void
   statusDialogOpen: boolean
   onStatusDialogOpenChange: (open: boolean) => void
   driverDialogOpen: boolean
@@ -71,8 +56,6 @@ export interface ShipmentDetailActionsProps {
   onOpenPayment: () => void
   signedFormInputRef: React.RefObject<HTMLInputElement | null>
   onSignedFormChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  archiveSignedPending: boolean
-  hasSignedForm: boolean | undefined
   canDuplicateShipment: boolean
   duplicateShipment: DuplicateMutation
   statusCode: string
@@ -95,11 +78,8 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
   const navigate = useNavigate()
   const {
     shipmentId,
-    trackingNumber,
     shipmentStatusRaw,
     user,
-    onOpenDigitalFormSection,
-    onCopyTracking,
     statusDialogOpen,
     onStatusDialogOpenChange,
     driverDialogOpen,
@@ -109,8 +89,6 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
     onOpenPayment,
     signedFormInputRef,
     onSignedFormChange,
-    archiveSignedPending,
-    hasSignedForm,
     canDuplicateShipment,
     duplicateShipment,
     statusCode,
@@ -159,6 +137,39 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
           </Button>
         )}
 
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={!shipmentId}
+          onClick={() => shipmentId && void openApiPdf(`/api/shipments/${shipmentId}/pdf/tracking`)}
+        >
+          <Download size={12} className="mr-1" />
+          Rapport
+        </Button>
+        {canDuplicateShipment && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={!shipmentId || duplicateShipment.isPending}
+            onClick={() => {
+              if (!shipmentId) return
+              duplicateShipment.mutate(Number(shipmentId), {
+                onSuccess: (res) => {
+                  toast.success('Nouveau brouillon créé.')
+                  navigate(`/shipments/${res.id}`)
+                },
+              })
+            }}
+          >
+            <CopyPlus size={12} className="mr-1" />
+            Dupliquer
+          </Button>
+        )}
+
         <input
           ref={signedFormInputRef}
           type="file"
@@ -167,80 +178,6 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
           onChange={onSignedFormChange}
         />
 
-        {/* Menu secondaire : téléchargements, copie, regroupement */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-              <MoreHorizontal size={14} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={onCopyTracking}>
-              <Copy size={13} className="mr-2" />
-              Copier le numéro de tracking
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={archiveSignedPending}
-              onClick={() => signedFormInputRef.current?.click()}
-            >
-              {archiveSignedPending ? <Loader2 size={13} className="mr-2 animate-spin" /> : <FileUp size={13} className="mr-2" />}
-              {hasSignedForm ? 'Remplacer formulaire signé' : 'Archiver formulaire signé'}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                if (!shipmentId) return
-                void downloadApiPdf(`/api/shipments/${shipmentId}/pdf/form`, `formulaire-${trackingNumber || shipmentId}.pdf`)
-              }}
-            >
-              <Download size={13} className="mr-2" />
-              Télécharger formulaire (PDF)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (!shipmentId) return
-                void downloadApiPdf(`/api/shipments/${shipmentId}/pdf/invoice`, `facture-${trackingNumber || shipmentId}.pdf`)
-              }}
-            >
-              <Download size={13} className="mr-2" />
-              Télécharger facture (PDF)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (!shipmentId) return
-                void downloadApiPdf(`/api/shipments/${shipmentId}/pdf/label`, `etiquette-${trackingNumber || shipmentId}.pdf`)
-              }}
-            >
-              <Download size={13} className="mr-2" />
-              Télécharger étiquette (PDF)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => shipmentId && void openApiPdf(`/api/shipments/${shipmentId}/pdf/tracking`)}>
-              <Download size={13} className="mr-2" />
-              Rapport de suivi
-            </DropdownMenuItem>
-            {canDuplicateShipment && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={duplicateShipment.isPending}
-                  onClick={() => {
-                    if (!shipmentId) return
-                    duplicateShipment.mutate(Number(shipmentId), {
-                      onSuccess: (res) => {
-                        toast.success('Nouveau brouillon créé.')
-                        navigate(`/shipments/${res.id}`)
-                      },
-                    })
-                  }}
-                >
-                  <CopyPlus size={13} className="mr-2" />
-                  Dupliquer le dossier
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
         {regroupementSlot}
       </motion.div>
 

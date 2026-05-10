@@ -75,13 +75,6 @@ export default function ShipmentDetail() {
   const signedFormInputRef = useRef<HTMLInputElement | null>(null)
   const documentsTabsRef = useRef<HTMLDivElement | null>(null)
 
-  const openDigitalFormSection = () => {
-    setDetailTab('form')
-    requestAnimationFrame(() => {
-      documentsTabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }
-
   const s = (data || {}) as ShipmentDetailData
 
   const {
@@ -156,6 +149,7 @@ export default function ShipmentDetail() {
         <ShipmentDetailHeader
           shipmentId={id}
           trackingNumber={s.tracking_number}
+          onCopyTracking={handleCopyTracking}
           statusName={statusName}
           statusColor={statusColor}
           payBadge={payBadge}
@@ -168,11 +162,8 @@ export default function ShipmentDetail() {
         />
         <ShipmentDetailActions
           shipmentId={id}
-          trackingNumber={s.tracking_number}
           shipmentStatusRaw={s.status}
           user={user}
-          onOpenDigitalFormSection={openDigitalFormSection}
-          onCopyTracking={handleCopyTracking}
           statusDialogOpen={statusDialog}
           onStatusDialogOpenChange={setStatusDialog}
           driverDialogOpen={driverDialog}
@@ -182,8 +173,6 @@ export default function ShipmentDetail() {
           onOpenPayment={() => setPaymentDialog(true)}
           signedFormInputRef={signedFormInputRef}
           onSignedFormChange={handleSignedFormSelection}
-          archiveSignedPending={archiveSignedForm.isPending}
-          hasSignedForm={s.has_signed_form}
           canDuplicateShipment={canDuplicateShipment}
           duplicateShipment={duplicateShipment}
           statusCode={statusCode}

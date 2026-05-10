@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Copy } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ type PayBadge = ReturnType<typeof paymentStatusBadge>
 export interface ShipmentDetailHeaderProps {
   shipmentId: string | undefined
   trackingNumber: string | undefined
+  onCopyTracking?: () => void
   statusName: string
   statusColor: string
   payBadge: PayBadge
@@ -34,6 +35,7 @@ export interface ShipmentDetailHeaderProps {
 export function ShipmentDetailHeader({
   shipmentId,
   trackingNumber,
+  onCopyTracking,
   statusName,
   statusColor,
   payBadge,
@@ -57,9 +59,23 @@ export function ShipmentDetailHeader({
         >
           <ArrowLeft size={16} />
         </Button>
-        <h1 className="text-lg font-semibold tracking-tight text-foreground whitespace-nowrap">
-          {trackingNumber || `EXP-${shipmentId}`}
-        </h1>
+        <div className="flex items-center gap-1 min-w-0">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground whitespace-nowrap">
+            {trackingNumber || `EXP-${shipmentId}`}
+          </h1>
+          {onCopyTracking && shipmentId ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={onCopyTracking}
+              aria-label="Copier le numéro de suivi"
+            >
+              <Copy size={15} />
+            </Button>
+          ) : null}
+        </div>
         <Badge
           className="text-[11px] font-semibold px-2 py-0.5"
           style={{

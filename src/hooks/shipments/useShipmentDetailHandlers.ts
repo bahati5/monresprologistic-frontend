@@ -57,8 +57,13 @@ export function useShipmentDetailHandlers(p: UseShipmentDetailHandlersParams) {
   } = p
 
   const handleCopyTracking = () => {
-    navigator.clipboard.writeText(s.tracking_number || '')
-    toast.success('Numero de suivi copie')
+    const text = (s.tracking_number ?? '').trim() || (id ? `EXP-${id}` : '')
+    if (!text) {
+      toast.error('Aucun numéro à copier')
+      return
+    }
+    void navigator.clipboard.writeText(text)
+    toast.success('Numéro copié')
   }
 
   const handlePrintForm = () => {
