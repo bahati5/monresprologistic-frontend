@@ -36,7 +36,8 @@ export default function Register() {
         password,
         passwordConfirmation,
       )
-      navigate('/dashboard')
+      const u = useAuthStore.getState().user
+      navigate(u?.roles?.includes('client') ? '/portal' : '/dashboard')
     } catch (err: unknown) {
       if (isAxiosError(err) && err.response?.status === 422) {
         const body = err.response.data as { errors?: Record<string, string[]> }

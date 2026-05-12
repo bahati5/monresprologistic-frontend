@@ -7,7 +7,7 @@ import type { FormDraft, FormDraftType } from '@/hooks/useDrafts'
 
 const FORM_TYPE_ROUTES: Record<FormDraftType, string> = {
   shipment: '/shipments/create',
-  pre_alert: '/shipment-notices/create',
+  pre_alert: '/shipment-notices',
   assisted_purchase: '/shopping-assiste/nouveau',
   quote: '/purchase-orders',
   refund_request: '/finance/refunds',

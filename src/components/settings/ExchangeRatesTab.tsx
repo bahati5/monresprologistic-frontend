@@ -195,7 +195,8 @@ export default function ExchangeRatesTab() {
         ) : current.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucun taux enregistré pour l’instant.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
+          <>
+            <div className="hidden min-w-0 md:block overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
@@ -221,6 +222,21 @@ export default function ExchangeRatesTab() {
               </tbody>
             </table>
           </div>
+          <div className="min-w-0 space-y-2 md:hidden">
+            {current.map((row) => (
+              <div key={row.id} className="rounded-lg border bg-card p-3 text-sm">
+                <p className="font-medium">
+                  {row.from_currency} → {row.to_currency}
+                </p>
+                <p className="mt-1 font-semibold tabular-nums">{String(row.rate)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {row.valid_from ? new Date(row.valid_from).toLocaleString('fr-FR') : '—'}
+                </p>
+                <p className="text-xs text-muted-foreground">{row.set_by_user?.name ?? '—'}</p>
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </SettingsCard>
 

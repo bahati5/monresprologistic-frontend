@@ -15,6 +15,8 @@ export interface AppSidebarProps {
   showBrandBesideLogo: boolean
   brandHeaderKey: string
   navSections: NavSection[]
+  /** Href du lien menu à surligner (un seul), calculé côté layout */
+  activeNavHref: string | null
   navActiveClass: string
   closeMobile: () => void
   theme: 'light' | 'dark' | 'system'
@@ -33,6 +35,7 @@ export function AppSidebar({
   showBrandBesideLogo,
   brandHeaderKey,
   navSections,
+  activeNavHref,
   navActiveClass,
   closeMobile,
   theme,
@@ -59,6 +62,7 @@ export function AppSidebar({
             item={item}
             collapsed={isRail}
             activeHighlightClass={navActiveClass}
+            activeNavHref={activeNavHref}
             onNavigate={closeMobile}
           />
         ))}

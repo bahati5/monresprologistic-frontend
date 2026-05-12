@@ -136,26 +136,26 @@ export function Step3Packaging({
           )}
 
           <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
+            <div className="min-w-0 overflow-x-hidden md:overflow-x-auto">
+              <table className="w-full min-w-0 table-fixed border-collapse text-sm md:table-auto md:min-w-0">
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <th className="p-4 min-w-[200px]">Description *</th>
+                    <th className="p-2 md:p-4 md:min-w-[200px]">Description *</th>
                     {articleCategoryList.length > 0 && (
-                      <th className="p-4 w-40">Catégorie</th>
+                      <th className="p-2 md:p-4 w-24 md:w-40">Catégorie</th>
                     )}
-                    <th className="p-4 w-24 text-center">Qte *</th>
-                    <th className="p-4 w-32 text-right">
+                    <th className="p-2 md:p-4 w-16 md:w-24 text-center">Qte *</th>
+                    <th className="p-2 md:p-4 w-20 md:w-32 text-right">
                       {itemsEntryMode === "global" ? "Poids (kg)" : "Poids (kg) *"}
                     </th>
-                    <th className="p-4 w-40 text-right">Valeur ({currencyUiLabel})</th>
-                    <th className="p-4 min-w-[180px]">
+                    <th className="p-2 md:p-4 w-24 md:w-40 text-right">Valeur ({currencyUiLabel})</th>
+                    <th className="p-2 md:p-4 min-w-0 md:min-w-[180px]">
                       <span className="block">Dimensions (cm)</span>
                       <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground tabular-nums">
                         ÷{displayVolumetricDivisor}
                       </span>
                     </th>
-                    <th className="p-4 w-12"></th>
+                    <th className="p-2 md:p-4 w-10 md:w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">

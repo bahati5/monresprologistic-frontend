@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CorridorFlags } from '@/lib/countryFlags'
 import { displayLocalized } from '@/lib/localizedString'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import {
 import { Eye, MoreHorizontal, FileText, Printer, Copy, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { downloadApiPdf } from '@/lib/openPdf'
+import { getShipmentDetailHref } from '@/lib/shipmentPortalPaths'
 import type { ShipmentDisplay } from '@/components/shipments/list/shipmentDisplay'
 import { shipmentDisplay } from '@/components/shipments/list/shipmentDisplay'
 
@@ -41,9 +42,11 @@ export function ShipmentListRow({
   formatMoney,
 }: ShipmentListRowProps) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const detailHref = getShipmentDetailHref(pathname, s.id)
   const d: ShipmentDisplay = shipmentDisplay(s)
   return (
-    <tr className="border-b hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(`/shipments/${s.id}`)}>
+    <tr className="border-b hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(detailHref)}>
       {canBulkRegroupe ? (
         <td
           className="w-14 min-w-[3.5rem] px-3 py-3 align-middle text-center"
@@ -119,7 +122,7 @@ export function ShipmentListRow({
             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal size={14} /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate(`/shipments/${s.id}`)}>
+            <DropdownMenuItem onClick={() => navigate(detailHref)}>
               <Eye size={14} className="mr-2" />Voir détail
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(String(d.tracking || '')); toast.success('Copie') }}>

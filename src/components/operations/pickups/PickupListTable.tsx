@@ -8,7 +8,7 @@ import { displayLocalized } from '@/lib/localizedString'
 import { STATUS_COLORS } from '@/lib/animations'
 import { MoreHorizontal, UserPlus, RefreshCw, MapPin, Truck, Camera, Navigation, Package } from 'lucide-react'
 import { PICKUP_STATUS_LABELS } from '@/components/operations/pickups/pickupStatus'
-import type { PickupRowModel } from '@/components/operations/pickups/PickupCard'
+import { PickupCard, type PickupRowModel } from '@/components/operations/pickups/PickupCard'
 
 interface PickupListTableProps {
   isLoading: boolean
@@ -32,7 +32,7 @@ export function PickupListTable({
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -121,6 +121,38 @@ export function PickupListTable({
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="min-w-0 space-y-3 p-3 md:hidden">
+          {isLoading ? (
+            [...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="space-y-2 p-4">
+                  <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                </CardContent>
+              </Card>
+            ))
+          ) : pickups.length === 0 ? (
+            <div className="flex flex-col items-center py-12 text-center text-muted-foreground">
+              <Package size={40} className="mb-3 opacity-30" />
+              <p>
+                {isDriver ? 'Aucune mission assignée pour le moment.' : 'Aucun ramassage'}
+              </p>
+            </div>
+          ) : (
+            pickups.map((p) => (
+              <PickupCard
+                key={p.id}
+                pickup={p}
+                isDriver={isDriver}
+                mapsUrl={mapsUrl}
+                onAssignDriver={() => onAssignDriver(p.id)}
+                onChangeStatus={() => onChangeStatus(p.id, typeof p.status === 'string' ? p.status : p.status?.code || '')}
+                onUploadPhoto={() => onUploadPhoto(p.id)}
+              />
+            ))
+          )}
         </div>
       </CardContent>
     </Card>

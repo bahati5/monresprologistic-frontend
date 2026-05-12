@@ -2,12 +2,12 @@ import { useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import api from '@/api/client'
 import { getApiErrorMessage } from '@/lib/apiErrors'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AdminShoppingQuoteView } from '@/components/shopping/AdminShoppingQuoteView'
 import { usePublicBranding } from '@/hooks/useSettings'
 import {
@@ -17,6 +17,9 @@ import {
   parseBankFeePercentage,
   purchaseStatusCode,
 } from '@/lib/assistedPurchaseQuote'
+import { isPortalClientUser } from '@/lib/savPortalPaths'
+import { fetchAssistedPurchaseQuoteHtml } from '@/lib/assistedPurchaseQuotePreview'
+import { downloadApiPdf } from '@/lib/openPdf'
 import { clientQuoteHint } from '@/components/shopping/purchaseDetail/clientQuoteHint'
 import { buildPendingQuoteRows } from '@/components/shopping/purchaseDetail/pendingQuoteRows'
 import { PendingQuoteRequestView } from '@/components/shopping/purchaseDetail/PendingQuoteRequestView'
@@ -26,6 +29,7 @@ import { PurchaseDetailCommentsCard } from '@/components/shopping/purchaseDetail
 import { PurchaseDetailLoadingState } from '@/components/shopping/purchaseDetail/PurchaseDetailLoadingState'
 import { PurchaseDetailErrorState } from '@/components/shopping/purchaseDetail/PurchaseDetailErrorState'
 import { PurchaseDetailCancelledState } from '@/components/shopping/purchaseDetail/PurchaseDetailCancelledState'
+import { ShipmentDocumentDigitalFrame } from '@/components/shipments/ShipmentDocumentDigitalFrame'
 
 const STAFF_ROLES = ['super_admin', 'agency_admin', 'operator'] as const
 
@@ -46,6 +50,19 @@ export default function ClientAssistedPurchaseDetailPage() {
     queryKey: ['assisted-purchase', id],
     queryFn: () => api.get<{ purchase: Record<string, unknown> }>(`/api/assisted-purchases/${id}`).then((r) => r.data),
     enabled: Boolean(id) && !isStaff,
+  })
+
+  const purchaseForPreview = data?.purchase
+  const quotePreviewEnabled =
+    Boolean(id) &&
+    !isStaff &&
+    !!purchaseForPreview &&
+    !['pending_quote', 'cancelled'].includes(purchaseStatusCode(purchaseForPreview))
+
+  const quoteHtmlQuery = useQuery({
+    queryKey: ['assisted-purchase-quote-html', id],
+    queryFn: () => fetchAssistedPurchaseQuoteHtml(String(id), { suppressToast: true }),
+    enabled: quotePreviewEnabled,
   })
 
   const ackMutation = useMutation({
@@ -77,7 +94,7 @@ export default function ClientAssistedPurchaseDetailPage() {
   }
 
   if (!id) {
-    return <Navigate to="/purchase-orders" replace />
+    return <Navigate to={isPortalClientUser(user) ? '/portal/achats' : '/purchase-orders'} replace />
   }
 
   if (isLoading) {
@@ -142,7 +159,9 @@ export default function ClientAssistedPurchaseDetailPage() {
       {statusCode === 'converted_to_shipment' && convertedShipmentId != null && (
         <ConvertedToShipmentBanner
           convertedShipmentId={convertedShipmentId}
-          onOpenShipment={(sid) => navigate(`/shipments/${sid}`)}
+          onOpenShipment={(sid) =>
+            navigate(isPortalClientUser(user) ? `/portal/expeditions/${sid}` : `/shipments/${sid}`)
+          }
         />
       )}
 
@@ -168,6 +187,52 @@ export default function ClientAssistedPurchaseDetailPage() {
           </Button>
         }
       />
+
+      {quotePreviewEnabled ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Devis officiel (aperçu numérique)</CardTitle>
+            <CardDescription>
+              Même mise en page que le PDF ; vous pouvez aussi télécharger le fichier.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={!id}
+              onClick={() => {
+                if (!id) return
+                void downloadApiPdf(`/api/assisted-purchases/${id}/pdf/quote`, `devis-achat-assiste-${id}.pdf`)
+              }}
+            >
+              <Download size={14} />
+              Télécharger le PDF
+            </Button>
+            <div className="relative min-h-[280px] rounded-lg border bg-muted/10 overflow-hidden">
+              {quoteHtmlQuery.isLoading ? (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : null}
+              {quoteHtmlQuery.data ? (
+                <ShipmentDocumentDigitalFrame
+                  html={quoteHtmlQuery.data}
+                  title="Devis achat assisté"
+                  heightClass="h-[min(70vh,720px)] min-h-[280px]"
+                  className="border-0 shadow-none rounded-lg"
+                />
+              ) : !quoteHtmlQuery.isLoading ? (
+                <p className="p-6 text-center text-sm text-muted-foreground">
+                  Aperçu indisponible pour le moment (devis en cours de préparation ou non publié).
+                </p>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {statusCode === 'awaiting_payment' && (
         <ClientPaymentAckSection

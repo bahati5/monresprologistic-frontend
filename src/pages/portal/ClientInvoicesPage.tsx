@@ -40,7 +40,7 @@ export default function ClientInvoicesPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -92,6 +92,45 @@ export default function ClientInvoicesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="min-w-0 divide-y md:hidden">
+            {isLoading ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="p-4">
+                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                </div>
+              ))
+            ) : invoices.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-center text-muted-foreground">
+                <FileText size={40} className="mb-3 opacity-30" />
+                Aucune facture pour le moment.
+              </div>
+            ) : (
+              invoices.map((inv: ClientInvoiceRow) => (
+                <div key={inv.id} className="space-y-2 p-4 text-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-mono text-xs font-semibold">#{inv.id}</span>
+                    {inv.shipment_id ? (
+                      <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1" asChild>
+                        <a href={`/api/shipments/${inv.shipment_id}/pdf/invoice`} target="_blank" rel="noreferrer">
+                          <Download size={14} /> PDF
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Expédition</p>
+                  <p className="break-all text-xs font-medium">{inv.shipment?.public_tracking ?? '—'}</p>
+                  <p className="font-semibold tabular-nums">{inv.amount} {inv.currency ?? ''}</p>
+                  <Badge variant={inv.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
+                    {inv.status === 'paid' ? 'Payé' : 'En attente'}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground">
+                    {inv.created_at ? new Date(inv.created_at).toLocaleDateString('fr-FR') : '—'}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

@@ -159,7 +159,7 @@ export default function ClientDetailPage() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex w-full overflow-x-auto lg:w-fit">
+        <TabsList className="flex h-auto min-h-9 w-full flex-wrap justify-start gap-1 overflow-x-hidden bg-muted p-1 lg:w-fit">
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
           <TabsTrigger value="shipments">
             Expéditions ({sentCount + receivedCount})

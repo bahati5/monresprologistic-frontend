@@ -37,6 +37,7 @@ import { ShipmentDetailTabsSection } from '@/components/shipments/detail/Shipmen
 import type { ShipmentDetailData } from '@/components/shipments/detail/shipmentDetailPageTypes'
 import { ShipmentDetailLoadingSkeleton } from '@/components/shipments/detail/ShipmentDetailLoadingSkeleton'
 import { useShipmentDetailHandlers } from '@/hooks/shipments/useShipmentDetailHandlers'
+import { isClientOrDriverShipmentViewer } from '@/lib/shipmentPortalPaths'
 
 export default function ShipmentDetail() {
   const { id } = useParams()
@@ -108,6 +109,7 @@ export default function ShipmentDetail() {
 
   const canRegrouper = userCanManageRegroupementShipments(user)
   const canDuplicateShipment = userCan(user, 'create_shipments')
+  const viewerOnly = isClientOrDriverShipmentViewer(user)
   const { data: consPickerData, isLoading: consPickerLoading } = useRegroupementsPicker(
     consolidateOpen && canRegrouper,
   )
@@ -164,6 +166,7 @@ export default function ShipmentDetail() {
           shipmentId={id}
           shipmentStatusRaw={s.status}
           user={user}
+          viewerOnly={viewerOnly}
           statusDialogOpen={statusDialog}
           onStatusDialogOpenChange={setStatusDialog}
           driverDialogOpen={driverDialog}
@@ -245,6 +248,7 @@ export default function ShipmentDetail() {
         </motion.aside>
       </div>
 
+      {!viewerOnly && (
       <ShipmentDetailPaymentDialog
         shipmentId={id}
         trackingNumber={s.tracking_number}
@@ -259,7 +263,9 @@ export default function ShipmentDetail() {
         recordPayment={recordPayment}
         onRecordPayment={handleRecordPayment}
       />
+      )}
 
+      {!viewerOnly && (
       <ShipmentDetailRegroupementDialog
         open={consolidateOpen}
         onOpenChange={setConsolidateOpen}
@@ -269,6 +275,7 @@ export default function ShipmentDetail() {
         createRegroupement={createRegroupement}
         attachToRegroupement={attachToRegroupement}
       />
+      )}
     </motion.div>
   )
 }

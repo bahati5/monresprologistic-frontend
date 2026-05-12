@@ -163,7 +163,7 @@ export default function ReportsHub() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="hidden min-w-0 md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -182,6 +182,23 @@ export default function ReportsHub() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="min-w-0 space-y-3 md:hidden">
+              {data.table.map((row: Record<string, unknown>, i: number) => {
+                const cells = Object.values(row)
+                return (
+                  <div key={i} className="rounded-lg border bg-card p-3 text-sm">
+                    <dl className="space-y-2">
+                      {data.table_headers?.map((h: string, j: number) => (
+                        <div key={j} className="min-w-0">
+                          <dt className="text-xs text-muted-foreground">{h}</dt>
+                          <dd className="break-words font-medium">{String(cells[j] ?? '')}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>

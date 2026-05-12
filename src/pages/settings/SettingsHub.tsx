@@ -14,7 +14,6 @@ import {
   Plug,
   AlertTriangle,
   GitBranch,
-  ShieldCheck,
   Calculator,
 } from 'lucide-react'
 import {
@@ -22,7 +21,6 @@ import {
   PaymentsTab, NotificationsTab, MerchantSettings, ReferenceSettingsTab,
   ExchangeRatesTab,
   SyncErrorsTab,
-  RolesPermissionsTab,
   WorkflowsTab,
   QuoteLinesSettingsTab,
 } from '@/components/settings'
@@ -42,7 +40,6 @@ type TabValue =
   | 'exchange-rates'
   | 'integrations'
   | 'sync-errors'
-  | 'roles-permissions'
 
 const tabs: { value: TabValue; label: string; icon: typeof Settings; description: string }[] = [
   { value: 'general',       label: 'Général',           icon: Settings,   description: 'Identité, devise, langue' },
@@ -63,12 +60,11 @@ const tabs: { value: TabValue; label: string; icon: typeof Settings; description
   { value: 'integrations',  label: 'Intégrations',      icon: Plug,       description: 'Freshsales, Odoo, FlexPay, WordPress' },
   { value: 'sync-errors',   label: 'Erreurs sync',      icon: AlertTriangle, description: 'Odoo, Freshsales — retry et résolution' },
   { value: 'workflows',     label: 'Workflows',       icon: GitBranch,    description: 'Délais, seuils et validations métier' },
-  { value: 'roles-permissions', label: 'Rôles & Permissions', icon: ShieldCheck, description: 'Matrice RBAC dynamique' },
 ]
 
 function tabFromSearchParams(searchParams: URLSearchParams): TabValue | null {
   const t = searchParams.get('tab')
-  if (t === 'sync-errors' || t === 'integrations' || t === 'workflows' || t === 'roles-permissions' || t === 'quote-lines') {
+  if (t === 'sync-errors' || t === 'integrations' || t === 'workflows' || t === 'quote-lines') {
     return t
   }
   return null
@@ -104,7 +100,6 @@ export default function SettingsHub() {
       case 'integrations':  return <IntegrationsTab />
       case 'sync-errors':   return <SyncErrorsTab />
       case 'workflows':     return <WorkflowsTab />
-      case 'roles-permissions': return <RolesPermissionsTab />
       default:              return null
     }
   }

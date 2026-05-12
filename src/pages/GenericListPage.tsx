@@ -165,8 +165,8 @@ function GenericListPageInner({
         <ListCardsToggle mode={viewMode} onModeChange={setViewMode} />
       </div>
 
-      {viewMode === 'list' ? (
-        <Card>
+      {viewMode === 'list' && (
+        <Card className="hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -226,8 +226,9 @@ function GenericListPageInner({
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <div>
+      )}
+
+      <div className={viewMode === 'list' ? 'md:hidden' : undefined}>
           {isLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[...Array(4)].map((_, i) => (
@@ -269,8 +270,7 @@ function GenericListPageInner({
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       {pagination.last_page > 1 && (
         <div className="flex items-center justify-center gap-2">

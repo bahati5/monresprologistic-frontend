@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/api/client'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/apiError'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { ProfileInfoSection } from '@/components/profile/ProfileInfoSection'
 import { ProfilePasswordSection } from '@/components/profile/ProfilePasswordSection'
 import { ProfilePreferencesSection } from '@/components/profile/ProfilePreferencesSection'
+import { resolveImageUrl } from '@/lib/resolveImageUrl'
 
 function useProfileData() {
   return useQuery({
@@ -22,28 +23,10 @@ export default function Profile() {
   const { data: profileData } = useProfileData()
   const profile = profileData?.profile
 
-  const [name, setName] = useState(user?.name || '')
-  const [email, setEmail] = useState(user?.email || '')
-  const [phone, setPhone] = useState('')
-  const [saving, setSaving] = useState(false)
-
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPw, setChangingPw] = useState(false)
-
-  useEffect(() => {
-    if (user) {
-      setName(user.name || '')
-      setEmail(user.email || '')
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (profile?.phone) {
-      setPhone(profile.phone)
-    }
-  }, [profile])
 
   const { data: prefsData } = useQuery({
     queryKey: ['notification-preferences'],
@@ -70,21 +53,6 @@ export default function Profile() {
     },
     onError: () => toast.error('Erreur lors de la mise a jour des preferences.'),
   })
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      const { data } = await api.patch('/api/profile', { name, email, phone })
-      setUser(data.user)
-      queryClient.invalidateQueries({ queryKey: ['profile-full'] })
-      toast.success('Profil mis a jour.')
-    } catch (err: unknown) {
-      toast.error(getApiErrorMessage(err, 'Erreur lors de la mise a jour.'))
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,11 +82,17 @@ export default function Profile() {
     }
   }
 
+  const avatarSrc = user?.avatar_url ? resolveImageUrl(user.avatar_url) : ''
+
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
-          {(user?.name || 'U').charAt(0).toUpperCase()}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-muted overflow-hidden bg-primary/10 text-primary text-xl font-bold">
+          {avatarSrc ? (
+            <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+          ) : (
+            (user?.name || 'U').charAt(0).toUpperCase()
+          )}
         </div>
         <div>
           <h1 className="text-2xl font-bold">{user?.name || 'Mon profil'}</h1>
@@ -127,17 +101,11 @@ export default function Profile() {
       </div>
 
       <ProfileInfoSection
-        profile={profile}
         user={user}
+        profile={profile}
         addressRows={addressRows}
-        name={name}
-        email={email}
-        phone={phone}
-        saving={saving}
-        onNameChange={setName}
-        onEmailChange={setEmail}
-        onPhoneChange={setPhone}
-        onProfileSubmit={handleUpdate}
+        setUser={setUser}
+        queryClient={queryClient}
       />
 
       <ProfilePasswordSection

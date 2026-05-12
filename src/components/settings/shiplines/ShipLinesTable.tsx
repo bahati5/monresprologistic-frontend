@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Pencil, Trash2 } from 'lucide-react'
 import {
   AlertDialog,
@@ -21,7 +22,7 @@ function FlagsCell({ countries }: { countries: ShipLineCountryRef[] }) {
     return <span className="text-muted-foreground text-xs">—</span>
   }
   return (
-    <div className="flex flex-wrap items-center gap-1.5 max-w-[min(100%,260px)]">
+    <div className="flex flex-wrap items-center gap-1.5 max-w-full md:max-w-[min(100%,260px)]">
       {countries.map((c) => (
         <span
           key={c.id}
@@ -45,8 +46,9 @@ interface ShipLinesTableProps {
 
 export function ShipLinesTable({ list, formatMoney, onEdit, onConfirmDelete }: ShipLinesTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-[860px] border-collapse text-sm">
+    <>
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[860px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <th className="p-3 font-medium">Route</th>
@@ -158,6 +160,95 @@ export function ShipLinesTable({ list, formatMoney, onEdit, onConfirmDelete }: S
           )}
         </tbody>
       </table>
-    </div>
+      </div>
+
+      <div className="min-w-0 space-y-3 md:hidden">
+        {list.length === 0 ? (
+          <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
+            Aucune ligne configurée
+          </div>
+        ) : (
+          list.map((item) => {
+            const rates = item.rates?.length ? item.rates : [null]
+            const origins = item.origin_countries ?? []
+            const dests = item.destination_countries ?? []
+            return (
+              <Card key={item.id}>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium leading-snug">{displayLocalized(item.name)}</p>
+                      {item.description ? (
+                        <p className="mt-1 text-xs text-muted-foreground">{String(item.description)}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(item)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                            <Trash2 size={14} />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Supprimer cette ligne ?</AlertDialogTitle>
+                            <AlertDialogDescription>Les tarifs associés seront supprimés.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onConfirmDelete(item)}>Supprimer</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Origines</p>
+                    <FlagsCell countries={origins} />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Destinations</p>
+                    <FlagsCell countries={dests} />
+                  </div>
+                  <Badge variant={item.is_active ? 'default' : 'secondary'} className="w-fit text-xs">
+                    {item.is_active ? 'Actif' : 'Inactif'}
+                  </Badge>
+                  <div className="space-y-2 border-t pt-2">
+                    {rates.map((rate, i) => (
+                      <div
+                        key={rate?.id != null ? `mr-${rate.id}` : `m-${item.id}-${i}`}
+                        className="space-y-1 rounded-md border border-border/80 p-2 text-xs"
+                      >
+                        <p className="font-medium text-foreground">
+                          {rate?.shipping_mode ? (
+                            displayLocalized(String(rate.shipping_mode.name ?? ''))
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Délai : {rate?.delivery_label_override ? String(rate.delivery_label_override) : '—'}
+                        </p>
+                        <p className="font-medium tabular-nums">
+                          {rate != null ? formatMoney(Number(rate.unit_price ?? 0)) : '—'}
+                        </p>
+                        {rate != null ? (
+                          <Badge variant={rate.is_active !== false ? 'outline' : 'secondary'} className="text-[10px]">
+                            Tarif {rate.is_active !== false ? 'actif' : 'inactif'}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
+    </>
   )
 }

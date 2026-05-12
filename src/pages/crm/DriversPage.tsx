@@ -110,8 +110,8 @@ export default function DriversPage() {
         <ListCardsToggle mode={viewMode} onModeChange={setViewMode} />
       </div>
 
-      {viewMode === 'list' ? (
-        <Card>
+      {viewMode === 'list' && (
+        <Card className="hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -173,8 +173,9 @@ export default function DriversPage() {
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <div>
+      )}
+
+      <div className={viewMode === 'list' ? 'md:hidden' : undefined}>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
@@ -219,8 +220,7 @@ export default function DriversPage() {
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       {(pagination.last_page ?? 1) > 1 && (
         <div className="flex items-center justify-between">

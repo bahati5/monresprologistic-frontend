@@ -33,7 +33,7 @@ export function RegroupementListTable({
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -162,6 +162,105 @@ export function RegroupementListTable({
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="min-w-0 space-y-3 p-3 md:hidden">
+          {isLoading ? (
+            [...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="space-y-2 p-4">
+                  <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                </CardContent>
+              </Card>
+            ))
+          ) : regroupements.length === 0 ? (
+            <div className="flex flex-col items-center py-12 text-center text-muted-foreground">
+              <Layers size={40} className="mb-3 opacity-30" />
+              <p>Aucun regroupement</p>
+            </div>
+          ) : (
+            regroupements.map((c) => {
+              const { stColor, stLabel } = lotStatusDisplay(c)
+              const tw = totalWeightByLot.get(c.id) ?? 0
+              const open = expandedLotIds.has(c.id)
+              return (
+                <Card key={c.id}>
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-mono text-xs text-muted-foreground">#{c.id}</p>
+                        <p className="font-mono font-medium">{c.batch_number || '—'}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-expanded={open}
+                          onClick={() => toggleLotExpanded(c.id)}
+                        >
+                          {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal size={14} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onOpenStatusDialog(c.id)}>
+                              <RefreshCw size={14} className="mr-2" />
+                              Changer statut
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                    {c.lot_route ? (
+                      <div className="flex max-w-full flex-col gap-1.5">
+                        <LotRouteFlags
+                          originIso2s={c.lot_route.origin_iso2s}
+                          destIso2s={c.lot_route.dest_iso2s}
+                          label={c.lot_route.label ?? undefined}
+                        />
+                        {c.lot_route?.label ? (
+                          <span className="text-xs leading-snug text-muted-foreground break-words">{c.lot_route.label}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        <Package size={10} className="mr-1" />
+                        {c.shipments?.length ?? 0} expédition(s)
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{tw > 0 ? `${tw.toFixed(1)} kg` : '—'}</span>
+                      <Badge
+                        className="text-xs"
+                        style={{
+                          backgroundColor: `${stColor}20`,
+                          color: stColor,
+                          borderColor: `${stColor}40`,
+                        }}
+                      >
+                        {stLabel}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '—'}
+                    </p>
+                    {open ? (
+                      <div className="min-w-0 border-t pt-3">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">Détail des expéditions du lot</p>
+                        <RegroupementNestedShipmentsTable shipments={c.shipments} />
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
         </div>
       </CardContent>
     </Card>

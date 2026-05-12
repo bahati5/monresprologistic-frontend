@@ -128,28 +128,51 @@ export function ShipmentDetailTabsSection({
         <TabsContent value="items" className="mt-0">
           <div className="glass neo-raised-sm rounded-xl overflow-hidden">
             {s.items && s.items.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-white/30 bg-white/20">
-                      <th className="px-3 py-2.5 text-left font-semibold text-foreground/70 uppercase tracking-wider">Description</th>
-                      <th className="px-3 py-2.5 text-right font-semibold text-foreground/70 uppercase tracking-wider">Qte</th>
-                      <th className="px-3 py-2.5 text-right font-semibold text-foreground/70 uppercase tracking-wider">Poids</th>
-                      <th className="px-3 py-2.5 text-right font-semibold text-foreground/70 uppercase tracking-wider">Valeur</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {s.items.map((item, i) => (
-                      <tr key={i} className="border-b border-white/15 last:border-0 hover:bg-white/20 transition-colors">
-                        <td className="px-3 py-2.5 font-medium">{item.description}</td>
-                        <td className="px-3 py-2.5 text-right">{item.quantity}</td>
-                        <td className="px-3 py-2.5 text-right">{item.weight_kg ?? item.weight ?? '—'}</td>
-                        <td className="px-3 py-2.5 text-right font-semibold">{item.value ?? item.declared_value ?? '—'}</td>
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-white/30 bg-white/20">
+                        <th className="px-3 py-2.5 text-left font-semibold text-foreground/70 uppercase tracking-wider">Description</th>
+                        <th className="px-3 py-2.5 text-right font-semibold text-foreground/70 uppercase tracking-wider">Qte</th>
+                        <th className="px-3 py-2.5 text-right font-semibold text-foreground/70 uppercase tracking-wider">Poids</th>
+                        <th className="px-3 py-2.5 text-right font-semibold text-foreground/70 uppercase tracking-wider">Valeur</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {s.items.map((item, i) => (
+                        <tr key={i} className="border-b border-white/15 last:border-0 hover:bg-white/20 transition-colors">
+                          <td className="px-3 py-2.5 font-medium">{item.description}</td>
+                          <td className="px-3 py-2.5 text-right">{item.quantity}</td>
+                          <td className="px-3 py-2.5 text-right">{item.weight_kg ?? item.weight ?? '—'}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold">{item.value ?? item.declared_value ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="min-w-0 divide-y divide-white/15 md:hidden">
+                  {s.items.map((item, i) => (
+                    <div key={i} className="space-y-1 px-3 py-3 text-xs">
+                      <p className="font-medium break-words">{item.description}</p>
+                      <dl className="grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+                        <div>
+                          <dt>Qté</dt>
+                          <dd className="font-medium text-foreground">{item.quantity}</dd>
+                        </div>
+                        <div>
+                          <dt>Poids</dt>
+                          <dd className="font-medium text-foreground">{item.weight_kg ?? item.weight ?? '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>Valeur</dt>
+                          <dd className="font-medium text-foreground">{item.value ?? item.declared_value ?? '—'}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <Package size={28} className="mb-2 opacity-30" />

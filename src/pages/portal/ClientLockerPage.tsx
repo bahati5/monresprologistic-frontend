@@ -114,7 +114,6 @@ export default function ClientLockerPage() {
         <ul className="space-y-1 text-xs">
           <li>• Vos colis reçus au hub Monrespro apparaissent ici automatiquement</li>
           <li>• Vous pouvez demander l'expédition immédiate ou la livraison à domicile pour chaque colis</li>
-          <li>• Notre équipe optimise les envois groupés pour vous faire bénéficier des meilleurs tarifs</li>
         </ul>
       </div>
     </div>

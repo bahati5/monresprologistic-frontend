@@ -12,8 +12,8 @@ interface RegroupementNestedShipmentsTableProps {
 
 export function RegroupementNestedShipmentsTable({ shipments }: RegroupementNestedShipmentsTableProps) {
   return (
-    <div className="rounded-md border bg-background">
-      <table className="w-full text-xs">
+    <div className="max-w-full min-w-0 overflow-x-hidden rounded-md border bg-background">
+      <table className="w-full min-w-0 table-fixed text-xs">
         <thead>
           <tr className="border-b bg-muted/50 text-left text-muted-foreground">
             <th className="px-3 py-2 font-medium">Colis</th>

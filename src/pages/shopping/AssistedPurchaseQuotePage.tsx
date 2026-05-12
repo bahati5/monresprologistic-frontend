@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import {
   type AssistedQuotePreviewBody,
 } from '@/components/shopping/AdminShoppingQuoteView'
 import { ItemUnavailableDialog, PriceChangeDialog } from '@/components/shopping/quote/PostPaymentIncidentDialog'
+import { RecipientProfileDialog, type RecipientProfileData } from '@/components/shopping/quote/RecipientProfileDialog'
 import { buildShoppingQuoteClient } from '@/lib/assistedPurchaseQuote'
 import { deriveAssistedPurchaseQuoteView } from '@/lib/assistedPurchaseQuotePage'
 import { useAssistedPurchaseQuotePage } from '@/hooks/useAssistedPurchaseQuotePage'
@@ -28,6 +29,12 @@ export default function AssistedPurchaseQuotePage() {
   const [hubPhotoFile, setHubPhotoFile] = useState<File | null>(null)
   const [itemUnavailableOpen, setItemUnavailableOpen] = useState(false)
   const [priceChangeOpen, setPriceChangeOpen] = useState(false)
+  const [recipientDialogOpen, setRecipientDialogOpen] = useState(false)
+  const [recipientMissingInfo, setRecipientMissingInfo] = useState<{
+    missing_fields: string[]
+    message: string
+    client_profile: RecipientProfileData
+  } | null>(null)
 
   const {
     id,
@@ -324,8 +331,23 @@ export default function AssistedPurchaseQuotePage() {
         derived.statusCode === 'arrived_at_hub' &&
         p.converted_shipment_id == null
           ? {
-              onConvert: () => {
-                void convertToShipmentMutation.mutateAsync()
+              onConvert: async () => {
+                try {
+                  const res = await convertToShipmentMutation.mutateAsync({ check_only: true })
+                  const body = res.data as Record<string, unknown>
+                  if (body.profile_complete === false) {
+                    setRecipientMissingInfo({
+                      missing_fields: (body.missing_fields as string[]) ?? [],
+                      message: (body.message as string) ?? '',
+                      client_profile: body.client_profile as RecipientProfileData,
+                    })
+                    setRecipientDialogOpen(true)
+                    return
+                  }
+                  await convertToShipmentMutation.mutateAsync({})
+                } catch {
+                  // handled by mutation onError
+                }
               },
               isPending: convertToShipmentMutation.isPending,
             }
@@ -343,6 +365,23 @@ export default function AssistedPurchaseQuotePage() {
           : null
       }
     />
+
+      <RecipientProfileDialog
+        open={recipientDialogOpen}
+        onOpenChange={setRecipientDialogOpen}
+        purchaseId={id}
+        missingInfo={recipientMissingInfo}
+        onConvertWithOverrides={async (overrides) => {
+          try {
+            await convertToShipmentMutation.mutateAsync(overrides)
+            setRecipientDialogOpen(false)
+            setRecipientMissingInfo(null)
+          } catch {
+            // handled by mutation onError
+          }
+        }}
+        isPending={convertToShipmentMutation.isPending}
+      />
 
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="sm:max-w-md">

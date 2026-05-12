@@ -42,7 +42,7 @@ export function DashboardKpiSection({
           delay={1}
         />
         <KpiCard
-          title="Colis Attendus"
+          title="Colis en suivi"
           value={Number(stats.pre_alerts ?? stats.pre_alerts_pending ?? 0)}
           icon={Bell}
           color="#F59E0B"
@@ -82,8 +82,8 @@ export function DashboardKpiSection({
 
   if (dashboardType === 'client') {
     return (
-      <motion.div variants={fadeInUp} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <KpiCard title="Colis Attendus" value={Number(stats.pre_alerts ?? clientExtras?.preAlertsCount ?? 0)} icon={Bell} color="#F59E0B" href="/shipment-notices" delay={0} />
+      <motion.div variants={fadeInUp} className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <KpiCard title="Colis en suivi" value={Number(stats.pre_alerts ?? clientExtras?.preAlertsCount ?? 0)} icon={Bell} color="#F59E0B" href="/shipment-notices" delay={0} />
         <KpiCard title="Shopping Assiste" value={Number(stats.purchase_orders ?? 0)} icon={FileText} color="#6366F1" href="/purchase-orders" delay={1} />
         <KpiCard title="Mes expeditions" value={Number(stats.shipments_total ?? 0)} icon={Package} color="#3B82F6" href="/shipments" delay={2} />
       </motion.div>
@@ -92,9 +92,9 @@ export function DashboardKpiSection({
 
   if (dashboardType === 'driver') {
     return (
-      <motion.div variants={fadeInUp} className="grid gap-4 md:grid-cols-3">
-        <KpiCard title="Pickups en attente" value={Number(stats.pickups_pending ?? 0)} icon={Truck} color="#F59E0B" delay={0} />
-        <KpiCard title="Livraisons en cours" value={Number(stats.deliveries_pending ?? 0)} icon={Package} color="#3B82F6" delay={1} />
+      <motion.div variants={fadeInUp} className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+        <KpiCard title="Pickups en attente" value={Number(stats.pickups_pending ?? 0)} icon={Truck} color="#F59E0B" href="/pickups" delay={0} />
+        <KpiCard title="Livraisons en cours" value={Number(stats.deliveries_pending ?? 0)} icon={Package} color="#3B82F6" href="/shipments" delay={1} />
         <KpiCard title="Completees aujourd'hui" value={Number(stats.completed_today ?? 0)} icon={CheckCircle} color="#10B981" delay={2} />
       </motion.div>
     )

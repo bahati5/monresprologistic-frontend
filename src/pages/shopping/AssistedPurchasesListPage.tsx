@@ -9,6 +9,7 @@ import { AssistedPurchasesKanbanSection } from '@/components/shopping/list/Assis
 import { AssistedPurchasesListFilters } from '@/components/shopping/list/AssistedPurchasesListFilters'
 import { AssistedPurchasesListPageTabs } from '@/components/shopping/list/AssistedPurchasesListPageTabs'
 import { useAssistedPurchasesListPage } from '@/components/shopping/list/useAssistedPurchasesListPage'
+import { isPortalClientUser } from '@/lib/savPortalPaths'
 
 export default function AssistedPurchasesListPage() {
   const { user } = useAuthStore()
@@ -48,7 +49,7 @@ export default function AssistedPurchasesListPage() {
             size="sm"
             className="bg-white/15 hover:bg-white/25 text-white border border-white/20 gap-1.5 backdrop-blur-sm"
           >
-            <Link to="/shopping-assiste/nouveau">
+            <Link to={isStaff ? '/shopping-assiste/nouveau' : '/achat-assiste'}>
               <Plus size={14} />
               Nouvelle demande
             </Link>
@@ -75,7 +76,11 @@ export default function AssistedPurchasesListPage() {
           extraApiParams={extraApiParams}
           filtersSlot={<AssistedPurchasesListFilters {...filtersProps} />}
           detailPath={(row: Record<string, unknown>) =>
-            isStaff ? `/purchase-orders/${row.id}/chiffrage` : `/purchase-orders/${row.id}`
+            isStaff
+              ? `/purchase-orders/${row.id}/chiffrage`
+              : isPortalClientUser(user)
+                ? `/portal/achats/${row.id}`
+                : `/purchase-orders/${row.id}`
           }
         />
       ) : (

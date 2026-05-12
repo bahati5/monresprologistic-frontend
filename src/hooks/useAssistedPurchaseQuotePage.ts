@@ -179,14 +179,27 @@ export function useAssistedPurchaseQuotePage() {
   })
 
   const convertToShipmentMutation = useMutation({
-    mutationFn: (body?: { agency_id?: number }) =>
-      api.post<{ message?: string; shipment_id?: number }>(
+    mutationFn: (body?: Record<string, unknown>) =>
+      api.post<{
+        message?: string
+        shipment_id?: number
+        profile_complete?: boolean
+        missing_fields?: string[]
+        client_profile?: Record<string, unknown>
+      }>(
         `/api/assisted-purchases/${id}/convert-to-shipment`,
         body ?? {},
       ),
     onSuccess: (res) => {
-      const shipmentId = res.data?.shipment_id
-      toast.success(res.data?.message ?? 'Expedition creee avec succes.')
+      const data = res.data
+      if (data?.profile_complete === false) {
+        return
+      }
+      if (data?.profile_complete === true && !data?.shipment_id) {
+        return
+      }
+      const shipmentId = data?.shipment_id
+      toast.success(data?.message ?? 'Expedition creee avec succes.')
       void queryClient.invalidateQueries({ queryKey: ['assisted-purchase', id] })
       void queryClient.invalidateQueries({ queryKey: ['purchases'] })
       if (shipmentId) {

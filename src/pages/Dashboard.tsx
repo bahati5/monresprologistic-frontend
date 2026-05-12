@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import { DashboardHero } from '@/components/dashboard/DashboardHero'
@@ -10,10 +12,14 @@ import { DashboardRecentActivityCard } from '@/components/dashboard/DashboardRec
 import { DashboardRecentShipments, type RecentShipmentRow } from '@/components/dashboard/DashboardRecentShipments'
 import { DashboardStaffQuickLinks } from '@/components/dashboard/DashboardStaffQuickLinks'
 import { DashboardTodayActionsCard, type DashboardTodayAction } from '@/components/dashboard/DashboardTodayActionsCard'
+import { DashboardPendingDossiersCard } from '@/components/dashboard/DashboardPendingDossiersCard'
+import { DashboardTodayActivityCard } from '@/components/dashboard/DashboardTodayActivityCard'
+import { DashboardSystemAlertsCard } from '@/components/dashboard/DashboardSystemAlertsCard'
+import { DashboardHandoverCard } from '@/components/dashboard/DashboardHandoverCard'
 import { getGreeting, isStaffDashboard } from '@/components/dashboard/dashboardUtils'
 import { staggerContainer, fadeInUp } from '@/lib/animations'
 import {
-  Bell, CreditCard, Truck, Plus, ShoppingBag,
+  Bell, CreditCard, Truck, Plus, ShoppingBag, HeadphonesIcon, AlertTriangle, Receipt, Package,
 } from 'lucide-react'
 import { type TimelineEvent } from '@/components/workflow/TimelineLog'
 import { useFormatMoney } from '@/hooks/useSettings'
@@ -21,7 +27,14 @@ import { DraftsList } from '@/components/drafts/DraftsList'
 
 export default function Dashboard() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const { formatMoney } = useFormatMoney()
+
+  useEffect(() => {
+    if (user?.roles?.includes('client')) {
+      navigate('/portal', { replace: true })
+    }
+  }, [user, navigate])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
@@ -37,6 +50,10 @@ export default function Dashboard() {
   const statusDistribution = data?.charts?.status_distribution ?? []
   const recentActivity: TimelineEvent[] = data?.recent_activity ?? []
   const recentShipments: RecentShipmentRow[] = data?.recent_shipments ?? []
+  const pendingDossiers = data?.pending_dossiers ?? []
+  const todayActivity = data?.today_activity ?? null
+  const systemAlerts = data?.system_alerts ?? []
+  const handoverItems = data?.handover ?? []
 
   const todayActions: DashboardTodayAction[] = []
   if ((stats.pickups_count ?? stats.pickups_today ?? 0) > 0)
@@ -57,11 +74,27 @@ export default function Dashboard() {
     })
   if ((stats.pre_alerts ?? stats.pre_alerts_pending ?? 0) > 0)
     todayActions.push({
-      label: `${stats.pre_alerts ?? stats.pre_alerts_pending} colis attendu(s) en attente`,
+      label: `${stats.pre_alerts ?? stats.pre_alerts_pending} colis en suivi`,
       href: '/shipment-notices',
       icon: Bell,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50 dark:bg-amber-950/30',
+    })
+  if ((stats.sav_open ?? 0) > 0)
+    todayActions.push({
+      label: `${stats.sav_open} ticket(s) SAV ouvert(s)`,
+      href: '/sav',
+      icon: HeadphonesIcon,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-950/30',
+    })
+  if ((stats.sav_sla_at_risk ?? 0) > 0)
+    todayActions.push({
+      label: `${stats.sav_sla_at_risk} SLA en danger`,
+      href: '/sav?sort=sla',
+      icon: AlertTriangle,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50 dark:bg-red-950/30',
     })
 
   if (isLoading) {
@@ -86,6 +119,8 @@ export default function Dashboard() {
     )
   }
 
+  const isOperator = dashboardType === 'operator'
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -108,12 +143,13 @@ export default function Dashboard() {
       {dashboardType === 'client' && (
         <DashboardHero
           title={`Bienvenue, ${user?.name?.split(' ')[0] || ''}`}
-          subtitle="Suivez vos colis et gerez vos expeditions depuis votre espace personnel."
+          subtitle="Suivez vos colis, vos devis et vos factures depuis votre espace personnel."
           gradient={['#0e7490', '#14B8A6'] as const}
           actions={[
-            { label: 'Shopping Assiste', href: '/shopping-assiste/nouveau', icon: ShoppingBag },
-            { label: 'Demander un pickup', href: '/pickups/create', icon: Truck, variant: 'outline' },
-            { label: 'Nouveau Colis Attendu', href: '/shipment-notices/create', icon: Bell, variant: 'outline' },
+            { label: 'Mes expéditions', href: '/portal/expeditions', icon: Truck },
+            { label: 'Mes achats & devis', href: '/portal/achats', icon: ShoppingBag, variant: 'outline' },
+            { label: 'Mes factures', href: '/portal/factures', icon: Receipt, variant: 'outline' },
+            { label: 'Support (SAV)', href: '/portal/sav', icon: HeadphonesIcon, variant: 'outline' },
           ]}
         />
       )}
@@ -127,13 +163,17 @@ export default function Dashboard() {
             { label: 'Pickups', value: stats.pickups_pending ?? 0 },
             { label: 'Livraisons', value: stats.deliveries_pending ?? 0 },
           ]}
+          actions={[
+            { label: 'Voir mes pickups', href: '/pickups', icon: Truck },
+            { label: 'Voir les expéditions', href: '/shipments', icon: Package, variant: 'outline' },
+          ]}
         />
       )}
 
+      {/* File d'actions urgentes */}
       {isStaffDashboard(dashboardType) && <DashboardTodayActionsCard actions={todayActions} />}
 
-      {isStaffDashboard(dashboardType) && <DashboardStaffQuickLinks />}
-
+      {/* KPIs principaux */}
       {isStaffDashboard(dashboardType) && (
         <DashboardKpiSection
           dashboardType={dashboardType}
@@ -159,10 +199,27 @@ export default function Dashboard() {
         <DashboardOperatorCard packagesToday={stats.packages_today ?? 0} />
       )}
 
+      {/* Dossiers en attente d'action (PRD 6.2) */}
+      {isStaffDashboard(dashboardType) && (
+        <DashboardPendingDossiersCard dossiers={pendingDossiers} />
+      )}
+
+      {/* Activité du jour — 4 colonnes (PRD 6.2) */}
+      {isStaffDashboard(dashboardType) && todayActivity && (
+        <DashboardTodayActivityCard activity={todayActivity} hideFinance={isOperator} />
+      )}
+
+      {isStaffDashboard(dashboardType) && <DashboardStaffQuickLinks />}
+
       {(isStaffDashboard(dashboardType) || dashboardType === 'client') && (
         <motion.div variants={fadeInUp}>
           <DraftsList />
         </motion.div>
+      )}
+
+      {/* Alertes système (PRD 6.2) */}
+      {isStaffDashboard(dashboardType) && (
+        <DashboardSystemAlertsCard alerts={systemAlerts} />
       )}
 
       {isStaffDashboard(dashboardType) && <DashboardRecentShipments shipments={recentShipments} />}
@@ -172,6 +229,11 @@ export default function Dashboard() {
           monthlyEvolution={monthlyEvolution}
           statusDistribution={statusDistribution}
         />
+      )}
+
+      {/* Passation de service (PRD 6.2) */}
+      {isStaffDashboard(dashboardType) && !isOperator && (
+        <DashboardHandoverCard items={handoverItems} />
       )}
 
       {isStaffDashboard(dashboardType) && (

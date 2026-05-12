@@ -6,12 +6,14 @@ import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { cn } from '@/lib/utils'
 import { getNavSections } from '@/config/sidebarConfig'
+import { useNavigation } from '@/hooks/useNavigation'
 import { usePublicBranding } from '@/hooks/useSettings'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { AppSidebar } from '@/layouts/AppSidebar'
 import { AppTopBar } from '@/layouts/AppTopBar'
 import { MobileSidebarOverlay } from '@/layouts/MobileSidebarOverlay'
 import { SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED } from '@/layouts/sidebarLayoutConstants'
+import { resolveActiveNavHref } from '@/lib/navActiveMatch'
 
 export default function SidebarLayout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -52,9 +54,40 @@ export default function SidebarLayout() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  const navSections = useMemo(
-    () => getNavSections(user?.roles || [], user?.permissions || []),
-    [user?.roles, user?.permissions],
+  const allPermissions = useMemo(() => {
+    if (!user) return []
+    const effective = user.effective_permissions ?? []
+    const legacy = user.permissions ?? []
+    return [...new Set([...effective, ...legacy])]
+  }, [user])
+
+  const dynamicNav = useNavigation()
+  const hasDynamicNav = dynamicNav.length > 0
+
+  const navSections = useMemo(() => {
+    if (hasDynamicNav) {
+      return dynamicNav.map((section) => ({
+        id: section.code,
+        title: section.title,
+        items: section.items.map((item) => ({
+          id: item.code,
+          label: item.name,
+          href: item.route,
+          icon: item.icon,
+        })),
+      }))
+    }
+    return getNavSections(user?.roles || [], allPermissions)
+  }, [hasDynamicNav, dynamicNav, user?.roles, allPermissions])
+
+  const allNavHrefs = useMemo(
+    () => navSections.flatMap((section) => section.items.map((item) => item.href)),
+    [navSections],
+  )
+
+  const activeNavHref = useMemo(
+    () => resolveActiveNavHref(location.pathname, allNavHrefs),
+    [location.pathname, allNavHrefs],
   )
 
   const navActiveClass = 'bg-slate-800/95 text-white shadow-sm ring-1 ring-white/10'
@@ -90,6 +123,7 @@ export default function SidebarLayout() {
           showBrandBesideLogo={showBrandBesideLogo}
           brandHeaderKey={brandHeaderKey}
           navSections={navSections}
+          activeNavHref={activeNavHref}
           navActiveClass={navActiveClass}
           closeMobile={closeMobile}
           theme={theme}
@@ -118,7 +152,7 @@ export default function SidebarLayout() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 lg:p-6 scrollbar-thin"
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 lg:p-6 scrollbar-thin"
             >
               <Outlet />
             </motion.div>

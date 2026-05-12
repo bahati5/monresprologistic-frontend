@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CorridorFlags } from '@/lib/countryFlags'
 import { displayLocalized } from '@/lib/localizedString'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import {
 import { Eye, MoreHorizontal, FileText, Printer, Copy, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { downloadApiPdf } from '@/lib/openPdf'
+import { getShipmentDetailHref } from '@/lib/shipmentPortalPaths'
 import type { ShipmentDisplay } from '@/components/shipments/list/shipmentDisplay'
 import { shipmentDisplay } from '@/components/shipments/list/shipmentDisplay'
 import type { ShipmentTableRowModel } from '@/components/shipments/list/ShipmentListRow'
@@ -31,11 +32,13 @@ export function ShipmentCard({
   formatMoney,
 }: ShipmentCardProps) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const detailHref = getShipmentDetailHref(pathname, s.id)
   const d: ShipmentDisplay = shipmentDisplay(s)
   return (
     <Card
       className="overflow-hidden transition-shadow hover:shadow-md cursor-pointer group"
-      onClick={() => navigate(`/shipments/${s.id}`)}
+      onClick={() => navigate(detailHref)}
     >
       <CardContent className="p-4">
         <div className="mb-3 flex items-start gap-3">
@@ -71,7 +74,7 @@ export function ShipmentCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate(`/shipments/${s.id}`)}>
+                  <DropdownMenuItem onClick={() => navigate(detailHref)}>
                     <Eye size={14} className="mr-2" />Voir détail
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(String(d.tracking || '')); toast.success('Copie') }}>

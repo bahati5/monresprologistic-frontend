@@ -1,17 +1,35 @@
-export interface AuthUser {
-  id: number
+import type { Menu, FrontendElement } from './rbac'
+
+export interface AuthUserRole {
+  uuid: string
+  code: string
   name: string
+  description: string | null
+}
+
+export interface AuthUser {
+  uuid: string
+  name: string
+  first_name?: string | null
+  last_name?: string | null
   email: string
   email_verified_at: string | null
   theme_preference: 'light' | 'dark' | 'system'
+  avatar_url?: string | null
+  phone?: string | null
   roles: string[]
   permissions: string[]
+  effective_permissions?: string[]
   agency_id: number | null
   created_at: string
+  role?: AuthUserRole
+  accessible_menus?: Menu[]
+  accessible_pages?: FrontendElement[]
 }
 
 export interface PhoneCountry {
   id: number
+  uuid?: string
   name: string
   iso2: string
   phone_code: string

@@ -16,7 +16,8 @@ interface CommentThreadProps {
 
 interface Comment {
   id: number
-  user: { id: number; name: string } | null
+  uuid?: string
+  user: { id?: number; uuid?: string; name: string } | null
   body: string
   is_internal: boolean
   created_at: string
@@ -83,7 +84,7 @@ export default function CommentThread({ commentableType, commentableId }: Commen
                   <span className="text-xs text-muted-foreground">
                     {new Date(comment.created_at).toLocaleString('fr-FR')}
                   </span>
-                  {comment.user?.id === user?.id && (
+                  {comment.user?.uuid === user?.uuid && (
                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => deleteMutation.mutate(comment.id)}>
                       <Trash2 className="h-3 w-3 text-muted-foreground" />
                     </Button>

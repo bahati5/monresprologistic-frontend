@@ -32,7 +32,7 @@ export function DashboardHero({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="relative overflow-hidden rounded-2xl p-6 md:p-8 text-white"
+      className="relative overflow-hidden rounded-2xl p-5 text-white sm:p-6 md:p-8"
       style={{
         background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
       }}
@@ -68,16 +68,16 @@ export function DashboardHero({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="flex flex-wrap gap-3 pt-2"
+              className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap"
             >
               {actions.map((action) => (
-                <Link key={action.href} to={action.href}>
+                <Link key={action.href} to={action.href} className="w-full sm:w-auto">
                   <Button
                     variant={action.variant === 'outline' ? 'outline' : 'default'}
                     className={
                       action.variant === 'outline'
-                        ? 'border-white/30 text-white hover:bg-white/10 bg-transparent'
-                        : 'bg-white text-gray-900 hover:bg-white/90 shadow-lg'
+                        ? 'min-h-11 w-full border-white/30 text-white hover:bg-white/10 bg-transparent sm:w-auto'
+                        : 'min-h-11 w-full bg-white text-gray-900 hover:bg-white/90 shadow-lg sm:w-auto'
                     }
                   >
                     {action.icon && <action.icon size={16} className="mr-2" />}
@@ -95,7 +95,7 @@ export function DashboardHero({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, duration: 0.4 }}
-            className="flex gap-6"
+          className="grid grid-cols-2 gap-4 sm:flex sm:gap-6"
           >
             {stats.map((stat, i) => (
               <div key={i} className="text-center">

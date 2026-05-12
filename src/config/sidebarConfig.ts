@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   ShoppingBag,
-  BellRing,
   Package,
   Layers,
   Truck,
@@ -11,8 +10,12 @@ import {
   Shield,
   Settings,
   BarChart3,
-  ClipboardList,
   TrendingUp,
+  Navigation,
+  History,
+  HeadphonesIcon,
+  DollarSign,
+  Eye,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -21,12 +24,8 @@ export interface SidebarNavItem {
   label: string
   href: string
   icon: LucideIcon
-  /** L’utilisateur doit avoir au moins un de ces rôles */
-  rolesAny?: string[]
-  /** Masqué si l’utilisateur a l’un de ces rôles */
-  rolesNone?: string[]
-  /** Permission requise (Spatie) */
-  permission?: string
+  /** Masqué si l'utilisateur n'a aucune de ces permissions */
+  permissionsAny?: string[]
 }
 
 export interface NavSection {
@@ -34,8 +33,6 @@ export interface NavSection {
   title: string
   items: SidebarNavItem[]
 }
-
-const STAFF_ROLES = ['super_admin', 'agency_admin', 'operator'] as const
 
 const SECTIONS: NavSection[] = [
   {
@@ -46,7 +43,7 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    id: 'client-services',
+    id: 'services-clients',
     title: 'SERVICES CLIENTS',
     items: [
       {
@@ -54,21 +51,27 @@ const SECTIONS: NavSection[] = [
         label: 'Shopping Assisté',
         href: '/purchase-orders',
         icon: ShoppingBag,
-        rolesNone: ['driver'],
+        permissionsAny: ['assisted_purchase.manage'],
       },
       {
-        id: 'quote-dashboard',
-        label: 'Suivi devis',
-        href: '/purchase-orders/suivi',
-        icon: ClipboardList,
-        rolesAny: ['super_admin', 'agency_admin', 'operator'],
+        id: 'suivi-sav',
+        label: 'SAV',
+        href: '/sav',
+        icon: HeadphonesIcon,
+        permissionsAny: ['sav.view', 'sav.manage'],
       },
+    ],
+  },
+  {
+    id: 'suivi',
+    title: 'SUIVI',
+    items: [
       {
-        id: 'expected-packages',
-        label: 'Colis Attendus',
-        href: '/shipment-notices',
-        icon: BellRing,
-        rolesNone: ['driver'],
+        id: 'suivi-dashboard',
+        label: 'Tableau de suivi',
+        href: '/monitoring',
+        icon: Eye,
+        permissionsAny: ['suivi.view'],
       },
     ],
   },
@@ -76,15 +79,27 @@ const SECTIONS: NavSection[] = [
     id: 'operations',
     title: 'OPÉRATIONS',
     items: [
-      { id: 'shipments', label: 'Expéditions', href: '/shipments', icon: Package },
+      {
+        id: 'shipments',
+        label: 'Expéditions',
+        href: '/shipments',
+        icon: Package,
+        permissionsAny: ['shipments.view'],
+      },
       {
         id: 'consolidations',
         label: 'Regroupements',
         href: '/regroupements',
         icon: Layers,
-        rolesAny: [...STAFF_ROLES, 'driver'],
+        permissionsAny: ['operations.view_regroupements', 'operations.manage_regroupements'],
       },
-      { id: 'pickups', label: 'Ramassages', href: '/pickups', icon: Truck },
+      {
+        id: 'pickups',
+        label: 'Ramassages',
+        href: '/pickups',
+        icon: Truck,
+        permissionsAny: ['operations.manage_pickups'],
+      },
     ],
   },
   {
@@ -96,21 +111,21 @@ const SECTIONS: NavSection[] = [
         label: 'Annuaire Clients',
         href: '/clients',
         icon: Users,
-        rolesAny: [...STAFF_ROLES],
+        permissionsAny: ['crm.view', 'crm.manage'],
       },
       {
         id: 'billing',
         label: 'Facturation',
         href: '/finance/invoices',
         icon: Receipt,
-        rolesNone: ['driver'],
+        permissionsAny: ['finance.view_payments', 'finance.manage'],
       },
       {
         id: 'accounting',
         label: 'Comptabilité',
         href: '/finance/ledger',
         icon: BookOpen,
-        permission: 'manage_finances',
+        permissionsAny: ['finance.manage'],
       },
     ],
   },
@@ -123,14 +138,69 @@ const SECTIONS: NavSection[] = [
         label: 'Tableaux de bord',
         href: '/analytics',
         icon: BarChart3,
-        permission: 'view_analytics',
+        permissionsAny: ['analytics.view'],
       },
       {
         id: 'analytics-assisted-purchase',
         label: 'Achat assisté',
         href: '/analytics/achat-assiste',
         icon: TrendingUp,
-        rolesAny: ['super_admin', 'agency_admin', 'operator'],
+        permissionsAny: ['analytics.view'],
+      },
+      {
+        id: 'analytics-shipments',
+        label: 'Expéditions',
+        href: '/analytics/expeditions',
+        icon: Package,
+        permissionsAny: ['analytics.view'],
+      },
+      {
+        id: 'analytics-sav',
+        label: 'SAV',
+        href: '/analytics/sav',
+        icon: HeadphonesIcon,
+        permissionsAny: ['analytics.view'],
+      },
+      {
+        id: 'analytics-finance',
+        label: 'Finance',
+        href: '/analytics/finance',
+        icon: DollarSign,
+        permissionsAny: ['analytics.view'],
+      },
+    ],
+  },
+  {
+    id: 'users-module',
+    title: 'UTILISATEURS',
+    items: [
+      {
+        id: 'users-management',
+        label: 'Gestion utilisateurs',
+        href: '/users',
+        icon: Users,
+        permissionsAny: ['rbac.manage_users'],
+      },
+      {
+        id: 'users-roles',
+        label: 'Rôles',
+        href: '/users/roles',
+        icon: Shield,
+        permissionsAny: ['rbac.manage_roles', 'rbac.view_roles'],
+      },
+      {
+        id: 'users-navigation',
+        label: 'Navigation',
+        href: '/users/navigation',
+        icon: Navigation,
+        permissionsAny: ['rbac.manage_menus'],
+      },
+      {
+        id: 'users-activity-log',
+        label: 'Journal d\'activité',
+        href: '/users/activity-log',
+        icon: History,
+        permissionsAny: ['rbac.manage_users'],
       },
     ],
   },
@@ -139,18 +209,11 @@ const SECTIONS: NavSection[] = [
     title: 'ADMINISTRATION',
     items: [
       {
-        id: 'team-roles',
-        label: 'Équipe & Rôles',
-        href: '/users',
-        icon: Shield,
-        rolesAny: ['super_admin', 'agency_admin'],
-      },
-      {
         id: 'settings',
         label: 'Paramètres',
         href: '/settings',
         icon: Settings,
-        rolesAny: ['super_admin', 'agency_admin'],
+        permissionsAny: ['admin.manage_settings', 'admin.manage_pricing', 'admin.manage_agencies'],
       },
     ],
   },
@@ -158,37 +221,21 @@ const SECTIONS: NavSection[] = [
 
 export function isSidebarItemVisible(
   item: SidebarNavItem,
-  userRoles: string[],
+  _userRoles: string[],
   userPermissions: string[]
 ): boolean {
-  if (item.rolesNone?.some((r) => userRoles.includes(r))) {
-    return false
-  }
-  if (item.rolesAny?.length && !item.rolesAny.some((r) => userRoles.includes(r))) {
-    return false
-  }
-  if (item.permission && !userPermissions.includes(item.permission)) {
+  if (item.permissionsAny?.length && !item.permissionsAny.some((p) => userPermissions.includes(p))) {
     return false
   }
   return true
 }
 
-/** Navigation plate par sections (sans accordéons). */
 export function getNavSections(
   userRoles: string[],
   userPermissions: string[]
 ): NavSection[] {
-  const isClient = userRoles.includes('client') && !userRoles.includes('driver')
-
   return SECTIONS.map((section) => ({
     ...section,
-    items: section.items
-      .filter((item) => isSidebarItemVisible(item, userRoles, userPermissions))
-      .map((item) => {
-        if (item.id === 'shopping-assisted' && isClient) {
-          return { ...item, href: '/shopping-assiste/nouveau' }
-        }
-        return item
-      }),
+    items: section.items.filter((item) => isSidebarItemVisible(item, userRoles, userPermissions)),
   })).filter((section) => section.items.length > 0)
 }

@@ -37,7 +37,7 @@ export function DashboardRecentShipments({ shipments }: DashboardRecentShipments
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
@@ -74,6 +74,31 @@ export function DashboardRecentShipments({ shipments }: DashboardRecentShipments
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="min-w-0 divide-y md:hidden">
+            {shipments.slice(0, 8).map((s) => (
+              <div key={s.id} className="space-y-2 p-4 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <Link to={`/shipments/${s.id}`} className="font-mono text-xs font-semibold text-primary hover:underline break-all">
+                    {s.tracking_number || `EXP-${s.id}`}
+                  </Link>
+                  <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                    {typeof s.status === 'string' ? s.status.replace(/_/g, ' ') : '\u2014'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">De : </span>
+                  {s.sender_profile?.full_name || s.sender_profile?.first_name || '\u2014'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Vers : </span>
+                  {s.recipient_profile?.full_name || s.recipient_profile?.first_name || '\u2014'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {s.created_at ? new Date(s.created_at).toLocaleDateString('fr-FR') : '\u2014'}
+                </p>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -80,7 +80,6 @@ export function QuoteFinancialForm({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
         <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
@@ -159,7 +158,6 @@ export function QuoteFinancialForm({
             )}
           </TableBody>
         </Table>
-        </div>
       </motion.div>
 
       {paymentSummary && (paymentSummary.rows.length > 0 || paymentSummary.remaining > 0) && (

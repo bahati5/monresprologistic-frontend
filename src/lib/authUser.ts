@@ -1,6 +1,6 @@
 import type { AuthUser } from '@/types'
+import type { Menu, FrontendElement } from '@/types/rbac'
 
-/** Accepte un tableau de noms (string) ou d’objets Spatie `{ name }` et renvoie des chaînes. */
 function toNameList(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
   const out: string[] = []
@@ -14,7 +14,19 @@ function toNameList(raw: unknown): string[] {
   return out
 }
 
-/** Assure `roles` / `permissions` en `string[]` pour tout le frontend (évite de rendre des objets React). */
+function toMenuList(raw: unknown): Menu[] {
+  if (!Array.isArray(raw)) return []
+  return raw as Menu[]
+}
+
+function toPageList(raw: unknown): FrontendElement[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as FrontendElement[]).map((p) => ({
+    ...p,
+    permissions: toNameList(p.permissions),
+  }))
+}
+
 export function normalizeAuthUser(raw: unknown): AuthUser | null {
   if (!raw || typeof raw !== 'object') return null
   const u = raw as Record<string, unknown>
@@ -23,5 +35,8 @@ export function normalizeAuthUser(raw: unknown): AuthUser | null {
     ...base,
     roles: toNameList(u.roles),
     permissions: toNameList(u.permissions),
+    effective_permissions: toNameList(u.effective_permissions),
+    accessible_menus: toMenuList(u.accessible_menus),
+    accessible_pages: toPageList(u.accessible_pages),
   }
 }

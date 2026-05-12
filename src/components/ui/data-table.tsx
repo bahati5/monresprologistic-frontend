@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { displayLocalized, resolveLocalized } from '@/lib/localizedString'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -157,9 +158,9 @@ export function DataTable<T extends Record<string, unknown>>({
         </div>
       )}
 
-      {/* Table */}
+      {/* Tableau (md+) + cartes empilées (mobile, sans défilement horizontal) */}
       <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="hidden min-w-0 md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
@@ -224,6 +225,73 @@ export function DataTable<T extends Record<string, unknown>>({
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="min-w-0 space-y-3 p-3 md:hidden">
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="space-y-2 p-4">
+                  {columns.map((col) => (
+                    <div key={col.key} className="h-3 max-w-[90%] animate-pulse rounded bg-muted" />
+                  ))}
+                </CardContent>
+              </Card>
+            ))
+          ) : sorted.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center text-muted-foreground">
+              {emptyIcon}
+              <p className="text-sm">{emptyMessage}</p>
+            </div>
+          ) : (
+            sorted.map((row, idx) => {
+              const expanded = expandedIdx === idx
+              return (
+                <Card
+                  key={rowKey(row, idx)}
+                  className={cn('overflow-hidden', onRowClick && 'cursor-pointer')}
+                  onClick={() => onRowClick?.(row)}
+                >
+                  <CardContent className="space-y-2 p-4">
+                    {expandRow && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-xs font-medium text-muted-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setExpandedIdx(expanded ? null : idx)
+                        }}
+                      >
+                        <ChevronDown size={14} className={cn('transition-transform', expanded && 'rotate-180')} />
+                        Détails
+                      </button>
+                    )}
+                    <dl className="space-y-2 text-sm">
+                      {columns.map((col) => (
+                        <div key={col.key} className="min-w-0">
+                          <dt className="text-xs text-muted-foreground">{col.label}</dt>
+                          <dd className="min-w-0 break-words font-medium">{renderCell(row, col, idx)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <AnimatePresence>
+                      {expanded && expandRow && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden border-t pt-3 text-sm"
+                        >
+                          {expandRow(row)}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
         </div>
       </div>
 

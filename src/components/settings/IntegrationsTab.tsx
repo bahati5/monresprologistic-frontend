@@ -228,7 +228,7 @@ export default function IntegrationsTab() {
             <p className="text-sm font-medium flex items-center gap-2">
               <Code size={14} />Intégration HTML (n'importe quel site)
             </p>
-            <pre className="text-xs bg-background border rounded p-3 overflow-x-auto">
+            <pre className="max-w-full overflow-x-hidden whitespace-pre-wrap break-all bg-background border rounded p-3 text-xs">
 {`<div data-monrespro-tracking></div>
 <script>
   window.MonresproConfig = { apiUrl: '${apiBase}/api' };
@@ -244,7 +244,7 @@ export default function IntegrationsTab() {
             <p className="text-xs text-muted-foreground">
               Ajoutez ce shortcode dans votre fichier <code>functions.php</code> :
             </p>
-            <pre className="text-xs bg-background border rounded p-3 overflow-x-auto">
+            <pre className="max-w-full overflow-x-hidden whitespace-pre-wrap break-all bg-background border rounded p-3 text-xs">
 {`add_shortcode('monrespro_tracking', function($atts) {
   $atts = shortcode_atts(['api_url' => '${apiBase}/api'], $atts);
   return '<div data-monrespro-tracking></div>

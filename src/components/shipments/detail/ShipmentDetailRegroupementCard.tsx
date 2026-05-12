@@ -102,7 +102,7 @@ export function ShipmentDetailRegroupementCard({ shipmentId, regroupement }: Shi
         {Array.isArray(rows) && rows.length > 0 ? (
           <CardContent className="pt-0">
             <p className="text-xs font-medium text-muted-foreground mb-2">Colis rattachés à ce même lot</p>
-            <div className="rounded-lg border bg-background overflow-x-auto">
+            <div className="hidden min-w-0 md:block overflow-x-auto rounded-lg border bg-background">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/45 text-left text-xs text-muted-foreground">
@@ -184,6 +184,66 @@ export function ShipmentDetailRegroupementCard({ shipmentId, regroupement }: Shi
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="min-w-0 space-y-2 md:hidden">
+              {rows.map((row) => {
+                const st = row.status?.code || ''
+                const stColor = row.status?.color_hex || STATUS_COLORS[st] || '#64748B'
+                const isCurrent = row.id === Number(shipmentId)
+                return (
+                  <div
+                    key={row.id}
+                    className={`rounded-lg border bg-background p-3 text-sm ${isCurrent ? 'border-primary/40 bg-primary/10' : ''}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <Package className="h-4 w-4 text-muted-foreground" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Link
+                          to={`/shipments/${row.id}`}
+                          className="block font-mono text-xs font-medium text-primary hover:underline break-all"
+                        >
+                          {row.public_tracking || `#${row.id}`}
+                        </Link>
+                        {isCurrent ? (
+                          <Badge variant="secondary" className="text-[10px] w-fit">
+                            Vous êtes ici
+                          </Badge>
+                        ) : null}
+                        <p className="text-xs text-muted-foreground break-words">{row.recipient_name || '—'}</p>
+                        <div className="flex max-w-full flex-col gap-1.5">
+                          <CorridorFlags
+                            originIso2={row.corridor?.origin_iso2}
+                            destIso2={row.corridor?.dest_iso2}
+                          />
+                          <span className="text-xs leading-snug text-muted-foreground break-words">
+                            {row.route_display || '—'}
+                          </span>
+                        </div>
+                        {row.status ? (
+                          <Badge
+                            className="text-[10px] font-semibold w-fit"
+                            style={{
+                              backgroundColor: `${stColor}20`,
+                              color: stColor,
+                              borderColor: `${stColor}40`,
+                            }}
+                          >
+                            {displayLocalized(row.status.name)}
+                          </Badge>
+                        ) : null}
+                        <p className="text-xs font-medium tabular-nums text-muted-foreground">
+                          Poids :{' '}
+                          {row.weight_kg != null && row.weight_kg !== undefined
+                            ? `${Number(row.weight_kg).toFixed(1)} kg`
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         ) : null}

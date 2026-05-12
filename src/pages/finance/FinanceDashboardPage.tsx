@@ -202,7 +202,7 @@ export default function FinanceDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="hidden min-w-0 md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -229,6 +229,27 @@ export default function FinanceDashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="min-w-0 space-y-2 md:hidden">
+              {d.monthly_breakdown.map((m: MonthlyBreakdownRow, i: number) => (
+                <div key={i} className="rounded-lg border bg-card p-3 text-sm">
+                  <p className="font-medium">{m.month}</p>
+                  <dl className="mt-2 grid grid-cols-1 gap-1 text-xs sm:grid-cols-3">
+                    <div>
+                      <dt className="text-muted-foreground">Facturé</dt>
+                      <dd className="font-semibold tabular-nums">{formatMoney(Number(m.invoiced ?? 0))}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Payé</dt>
+                      <dd className="font-semibold tabular-nums text-emerald-600">{formatMoney(Number(m.paid ?? 0))}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Solde</dt>
+                      <dd className="font-semibold tabular-nums">{formatMoney(Number(m.balance ?? 0))}</dd>
+                    </div>
+                  </dl>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

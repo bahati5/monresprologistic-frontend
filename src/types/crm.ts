@@ -1,9 +1,10 @@
 /* ── CRM: Clients, Users, Drivers ── */
 
+import type { PaginatedData } from './index'
+
 export interface Client {
-  id: number
+  uuid: string
   name: string
-  /** Prénom + nom (ProfileResource / assistant) */
   full_name?: string
   first_name?: string
   last_name?: string
@@ -40,30 +41,35 @@ export interface ClientCreatePayload {
 }
 
 export interface User {
-  id: number
+  uuid: string
   name: string
   email: string
-  level: number
-  role_label: string
-  agency_id: number | null
-  agency_name: string | null
+  phone?: string | null
+  roles?: { uuid?: string; name?: string; code?: string }[]
+  role?: string
+  agency_uuid?: string | null
+  agency_name?: string | null
   is_active: boolean
-  gender: string | null
   created_at: string
 }
 
 export interface UserCreatePayload {
   name: string
   email: string
+  phone?: string
   password: string
-  password_confirmation: string
-  level: number
-  agency_id?: number
-  gender?: string
+  role: string
+  agency_uuid?: string
+}
+
+/** Réponse GET /api/users (pagination + rôles assignables côté API). */
+export interface UsersListResult extends PaginatedData<User> {
+  availableRoles: string[]
+  agencies?: { uuid: string; name: string }[]
 }
 
 export interface Driver {
-  id: number
+  uuid: string
   name: string
   email: string
   phone: string | null
@@ -89,7 +95,7 @@ export interface DriverCreatePayload {
 }
 
 export interface Notification {
-  id: string
+  uuid: string
   type: string
   data: {
     title: string

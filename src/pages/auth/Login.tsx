@@ -31,7 +31,8 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      navigate("/dashboard");
+      const u = useAuthStore.getState().user;
+      navigate(u?.roles?.includes('client') ? '/portal' : '/dashboard');
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(err, "Les identifiants ne correspondent pas."),

@@ -24,7 +24,8 @@ const VIEW_STORAGE_KEY = 'shipments-list-view'
 
 export default function ShipmentsList() {
   const { formatMoney } = useFormatMoney()
-  const { user } = useAuthStore()
+  const { user, hasPermission } = useAuthStore()
+  const canCreateShipment = hasPermission('shipments.create')
   const canBulkRegroupe = userCanManageRegroupementShipments(user)
   const [searchParams, setSearchParams] = useSearchParams()
   const page = Number(searchParams.get('page') || '1')
@@ -107,9 +108,11 @@ export default function ShipmentsList() {
               </Button>
             </>
           ) : null}
-          <Link to="/shipments/create">
-            <Button><Plus size={16} className="mr-1.5" />Nouvelle expedition</Button>
-          </Link>
+          {canCreateShipment ? (
+            <Link to="/shipments/create">
+              <Button><Plus size={16} className="mr-1.5" />Nouvelle expedition</Button>
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -123,8 +126,8 @@ export default function ShipmentsList() {
         setViewMode={setViewMode}
       />
 
-      {viewMode === 'list' ? (
-        <Card>
+      {viewMode === 'list' && (
+        <Card className="hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -177,8 +180,9 @@ export default function ShipmentsList() {
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <div>
+      )}
+
+      <div className={viewMode === 'list' ? 'md:hidden' : undefined}>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
@@ -212,8 +216,7 @@ export default function ShipmentsList() {
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       {((pagination as { total?: number }).total ?? 0) > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

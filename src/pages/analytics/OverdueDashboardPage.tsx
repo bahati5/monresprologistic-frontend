@@ -101,7 +101,7 @@ export default function OverdueDashboardPage() {
           <CardTitle className="text-base">Liste des expéditions en retard</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -163,6 +163,57 @@ export default function OverdueDashboardPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="min-w-0 divide-y md:hidden">
+            {isLoading ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="p-4">
+                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                  <div className="mt-2 h-3 w-full animate-pulse rounded bg-muted" />
+                </div>
+              ))
+            ) : shipments.length === 0 ? (
+              <div className="flex flex-col items-center px-4 py-12 text-center text-muted-foreground">
+                <Package size={40} className="mb-3 opacity-30" />
+                <p>Aucun dossier en retard — excellente performance !</p>
+              </div>
+            ) : (
+              shipments.map((s: OverdueShipmentRow) => {
+                const createdMs = s.created_at ? new Date(s.created_at).getTime() : asOfMs
+                const daysOld = Math.floor((asOfMs - createdMs) / (1000 * 60 * 60 * 24))
+                return (
+                  <div key={s.id} className="space-y-2 p-4 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Link to={`/shipments/${s.id}`} className="font-mono text-xs font-semibold text-primary hover:underline break-all">
+                        {s.public_tracking}
+                      </Link>
+                      <Badge className={`text-xs ${daysOld > 30 ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`}>
+                        {daysOld} jour(s)
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Client : </span>
+                      {displayLocalized(s.creator?.name) ?? '—'}
+                    </p>
+                    <div className="text-xs">
+                      <span className="font-medium text-foreground">Destination : </span>
+                      {s.dest_country && typeof s.dest_country === 'object' ? (
+                        <CountryNameWithFlag country={s.dest_country} flagSize="sm" />
+                      ) : (
+                        '—'
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {typeof s.status === 'string' ? s.status : s.status?.label ?? s.status?.value ?? '—'}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      Créé le {s.created_at ? new Date(s.created_at).toLocaleDateString('fr-FR') : '—'}
+                    </p>
+                  </div>
+                )
+              })
+            )}
           </div>
         </CardContent>
       </Card>

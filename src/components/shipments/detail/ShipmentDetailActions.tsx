@@ -47,6 +47,8 @@ export interface ShipmentDetailActionsProps {
   shipmentId: string | undefined
   shipmentStatusRaw: unknown
   user: AuthUser | null
+  /** Client portail ou chauffeur : masquer statut, paiement, chauffeur, etc. */
+  viewerOnly?: boolean
   statusDialogOpen: boolean
   onStatusDialogOpenChange: (open: boolean) => void
   driverDialogOpen: boolean
@@ -105,7 +107,12 @@ export function ShipmentDetailActions(props: ShipmentDetailActionsProps) {
     assignDriver,
     onConfirmAssignDriver,
     regroupementSlot,
+    viewerOnly = false,
   } = props
+
+  if (viewerOnly) {
+    return null
+  }
 
   return (
     <>

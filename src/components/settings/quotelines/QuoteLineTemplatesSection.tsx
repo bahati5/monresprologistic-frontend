@@ -41,7 +41,7 @@ function typeLabel(t: QuoteLineTemplate, currencySymbol: string): string {
     return `${asNumericDefault(t.default_value)}% du ${base}`
   }
   if (t.type === 'fixed_amount') {
-    if (t.default_value == null || t.default_value === '') {
+    if (t.default_value == null) {
       return 'Montant fixe'
     }
     return `${currencySymbol}${asNumericDefault(t.default_value).toFixed(2)} fixe`
