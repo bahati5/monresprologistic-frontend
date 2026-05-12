@@ -54,13 +54,13 @@ export function resolveMoneySymbol(branding: Pick<PublicBranding, 'currency' | '
   if (custom !== '') {
     return custom
   }
-  const code = String(branding.currency ?? 'EUR').trim().toUpperCase()
+  const code = String(branding.currency ?? '').trim().toUpperCase()
   return ISO_TO_SYMBOL[code] ?? code
 }
 
 export function brandingToMoneyOptions(branding: PublicBranding | undefined): MoneyFormatOptions {
   const b = branding ?? {
-    currency: 'EUR',
+    currency: '',
     currency_symbol: '',
     currency_position: 'after' as const,
   }

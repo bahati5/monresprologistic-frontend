@@ -120,11 +120,14 @@ export default function Login() {
                   </motion.div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="login">Email ou téléphone</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="votre@email.com"
+                    id="login"
+                    name="login"
+                    type="text"
+                    inputMode="email"
+                    autoComplete="username"
+                    placeholder="ex. admin@monrespro.local ou +243…"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required

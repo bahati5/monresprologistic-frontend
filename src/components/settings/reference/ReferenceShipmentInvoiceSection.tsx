@@ -88,7 +88,7 @@ export function ReferenceShipmentInvoiceSection({
           <Label>
             Prise en charge entreprise par défaut (
             {resolveMoneySymbol({
-              currency: String(shipInv.currency ?? 'EUR'),
+              currency: String(shipInv.currency ?? ''),
               currency_symbol: String(shipInv.currency_symbol ?? ''),
             })}
             )

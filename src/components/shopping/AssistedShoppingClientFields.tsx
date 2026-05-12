@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Controller, type Control, type FieldErrors } from 'react-hook-form'
 import { UserSearch } from 'lucide-react'
 import { DbComboboxAsync, type DbComboboxOption } from '@/components/ui/DbCombobox'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
+import { ProfileWizardCreateModal } from '@/components/workflow/ProfileWizardCreateModal'
 import type { AssistedShoppingFormValues } from '@/components/shopping/assistedShoppingSchema'
 
 type AssistedShoppingClientFieldsProps = {
@@ -13,6 +16,10 @@ type AssistedShoppingClientFieldsProps = {
   clientSearch: string
   setClientSearch: (v: string) => void
   clientsLoading: boolean
+  resolveClientSelection: (comboValue: string, createPortal: boolean) => Promise<number | undefined>
+  trackClientSelection: (comboValue: string) => void
+  selectedClientLabel: string
+  onClientCreated?: (userId: number, clientName?: string) => void
 }
 
 export function AssistedShoppingClientFields({
@@ -22,7 +29,19 @@ export function AssistedShoppingClientFields({
   clientSearch,
   setClientSearch,
   clientsLoading,
+  resolveClientSelection,
+  trackClientSelection,
+  selectedClientLabel,
+  onClientCreated,
 }: AssistedShoppingClientFieldsProps) {
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [resolving, setResolving] = useState(false)
+
+  const handleNewClientCreated = async (profileId: number, clientName?: string) => {
+    setCreateModalOpen(false)
+    onClientCreated?.(profileId, clientName)
+  }
+
   return (
     <Card className="border-primary/25 bg-primary/[0.03] p-5 shadow-sm ring-1 ring-primary/10 dark:bg-primary/5">
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -39,7 +58,7 @@ export function AssistedShoppingClientFields({
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            La demande sera enregistrée sur le compte portail de ce client (devis, paiement, suivi).
+            Recherchez un client existant ou créez-en un nouveau.
           </p>
         </div>
       </div>
@@ -50,20 +69,44 @@ export function AssistedShoppingClientFields({
           <DbComboboxAsync
             id="assisted-shopping-client"
             value={field.value != null && Number.isFinite(field.value) ? String(field.value) : ''}
-            onValueChange={(v) => {
-              const n = v ? Number(v) : NaN
-              field.onChange(Number.isFinite(n) && n > 0 ? n : undefined)
+            selectedDisplayLabel={selectedClientLabel || undefined}
+            onValueChange={async (v) => {
+              if (!v) {
+                field.onChange(undefined)
+                trackClientSelection('')
+                return
+              }
+              trackClientSelection(v)
+              if (!v.startsWith('profile:')) {
+                const n = Number(v)
+                field.onChange(Number.isFinite(n) && n > 0 ? n : undefined)
+                return
+              }
+              setResolving(true)
+              try {
+                const userId = await resolveClientSelection(v, false)
+                if (userId) {
+                  field.onChange(userId)
+                } else {
+                  toast.error('Impossible de résoudre ce client.')
+                  field.onChange(undefined)
+                }
+              } finally {
+                setResolving(false)
+              }
             }}
             options={clientComboboxOptions}
             filterQuery={clientSearch}
             onFilterQueryChange={setClientSearch}
             searchMinLength={2}
             belowMinText="Saisissez au moins 2 caractères (nom, e-mail ou téléphone)."
-            placeholder="Rechercher un client…"
+            placeholder={resolving ? 'Chargement…' : 'Rechercher un client…'}
             searchPlaceholder="Nom, e-mail ou téléphone…"
-            emptyText="Aucun résultat. Vérifiez l’orthographe ou créez un compte portail depuis le CRM."
-            isLoading={clientsLoading}
-            showCreateButton={false}
+            emptyText="Aucun résultat. Utilisez le bouton + pour créer un nouveau client."
+            isLoading={clientsLoading || resolving}
+            showCreateButton
+            createButtonTitle="Nouveau client"
+            onOpenCreateModal={() => setCreateModalOpen(true)}
             className={errors.user_id ? 'border-destructive' : undefined}
           />
         )}
@@ -73,6 +116,15 @@ export function AssistedShoppingClientFields({
           {errors.user_id.message}
         </p>
       ) : null}
+
+      <ProfileWizardCreateModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        mode="sender"
+        searchHint={clientSearch}
+        onCreated={handleNewClientCreated}
+        showPortalCheckbox
+      />
     </Card>
   )
 }

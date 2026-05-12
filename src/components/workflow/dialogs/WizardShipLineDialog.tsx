@@ -74,7 +74,7 @@ function WizardShipLineForm({
   const { data: modes } = shippingModeHooks.useList()
   const { data: countriesRaw = [] } = useCountriesList()
   const { data: appSettings } = useAppSettings()
-  const globalCurrency = String((appSettings as AppSettings | undefined)?.currency ?? 'USD').toUpperCase()
+  const globalCurrency = String((appSettings as AppSettings | undefined)?.currency ?? '').toUpperCase()
   const currencyUi = resolveMoneySymbol({
     currency: globalCurrency,
     currency_symbol: String((appSettings as AppSettings | undefined)?.currency_symbol ?? ''),

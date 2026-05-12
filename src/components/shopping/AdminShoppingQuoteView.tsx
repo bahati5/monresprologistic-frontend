@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
+import { History } from 'lucide-react'
 
 import { QuoteActionsBar } from '@/components/shopping/quote/QuoteActionsBar'
 import { QuoteClientCard } from '@/components/shopping/quote/QuoteClientCard'
+import { QuoteEditPanel } from '@/components/shopping/quote/QuoteEditPanel'
 import { QuoteEmailPreviewDialog } from '@/components/shopping/quote/QuoteEmailPreviewDialog'
 import { QuoteFinancialForm } from '@/components/shopping/quote/QuoteFinancialForm'
 import { QuoteMarkOrderedDialog } from '@/components/shopping/quote/QuoteMarkOrderedDialog'
@@ -12,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { useFormatMoney } from '@/hooks/useSettings'
 
 import type { AdminShoppingQuoteViewProps } from '@/types/shopping'
+import type { PurchaseArticle } from '@/types/assistedPurchase'
 
 export type {
   AdminQuoteLine,
@@ -30,7 +33,9 @@ export function AdminShoppingQuoteView({
   status,
   client,
   lines,
-  currency = 'EUR',
+  articles,
+  clientNote,
+  currency,
   currencyDisplay,
   canEdit = true,
   isSending = false,
@@ -46,19 +51,34 @@ export function AdminShoppingQuoteView({
   pageHeading,
   pageSubheading,
   resendQuoteAction = null,
-  markPaidAction = null,
+  recordPaymentAction = null,
+  markHubReceivedAction = null,
   clientSectionTitle = 'Client',
   convertToShipmentAction = null,
   convertedShipmentId = null,
   paymentProofUrl = null,
   onQuoteDataChange,
+  quoteServerDraftPayload = null,
+  quoteDraftsQuerySettled = true,
   draftIndicator,
-}: AdminShoppingQuoteViewProps) {
+  pdfDownloadUrl = null,
+  revisionHydration = null,
+  paymentSummary = null,
+  serverQuoteConfigurationLines = null,
+  lineEditorResetKey = '1-0',
+  quoteSnapshotHistory = [],
+  dossierTimeline = [],
+}: AdminShoppingQuoteViewProps & {
+  articles?: PurchaseArticle[]
+  clientNote?: string | null
+}) {
   const { formatMoney, branding } = useFormatMoney()
   const vm = useAdminShoppingQuoteViewState({
     requestId,
     status,
     lines,
+    articles,
+    clientNote,
     currency,
     currencyDisplay,
     canEdit,
@@ -74,6 +94,9 @@ export function AdminShoppingQuoteView({
     formatMoney,
     brandingCurrency: branding?.currency,
     brandingSymbol: branding?.currency_symbol ?? '',
+    quoteServerDraftPayload,
+    quoteDraftsQuerySettled,
+    revisionHydration,
   })
 
   return (
@@ -113,8 +136,10 @@ export function AdminShoppingQuoteView({
               confirmConvertOpen={vm.confirmConvertOpen}
               onConfirmConvertOpenChange={vm.setConfirmConvertOpen}
               resendQuoteAction={resendQuoteAction}
-              markPaidAction={markPaidAction}
+              recordPaymentAction={recordPaymentAction}
+              markHubReceivedAction={markHubReceivedAction}
               paymentProofUrl={paymentProofUrl}
+              pdfDownloadUrl={pdfDownloadUrl}
             />
           </div>
         </div>
@@ -138,40 +163,87 @@ export function AdminShoppingQuoteView({
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         {/* Colonne principale: Articles + actions envoi */}
         <motion.div variants={fadeInUp} className="min-w-0">
-          <QuoteFinancialForm
-            lines={lines}
-            unitPrices={vm.unitPrices}
-            onUnitPriceChange={vm.handleUnitChange}
-            canEdit={vm.canEdit}
-            curLabel={vm.curLabel}
-            money={vm.money}
-            readonlyFinancialSummary={readonlyFinancialSummary}
-            readonlyQuoteDetails={readonlyQuoteDetails}
-            subtotal={vm.subtotal}
-            serviceFee={vm.serviceFee}
-            onServiceFeeChange={vm.setServiceFee}
-            bankFeePercentage={vm.bankFeePercentage}
-            onBankFeePercentageChange={vm.setBankFeePercentage}
-            bankFeeAmount={vm.bankFeeAmount}
-            grandTotal={vm.grandTotal}
-            paymentMethodsNote={vm.paymentMethodsNote}
-            onPaymentMethodsNoteChange={vm.setPaymentMethodsNote}
-            quoteSendActions={
-              vm.onSendQuote && vm.canEdit ? (
-                <QuoteActionsBar
-                  group="afterFinancial"
-                  canEdit={vm.canEdit}
-                  linesLength={lines.length}
-                  isSending={vm.isSending}
-                  previewLoading={vm.previewLoading}
-                  onSendQuote={vm.onSendQuote}
-                  onRequestEmailPreview={vm.onRequestEmailPreview}
-                  onPreviewEmail={vm.handlePreviewEmail}
-                  onSubmitQuote={vm.handleSubmit}
-                />
-              ) : undefined
-            }
-          />
+          {vm.usesDynamicLines ? (
+            <QuoteEditPanel
+              requestId={requestId}
+              lines={lines}
+              articles={vm.enrichedArticles}
+              clientNote={vm.clientNote}
+              currency={currency ?? ''}
+              curLabel={vm.curLabel ?? ''}
+              money={vm.money}
+              canEdit={vm.canEdit}
+              unitPrices={vm.unitPrices}
+              onUnitPriceChange={vm.handleUnitChange}
+              quantities={vm.quantities}
+              onQuantityChange={vm.handleQuantityChange}
+              paymentMethodsNote={vm.paymentMethodsNote}
+              onPaymentMethodsNoteChange={vm.setPaymentMethodsNote}
+              estimatedDelivery={vm.estimatedDelivery}
+              onEstimatedDeliveryChange={vm.setEstimatedDelivery}
+              staffMessage={vm.staffMessage}
+              onStaffMessageChange={vm.setStaffMessage}
+              onQuoteTotalChange={vm.handleQuoteTotalChange}
+              onQuoteLinesChange={vm.handleQuoteLinesChange}
+              onAvailabilityChange={vm.handleAvailabilityChange}
+              quoteLineEditorReady={vm.quoteLineEditorReady}
+              prefillDynamicQuoteLines={vm.prefillDynamicQuoteLines}
+              serverQuoteConfigurationLines={serverQuoteConfigurationLines}
+              lineEditorResetKey={lineEditorResetKey}
+              paymentSummary={paymentSummary}
+              quoteSendActions={
+                vm.onSendQuote && vm.canEdit ? (
+                  <QuoteActionsBar
+                    group="afterFinancial"
+                    canEdit={vm.canEdit}
+                    linesLength={lines.length}
+                    isSending={vm.isSending}
+                    previewLoading={vm.previewLoading}
+                    onSendQuote={vm.onSendQuote}
+                    onRequestEmailPreview={vm.onRequestEmailPreview}
+                    onPreviewEmail={vm.handlePreviewEmail}
+                    onSubmitQuote={vm.handleSubmit}
+                  />
+                ) : undefined
+              }
+            />
+          ) : (
+            <QuoteFinancialForm
+              lines={lines}
+              unitPrices={vm.unitPrices}
+              onUnitPriceChange={vm.handleUnitChange}
+              canEdit={vm.canEdit}
+              curLabel={vm.curLabel ?? ''}
+              money={vm.money}
+              readonlyFinancialSummary={readonlyFinancialSummary}
+              readonlyQuoteDetails={readonlyQuoteDetails}
+              subtotal={vm.subtotal}
+              serviceFee={vm.serviceFee}
+              onServiceFeeChange={vm.setServiceFee}
+              bankFeePercentage={vm.bankFeePercentage}
+              onBankFeePercentageChange={vm.setBankFeePercentage}
+              bankFeeAmount={vm.bankFeeAmount}
+              grandTotal={vm.grandTotal}
+              paymentMethodsNote={vm.paymentMethodsNote}
+              onPaymentMethodsNoteChange={vm.setPaymentMethodsNote}
+              paymentSummary={paymentSummary}
+              quoteSendActions={
+                vm.onSendQuote && vm.canEdit ? (
+                  <QuoteActionsBar
+                    group="afterFinancial"
+                    canEdit={vm.canEdit}
+                    linesLength={lines.length}
+                    isSending={vm.isSending}
+                    previewLoading={vm.previewLoading}
+                    onSendQuote={vm.onSendQuote}
+                    onRequestEmailPreview={vm.onRequestEmailPreview}
+                    onPreviewEmail={vm.handlePreviewEmail}
+                    onSubmitQuote={vm.handleSubmit}
+                  />
+                ) : undefined
+              }
+            />
+          )}
         </motion.div>
 
         {/* Sidebar droite: Client */}
@@ -180,11 +252,68 @@ export function AdminShoppingQuoteView({
         </motion.aside>
       </div>
 
+      {dossierTimeline.length > 0 || quoteSnapshotHistory.length > 0 ? (
+        <motion.div variants={fadeInUp} className="glass neo-raised rounded-xl px-4 py-3 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-foreground mb-2">
+            <History size={14} className="text-muted-foreground" />
+            Historique du dossier
+          </div>
+
+          {dossierTimeline.length > 0 && (
+            <ul className="space-y-1.5 text-muted-foreground mb-3">
+              {dossierTimeline.map((row) => (
+                <li
+                  key={`${row.event}-${row.at}-${row.label}`}
+                  className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-border/30 pb-1.5 last:border-0 last:pb-0"
+                >
+                  <span className="text-[11px] tabular-nums shrink-0">
+                    {row.at
+                      ? new Date(row.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+                      : '—'}
+                  </span>
+                  <span className="text-foreground font-medium">{row.label}</span>
+                  {row.meta ? <span className="text-[11px] w-full sm:w-auto opacity-90">{row.meta}</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {quoteSnapshotHistory.length > 0 && (
+            <>
+              <div className="font-semibold text-foreground mb-1.5 text-[11px] uppercase tracking-wide">
+                Versions de devis envoyées
+              </div>
+              <ul className="space-y-1.5 text-muted-foreground">
+                {quoteSnapshotHistory.map((h) => (
+                  <li
+                    key={h.id}
+                    className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-border/30 pb-1.5 last:border-0 last:pb-0"
+                  >
+                    <span className="tabular-nums">v{h.version}</span>
+                    <span>
+                      {h.total_primary} {h.primary_currency ?? ''}
+                    </span>
+                    {h.sent_at && (
+                      <span className="text-[11px]">
+                        {new Date(h.sent_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    )}
+                    {h.revision_reason && (
+                      <span className="text-[11px] w-full italic">« {h.revision_reason} »</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </motion.div>
+      ) : null}
+
       <QuoteEmailPreviewDialog
         open={vm.previewOpen}
         onOpenChange={vm.setPreviewOpen}
         previewHtml={vm.previewHtml}
-        curLabel={vm.curLabel}
+        curLabel={vm.curLabel ?? ''}
       />
     </motion.div>
   )

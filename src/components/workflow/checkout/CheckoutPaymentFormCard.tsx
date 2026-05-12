@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { CreditCard, DollarSign, Loader2 } from 'lucide-react'
+import { CreditCard, Coins, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -129,7 +129,7 @@ export function CheckoutPaymentFormCard({
             {submitting ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
-              <DollarSign size={18} />
+              <Coins size={18} />
             )}
             Enregistrer le paiement
           </Button>

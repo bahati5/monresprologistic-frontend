@@ -5,7 +5,7 @@ import {
   Settings,
   Building2,
   Truck,
-  DollarSign,
+  Banknote,
   CreditCard,
   Bell,
   ShoppingBag,
@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   GitBranch,
   ShieldCheck,
+  Calculator,
 } from 'lucide-react'
 import {
   GeneralTab, AgenciesTab, ShippingTab, PricingTab,
@@ -23,6 +24,7 @@ import {
   SyncErrorsTab,
   RolesPermissionsTab,
   WorkflowsTab,
+  QuoteLinesSettingsTab,
 } from '@/components/settings'
 import IntegrationsTab from '@/components/settings/IntegrationsTab'
 
@@ -31,6 +33,7 @@ type TabValue =
   | 'agencies'
   | 'shipping'
   | 'pricing'
+  | 'quote-lines'
   | 'workflows'
   | 'payments'
   | 'notifications'
@@ -45,7 +48,8 @@ const tabs: { value: TabValue; label: string; icon: typeof Settings; description
   { value: 'general',       label: 'Général',           icon: Settings,   description: 'Identité, devise, langue' },
   { value: 'agencies',      label: 'Agences', icon: Building2,  description: 'Structure multi-agences' },
   { value: 'shipping',      label: 'Transport',         icon: Truck,      description: 'Modes, emballages, transporteurs' },
-  { value: 'pricing',       label: 'Tarifs & extras',   icon: DollarSign, description: 'Lignes et extras de facturation' },
+  { value: 'pricing',       label: 'Tarifs & extras',   icon: Banknote, description: 'Lignes et extras de facturation' },
+  { value: 'quote-lines',    label: 'Devis',             icon: Calculator, description: 'Lignes, templates, devises et relances' },
   { value: 'exchange-rates', label: 'Devises', icon: Coins, description: 'Taux de change, historique et convertisseur' },
   { value: 'payments',      label: 'Paiements',         icon: CreditCard, description: 'Méthodes et passerelles' },
   { value: 'notifications', label: 'Notifications',     icon: Bell,       description: 'Modèles, SMTP, Twilio' },
@@ -64,7 +68,7 @@ const tabs: { value: TabValue; label: string; icon: typeof Settings; description
 
 function tabFromSearchParams(searchParams: URLSearchParams): TabValue | null {
   const t = searchParams.get('tab')
-  if (t === 'sync-errors' || t === 'integrations' || t === 'workflows' || t === 'roles-permissions') {
+  if (t === 'sync-errors' || t === 'integrations' || t === 'workflows' || t === 'roles-permissions' || t === 'quote-lines') {
     return t
   }
   return null
@@ -91,6 +95,7 @@ export default function SettingsHub() {
       case 'agencies':      return <AgenciesTab />
       case 'shipping':      return <ShippingTab />
       case 'pricing':       return <PricingTab />
+      case 'quote-lines':   return <QuoteLinesSettingsTab />
       case 'exchange-rates': return <ExchangeRatesTab />
       case 'payments':      return <PaymentsTab />
       case 'notifications': return <NotificationsTab />

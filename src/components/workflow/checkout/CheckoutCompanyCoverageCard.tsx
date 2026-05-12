@@ -72,7 +72,7 @@ export function CheckoutCompanyCoverageCard({
             <Label htmlFor="checkout-company-coverage">
               Montant (
               {resolveMoneySymbol(
-                branding ?? { currency: 'EUR', currency_symbol: '' },
+                branding ?? { currency: '', currency_symbol: '' },
               )}
               )
             </Label>

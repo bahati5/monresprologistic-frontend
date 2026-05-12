@@ -3,7 +3,7 @@ import { SearchableSelectWithAdd, type SearchableOption } from '../SearchableSel
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ISO_4217_CURRENCIES } from '@/lib/iso4217'
-import { DollarSign } from 'lucide-react'
+import { Coins } from 'lucide-react'
 
 interface CurrencySettingsCardProps {
   form: Record<string, unknown>
@@ -23,7 +23,7 @@ export function CurrencySettingsCard({
   onAddCurrency,
 }: CurrencySettingsCardProps) {
   return (
-    <SettingsCard title="Devise et format" icon={DollarSign} description="Monnaie et format des nombres">
+    <SettingsCard title="Devise et format" icon={Coins} description="Monnaie et format des nombres">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label>Devise</Label>
@@ -51,7 +51,7 @@ export function CurrencySettingsCard({
           <Input
             value={String(form.currency_symbol ?? '')}
             onChange={(e) => set('currency_symbol', e.target.value)}
-            placeholder="$"
+            placeholder="ex: €, $, FC…"
           />
         </div>
         <div className="space-y-2 sm:col-span-2">

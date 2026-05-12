@@ -4,7 +4,7 @@ import { fadeInUp } from '@/lib/animations'
 import { resolveLocalized } from '@/lib/localizedString'
 import { InfoRow } from '@/components/shipments/detail/InfoRow'
 import type { Shipment } from '@/types/shipment'
-import { Package, MapPin, User, Phone, Mail, Calendar, Weight, Ruler, DollarSign, Truck } from 'lucide-react'
+import { Package, MapPin, User, Phone, Mail, Calendar, Weight, Ruler, Coins, Truck } from 'lucide-react'
 
 export function ShipmentDetailInfoGrid({ shipment: s }: { shipment: Shipment }) {
   return (
@@ -62,7 +62,7 @@ export function ShipmentDetailInfoGrid({ shipment: s }: { shipment: Shipment }) 
           <InfoRow icon={Package} label="Emballage" value={s.packaging_type} />
           <InfoRow icon={Weight} label="Poids" value={s.total_weight ? `${s.total_weight} kg` : undefined} />
           <InfoRow icon={Ruler} label="Volume" value={s.total_volume ? `${s.total_volume} cm³` : undefined} />
-          <InfoRow icon={DollarSign} label="Valeur" value={s.declared_value ? `${s.declared_value}` : undefined} />
+          <InfoRow icon={Coins} label="Valeur" value={s.declared_value ? `${s.declared_value}` : undefined} />
           <InfoRow
             icon={Calendar}
             label="Livraison"

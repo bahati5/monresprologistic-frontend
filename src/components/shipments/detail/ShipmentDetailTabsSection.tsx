@@ -9,7 +9,7 @@ import {
   ShipmentDetailPaymentsTabPanel,
 } from '@/components/shipments/detail/ShipmentDetailPayments'
 import { ShipmentDetailDocuments } from '@/components/shipments/detail/ShipmentDetailDocuments'
-import { Package, FileText, DollarSign, Tag, FileUp, Calendar } from 'lucide-react'
+import { Package, FileText, Receipt, Tag, FileUp, Calendar } from 'lucide-react'
 import { paymentStatusBadge } from '@/lib/shipmentDetailWorkflow'
 
 type PayBadge = ReturnType<typeof paymentStatusBadge>
@@ -105,7 +105,7 @@ export function ShipmentDetailTabsSection({
               value="invoice"
               className="text-sm h-8 px-3 gap-1.5 data-[state=active]:glass data-[state=active]:neo-raised-sm data-[state=active]:bg-white/80 rounded-lg transition-all"
             >
-              <DollarSign size={13} className="shrink-0 opacity-60" />
+              <Receipt size={13} className="shrink-0 opacity-60" />
               Facture
             </TabsTrigger>
             <TabsTrigger

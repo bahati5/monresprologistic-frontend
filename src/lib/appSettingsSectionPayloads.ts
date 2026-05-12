@@ -107,3 +107,12 @@ export function buildCustomerPackagePayload(form: Record<string, unknown>): Reco
     customer_package_next_seq: optInt(form.customer_package_next_seq, 1),
   }
 }
+
+export function buildQuoteReferencePayload(form: Record<string, unknown>): Record<string, unknown> {
+  return {
+    quote_reference_format: String(form.quote_reference_format ?? '{prefix}-{YYYY}-{seq}'),
+    quote_reference_prefix: String(form.quote_reference_prefix ?? 'DEV'),
+    quote_reference_seq_pad: optInt(form.quote_reference_seq_pad, 1),
+    quote_next_seq: optInt(form.quote_next_seq, 1),
+  }
+}

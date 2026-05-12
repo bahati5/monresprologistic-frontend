@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
-import { formatMoneyFromBranding } from '@/lib/formatCurrency'
+import { formatMoneyFromBranding, resolveMoneySymbol } from '@/lib/formatCurrency'
 import type { AppSettings, PublicBranding } from '@/types/settings'
 import { toast } from 'sonner'
 
@@ -26,7 +26,7 @@ export function mapPublicBranding(raw: Record<string, unknown>): PublicBranding 
     site_name: String(raw.site_name ?? ''),
     hub_brand_name: String(raw.hub_brand_name ?? ''),
     show_sidebar_brand_with_logo: truthySetting(raw.show_sidebar_brand_with_logo ?? '1'),
-    currency: cur !== '' ? cur : 'EUR',
+    currency: cur,
     currency_symbol: String(raw.currency_symbol ?? ''),
     currency_position,
   }
@@ -50,6 +50,17 @@ export function useFormatMoney() {
       formatMoneyFromBranding(amount, branding, fractionDigits),
     branding,
   }
+}
+
+export function useCurrencySymbol(): string {
+  const { data: branding } = usePublicBranding()
+  if (!branding) return ''
+  return resolveMoneySymbol(branding)
+}
+
+export function useCurrencyCode(): string {
+  const { data: branding } = usePublicBranding()
+  return branding?.currency ?? ''
 }
 
 export function useUploadLogo() {

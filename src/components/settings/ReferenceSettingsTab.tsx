@@ -14,6 +14,7 @@ import { ReferenceFinanceInvoiceSection } from './reference/ReferenceFinanceInvo
 import { ReferencePrealertSection } from './reference/ReferencePrealertSection'
 import { ReferencePurchaseOrderSection } from './reference/ReferencePurchaseOrderSection'
 import { ReferenceCustomerPackageSection } from './reference/ReferenceCustomerPackageSection'
+import { ReferenceQuoteSection } from './reference/ReferenceQuoteSection'
 
 /* eslint-disable react-hooks/set-state-in-effect */
 export default function ReferenceSettingsTab() {
@@ -28,6 +29,7 @@ export default function ReferenceSettingsTab() {
   const [prealert, setPrealert] = useState<Record<string, unknown>>({})
   const [po, setPo] = useState<Record<string, unknown>>({})
   const [pkg, setPkg] = useState<Record<string, unknown>>({})
+  const [quote, setQuote] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     const f = toFormRecord(settings)
@@ -48,6 +50,7 @@ export default function ReferenceSettingsTab() {
     setPrealert(f)
     setPo(f)
     setPkg(f)
+    setQuote(f)
   }, [settings])
 
   const setL = useCallback((k: string, v: unknown) => setLocker((p) => ({ ...p, [k]: v })), [])
@@ -58,6 +61,7 @@ export default function ReferenceSettingsTab() {
   const setP = useCallback((k: string, v: unknown) => setPrealert((p) => ({ ...p, [k]: v })), [])
   const setO = useCallback((k: string, v: unknown) => setPo((p) => ({ ...p, [k]: v })), [])
   const setK = useCallback((k: string, v: unknown) => setPkg((p) => ({ ...p, [k]: v })), [])
+  const setQ = useCallback((k: string, v: unknown) => setQuote((p) => ({ ...p, [k]: v })), [])
 
   const save = useCallback(
     (label: string, payload: Record<string, unknown>) => {
@@ -121,6 +125,9 @@ export default function ReferenceSettingsTab() {
           <TabsTrigger value="pkg" className={settingsInnerTabsTrigger}>
             Colis
           </TabsTrigger>
+          <TabsTrigger value="quote" className={settingsInnerTabsTrigger}>
+            Devis
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="locker" className={settingsInnerTabsContent}>
@@ -153,6 +160,10 @@ export default function ReferenceSettingsTab() {
 
         <TabsContent value="pkg" className={settingsInnerTabsContent}>
           <ReferenceCustomerPackageSection pkg={pkg} setK={setK} save={save} isPending={isPending} />
+        </TabsContent>
+
+        <TabsContent value="quote" className={settingsInnerTabsContent}>
+          <ReferenceQuoteSection quote={quote} setQ={setQ} save={save} isPending={isPending} />
         </TabsContent>
       </Tabs>
     </div>

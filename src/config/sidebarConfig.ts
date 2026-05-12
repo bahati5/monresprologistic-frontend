@@ -11,6 +11,8 @@ import {
   Shield,
   Settings,
   BarChart3,
+  ClipboardList,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -53,6 +55,13 @@ const SECTIONS: NavSection[] = [
         href: '/purchase-orders',
         icon: ShoppingBag,
         rolesNone: ['driver'],
+      },
+      {
+        id: 'quote-dashboard',
+        label: 'Suivi devis',
+        href: '/purchase-orders/suivi',
+        icon: ClipboardList,
+        rolesAny: ['super_admin', 'agency_admin', 'operator'],
       },
       {
         id: 'expected-packages',
@@ -115,6 +124,13 @@ const SECTIONS: NavSection[] = [
         href: '/analytics',
         icon: BarChart3,
         permission: 'view_analytics',
+      },
+      {
+        id: 'analytics-assisted-purchase',
+        label: 'Achat assisté',
+        href: '/analytics/achat-assiste',
+        icon: TrendingUp,
+        rolesAny: ['super_admin', 'agency_admin', 'operator'],
       },
     ],
   },

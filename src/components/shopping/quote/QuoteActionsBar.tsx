@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CircleCheck, ExternalLink, Eye, Package, RefreshCw, Send } from 'lucide-react'
+import { ArrowRight, CircleCheck, Download, ExternalLink, Eye, Package, PackageCheck, RefreshCw, Send } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -28,11 +28,17 @@ type QuoteActionsBarAfterClientProps = {
     onResend: () => void | Promise<void>
     isPending: boolean
   } | null
-  markPaidAction?: {
-    onMarkPaid: () => void | Promise<void>
+  /** Réception au hub (ordered → arrived_at_hub, poids + photo) */
+  markHubReceivedAction?: {
+    onOpen: () => void
     isPending: boolean
   } | null
   paymentProofUrl?: string | null
+  pdfDownloadUrl?: string | null
+  recordPaymentAction?: {
+    onOpen: () => void
+    isPending: boolean
+  } | null
 }
 
 type QuoteActionsBarAfterFinancialProps = {
@@ -57,8 +63,10 @@ export function QuoteActionsBar(props: QuoteActionsBarProps) {
       confirmConvertOpen,
       onConfirmConvertOpenChange,
       resendQuoteAction,
-      markPaidAction,
+      markHubReceivedAction,
       paymentProofUrl,
+      pdfDownloadUrl,
+      recordPaymentAction,
     } = props
 
     return (
@@ -87,6 +95,19 @@ export function QuoteActionsBar(props: QuoteActionsBarProps) {
             </Button>
           )}
 
+          {markHubReceivedAction && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 text-xs gap-1 bg-green-700 text-white hover:bg-green-800"
+              disabled={markHubReceivedAction.isPending}
+              onClick={() => markHubReceivedAction.onOpen()}
+            >
+              <PackageCheck size={12} />
+              {markHubReceivedAction.isPending ? 'Envoi…' : 'Marquer arrivé au hub'}
+            </Button>
+          )}
+
           {resendQuoteAction && (
             <Button
               type="button"
@@ -101,16 +122,16 @@ export function QuoteActionsBar(props: QuoteActionsBarProps) {
             </Button>
           )}
 
-          {markPaidAction && (
+          {recordPaymentAction && (
             <Button
               type="button"
               size="sm"
               className="h-7 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
-              disabled={markPaidAction.isPending}
-              onClick={() => void markPaidAction.onMarkPaid()}
+              disabled={recordPaymentAction.isPending}
+              onClick={() => recordPaymentAction.onOpen()}
             >
               <CircleCheck size={12} />
-              {markPaidAction.isPending ? 'Validation…' : 'Valider paiement'}
+              {recordPaymentAction.isPending ? 'Enregistrement…' : 'Enregistrer un paiement'}
             </Button>
           )}
 
@@ -119,6 +140,15 @@ export function QuoteActionsBar(props: QuoteActionsBarProps) {
               <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink size={12} />
                 Preuve de paiement
+              </a>
+            </Button>
+          )}
+
+          {pdfDownloadUrl && (
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" asChild>
+              <a href={pdfDownloadUrl} target="_blank" rel="noopener noreferrer">
+                <Download size={12} />
+                PDF
               </a>
             </Button>
           )}

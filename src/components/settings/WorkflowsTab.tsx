@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Save, Timer, Scale, DollarSign, Clock, FileText } from 'lucide-react'
+import { Save, Timer, Scale, Coins, Clock, FileText } from 'lucide-react'
+import { ISO_4217_CURRENCIES } from '@/lib/iso4217'
+import { useCurrencyCode } from '@/hooks/settings/useBranding'
 
 interface WorkflowSettings {
   quote_expiry_hours: string
@@ -32,7 +34,7 @@ const defaults: WorkflowSettings = {
   sav_response_target_hours: '4',
   refund_threshold_operator: '50',
   refund_threshold_agency_admin: '500',
-  default_quote_currency: 'USD',
+  default_quote_currency: '',
   draft_max_per_type: '5',
   draft_client_expiry_days: '30',
   draft_staff_expiry_days: '7',
@@ -49,7 +51,7 @@ function mergeWorkflowSettings(data: Record<string, string> | undefined): Workfl
     sav_response_target_hours: data.sav_response_target_hours || defaults.sav_response_target_hours,
     refund_threshold_operator: data.refund_threshold_operator || defaults.refund_threshold_operator,
     refund_threshold_agency_admin: data.refund_threshold_agency_admin || defaults.refund_threshold_agency_admin,
-    default_quote_currency: data.default_quote_currency || defaults.default_quote_currency,
+    default_quote_currency: data.default_quote_currency || '',
     draft_max_per_type: data.draft_max_per_type || defaults.draft_max_per_type,
     draft_client_expiry_days: data.draft_client_expiry_days || defaults.draft_client_expiry_days,
     draft_staff_expiry_days: data.draft_staff_expiry_days || defaults.draft_staff_expiry_days,
@@ -58,6 +60,7 @@ function mergeWorkflowSettings(data: Record<string, string> | undefined): Workfl
 }
 
 function WorkflowsForm({ initial }: { initial: WorkflowSettings }) {
+  const appCurrency = useCurrencyCode()
   const qc = useQueryClient()
   const [form, setForm] = useState<WorkflowSettings>(() => initial)
 
@@ -118,17 +121,17 @@ function WorkflowsForm({ initial }: { initial: WorkflowSettings }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary" /> Remboursements — Seuils d'approbation</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Coins className="h-5 w-5 text-primary" /> Remboursements — Seuils d'approbation</CardTitle>
           <CardDescription>§9.5 PRD — Montants déterminant le niveau de validation requis.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Seuil opérateur (USD)</Label>
+            <Label>Seuil opérateur ({appCurrency || '…'})</Label>
             <Input type="number" min={0} value={form.refund_threshold_operator} onChange={e => set('refund_threshold_operator', e.target.value)} />
             <p className="text-xs text-muted-foreground">En dessous : un opérateur peut approuver</p>
           </div>
           <div className="space-y-1.5">
-            <Label>Seuil agency_admin (USD)</Label>
+            <Label>Seuil agency_admin ({appCurrency || '…'})</Label>
             <Input type="number" min={0} value={form.refund_threshold_agency_admin} onChange={e => set('refund_threshold_agency_admin', e.target.value)} />
             <p className="text-xs text-muted-foreground">Au-dessus : notification super_admin requise</p>
           </div>
@@ -142,15 +145,15 @@ function WorkflowsForm({ initial }: { initial: WorkflowSettings }) {
         <CardContent>
           <div className="space-y-1.5 max-w-xs">
             <Label>Devise par défaut des devis</Label>
-            <Select value={form.default_quote_currency} onValueChange={v => set('default_quote_currency', v)}>
+            <Select value={form.default_quote_currency || appCurrency} onValueChange={v => set('default_quote_currency', v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="USD">USD — Dollar américain</SelectItem>
-                <SelectItem value="EUR">EUR — Euro</SelectItem>
-                <SelectItem value="CDF">CDF — Franc congolais</SelectItem>
+                {ISO_4217_CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>{c.code} — {c.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">§13 PRD — USD est la devise de référence Monrespro</p>
+            <p className="text-xs text-muted-foreground">§13 PRD — Devise de référence pour les devis</p>
           </div>
         </CardContent>
       </Card>

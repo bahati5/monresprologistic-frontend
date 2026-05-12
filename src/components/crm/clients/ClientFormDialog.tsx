@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 
 type ClientFormDialogProps = {
   open: boolean
@@ -77,16 +78,16 @@ export function ClientFormDialog({
               <Input value={(form.country as string) || ''} onChange={(e) => setField('country', e.target.value)} />
             </div>
           </div>
-          {!editItem && (
-            <div className="space-y-2">
-              <Label>Mot de passe</Label>
-              <Input
-                type="password"
-                value={(form.password as string) || ''}
-                onChange={(e) => setField('password', e.target.value)}
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Checkbox
+              id="client-form-create-portal"
+              checked={form.create_portal === true}
+              onCheckedChange={(checked) => setField('create_portal', checked === true)}
+            />
+            <Label htmlFor="client-form-create-portal" className="text-sm font-medium cursor-pointer">
+              Créer un accès portail (le client recevra un e-mail pour définir son mot de passe)
+            </Label>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

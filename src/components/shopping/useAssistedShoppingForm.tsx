@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useFieldArray, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
@@ -75,32 +75,125 @@ export function useAssistedShoppingForm(
   })
 
   const formValues = watch()
+  /** Évite une boucle infinie : `watch()` peut renvoyer un nouvel objet à chaque rendu alors que les valeurs sont identiques. */
+  const lastNotifiedSerialized = useRef<string | null>(null)
   useEffect(() => {
-    onValuesChange?.(formValues)
+    if (!onValuesChange) return
+    let serialized: string
+    try {
+      serialized = JSON.stringify(formValues)
+    } catch {
+      onValuesChange(formValues)
+      return
+    }
+    if (serialized === lastNotifiedSerialized.current) return
+    lastNotifiedSerialized.current = serialized
+    onValuesChange(formValues)
   }, [formValues, onValuesChange])
+
+  const [selectedClientLabel, setSelectedClientLabel] = useState<string>('')
+  const currentUserId = watch('user_id')
+
+  useEffect(() => {
+    if (!currentUserId || selectedClientLabel) return
+    api
+      .get<{ name?: string; full_name?: string }>(`/api/shipment-wizard/client-name/${currentUserId}`)
+      .then((res) => {
+        const name = res.data?.full_name || res.data?.name
+        if (name) setSelectedClientLabel(name)
+      })
+      .catch(() => {})
+  }, [currentUserId, selectedClientLabel])
 
   const [clientSearch, setClientSearch] = useState('')
   const { data: clientsRaw, isFetching: clientsLoading } = useSearchClients(clientSearch)
 
   const clientComboboxOptions: DbComboboxOption[] = useMemo(() => {
     const rows = Array.isArray(clientsRaw) ? (clientsRaw as WizardClientSearchRow[]) : []
-    return rows
-      .filter((r) => r.user_id != null && Number(r.user_id) > 0)
-      .map((r) => {
-        const uid = Number(r.user_id)
-        const sub = [r.email, r.phone].filter(Boolean).join(' · ') || 'Compte portail'
-        return {
-          value: String(uid),
-          label: (
-            <div className="flex flex-col items-start gap-0.5 py-0.5 text-left">
+    return rows.map((r) => {
+      const hasPortal = r.has_portal === true || (r.user_id != null && Number(r.user_id) > 0)
+      const uid = hasPortal ? Number(r.user_id) : 0
+      const sub = [r.email, r.phone].filter(Boolean).join(' · ')
+      const portalTag = hasPortal ? 'Portail' : 'Sans portail'
+      const value = hasPortal ? String(uid) : `profile:${r.id}`
+      return {
+        value,
+        label: (
+          <div className="flex flex-col items-start gap-0.5 py-0.5 text-left">
+            <div className="flex items-center gap-2">
               <span className="font-medium leading-tight">{r.name ?? 'Client'}</span>
-              <span className="text-xs font-normal text-muted-foreground">{sub}</span>
+              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${hasPortal ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                {portalTag}
+              </span>
             </div>
-          ),
-          keywords: [r.name ?? '', r.email ?? '', r.phone ?? ''].filter(Boolean) as string[],
-        }
-      })
+            <span className="text-xs font-normal text-muted-foreground">
+              {sub || 'Aucun contact'}
+              {r.locker_code ? ` · Casier ${r.locker_code}` : ''}
+            </span>
+          </div>
+        ),
+        keywords: [r.name ?? '', r.email ?? '', r.phone ?? '', r.locker_code ?? ''].filter(Boolean) as string[],
+      }
+    })
   }, [clientsRaw])
+
+  const clientsRawRef = useRef(clientsRaw)
+  clientsRawRef.current = clientsRaw
+
+  const resolveClientSelection = useCallback(
+    async (comboValue: string, createPortal: boolean): Promise<number | undefined> => {
+      if (!comboValue) return undefined
+      if (!comboValue.startsWith('profile:')) {
+        const n = Number(comboValue)
+        return Number.isFinite(n) && n > 0 ? n : undefined
+      }
+      const profileId = Number(comboValue.replace('profile:', ''))
+      const rows = Array.isArray(clientsRawRef.current) ? (clientsRawRef.current as WizardClientSearchRow[]) : []
+      const row = rows.find((r) => r.id === profileId)
+      if (!row) return undefined
+
+      if (!createPortal) {
+        return profileId
+      }
+
+      try {
+        const res = await api.post<{ id: number; user_id?: number; has_portal?: boolean }>(
+          '/api/shipment-wizard/quick-create-portal',
+          { profile_id: profileId },
+        )
+        const userId = res.data?.user_id
+        if (userId && Number.isFinite(userId) && userId > 0) {
+          return userId
+        }
+      } catch {
+        // Portal creation failed, return profile id
+      }
+      return profileId
+    },
+    [],
+  )
+
+  const trackClientSelection = useCallback(
+    (comboValue: string) => {
+      if (!comboValue) {
+        setSelectedClientLabel('')
+        return
+      }
+      const rows = Array.isArray(clientsRawRef.current) ? (clientsRawRef.current as WizardClientSearchRow[]) : []
+      const hasPortalPrefix = comboValue.startsWith('profile:')
+      const profileId = hasPortalPrefix ? Number(comboValue.replace('profile:', '')) : null
+      const userId = !hasPortalPrefix ? Number(comboValue) : null
+      const row = rows.find((r) => {
+        if (profileId != null) return r.id === profileId
+        if (userId != null) return Number(r.user_id) === userId
+        return false
+      })
+      if (row) {
+        setSelectedClientLabel(row.name ?? 'Client')
+      }
+    },
+    [],
+  )
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -181,8 +274,8 @@ export function useAssistedShoppingForm(
         }
 
         let product: ExtractedProduct | null = null
-        for (let attempt = 0; attempt < 14; attempt += 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, 1200))
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500))
           const poll = await api.get<{ status: 'pending' | 'done'; product?: ExtractedProduct }>(
             `/api/assisted-purchases/extract-product/${cacheKey}`,
           )
@@ -246,6 +339,10 @@ export function useAssistedShoppingForm(
     setClientSearch,
     clientComboboxOptions,
     clientsLoading,
+    resolveClientSelection,
+    trackClientSelection,
+    selectedClientLabel,
+    setSelectedClientLabel,
     merchants,
     merchantsLoading,
     detectHintByField,

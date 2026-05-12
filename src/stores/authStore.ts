@@ -29,9 +29,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchUser: async () => {
     try {
       set({ isLoading: true })
-      const { data } = await api.get('/api/auth/user')
+      // 401 = pas de session : ne pas laisser Axios rejeter (évite erreur rouge console au démarrage).
+      const res = await api.get<{ user: unknown }>('/api/auth/user', {
+        validateStatus: (s) => s === 200 || s === 401,
+      })
+      if (res.status === 401) {
+        set({ user: null, isAuthenticated: false, isLoading: false })
+        return
+      }
       set({
-        user: normalizeAuthUser(data.user),
+        user: normalizeAuthUser(res.data.user),
         isAuthenticated: true,
         isLoading: false,
       })
@@ -42,8 +49,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email: string, password: string) => {
     await api.get('/sanctum/csrf-cookie')
+    const raw = email.trim()
+    const login = raw.includes('@') ? raw.toLowerCase() : raw.replace(/\s/g, '')
     const { data } = await api.post('/api/auth/login', {
-      login: email.trim().toLowerCase(),
+      login,
       password,
     })
     set({ user: normalizeAuthUser(data.user), isAuthenticated: true })

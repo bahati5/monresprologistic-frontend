@@ -34,7 +34,7 @@ export default function ClientAssistedPurchaseDetailPage() {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const { data: branding } = usePublicBranding()
-  const appCurrency = branding?.currency?.trim() ? branding.currency.trim() : 'EUR'
+  const appCurrency = branding?.currency?.trim() || ''
   const navigate = useNavigate()
   const [ackMessage, setAckMessage] = useState('')
   const [proofFile, setProofFile] = useState<File | null>(null)

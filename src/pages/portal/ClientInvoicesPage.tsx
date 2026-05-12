@@ -70,7 +70,7 @@ export default function ClientInvoicesPage() {
                   <tr key={inv.id} className="border-b hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs">#{inv.id}</td>
                     <td className="px-4 py-3 text-xs">{inv.shipment?.public_tracking ?? '—'}</td>
-                    <td className="px-4 py-3 font-medium">{inv.amount} {inv.currency ?? 'USD'}</td>
+                    <td className="px-4 py-3 font-medium">{inv.amount} {inv.currency ?? ''}</td>
                     <td className="px-4 py-3">
                       <Badge variant={inv.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
                         {inv.status === 'paid' ? 'Payé' : 'En attente'}

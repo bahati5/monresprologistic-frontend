@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2, FileText, DollarSign } from "lucide-react";
+import { ChevronLeft, Loader2, FileText, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -187,7 +187,7 @@ export function ShipmentCreateSummary({
       <Card className="border-primary/20 bg-primary/[0.02]">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-primary" />
+            <Coins className="h-5 w-5 text-primary" />
             Aperçu de la tarification
           </CardTitle>
         </CardHeader>

@@ -29,7 +29,7 @@ function ClientRefundRequestControls({
   const [createOpen, setCreateOpen] = useState(false)
   const [dossierKey, setDossierKey] = useState(() => p.dossierKey ?? '')
   const [newAmount, setNewAmount] = useState(() => p.newAmount ?? '')
-  const [newCurrency, setNewCurrency] = useState(() => p.newCurrency ?? 'USD')
+  const [newCurrency, setNewCurrency] = useState(() => p.newCurrency ?? '')
   const [newReason, setNewReason] = useState(() => p.newReason ?? '')
   const [newProof, setNewProof] = useState<File | null>(null)
 

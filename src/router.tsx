@@ -38,6 +38,8 @@ const Loader = () => (
 const Login = makeLazyRoute(() => import('@/pages/auth/Login'))
 const Register = makeLazyRoute(() => import('@/pages/auth/Register'))
 const PublicTrackingPage = makeLazyRoute(() => import('@/pages/public/PublicTrackingPage'))
+const AssistedPurchasePublicPage = makeLazyRoute(() => import('@/pages/public/AssistedPurchasePublicPage'))
+const QuoteResponsePage = makeLazyRoute(() => import('@/pages/public/QuoteResponsePage'))
 
 // Core
 const Dashboard = makeLazyRoute(() => import('@/pages/Dashboard'))
@@ -83,6 +85,8 @@ const AssistedPurchasesListPage = makeLazyRoute(() => import('@/pages/shopping/A
 const ClientAssistedPurchaseDetailPage = makeLazyRoute(() => import('@/pages/shopping/ClientAssistedPurchaseDetailPage'))
 const AssistedPurchaseQuotePage = makeLazyRoute(() => import('@/pages/shopping/AssistedPurchaseQuotePage'))
 const ShipmentNoticeCreatePage = makeLazyRoute(() => import('@/pages/inbound/ShipmentNoticeCreatePage'))
+const QuoteDashboardPage = makeLazyRoute(() => import('@/pages/shopping/QuoteDashboardPage'))
+const AssistedPurchaseAnalyticsPage = makeLazyRoute(() => import('@/pages/analytics/AssistedPurchaseAnalyticsPage'))
 
 // Inbound — still using GenericListPage (will get dedicated pages in Phase 4)
 function ShipmentNotices() {
@@ -267,6 +271,8 @@ export const router = createBrowserRouter(
   },
   { path: '/track', element: <PublicTrackingPage /> },
   { path: '/suivi', element: <PublicTrackingPage /> },
+  { path: '/achat-assiste', element: <AssistedPurchasePublicPage /> },
+  { path: '/devis/reponse', element: <QuoteResponsePage /> },
   {
     element: <RequireAuth />,
     children: [
@@ -301,6 +307,7 @@ export const router = createBrowserRouter(
           { path: '/shipment-notices', element: <ShipmentNotices /> },
           { path: '/shopping-assiste/nouveau', element: <AssistedShoppingNewPage /> },
           { path: '/purchase-orders', element: <AssistedPurchasesListPage /> },
+          { path: '/purchase-orders/suivi', element: <QuoteDashboardPage /> },
           { path: '/purchase-orders/:id', element: <ClientAssistedPurchaseDetailPage /> },
           { path: '/purchase-orders/:id/chiffrage', element: <AssistedPurchaseQuotePage /> },
           { path: '/customer-packages', element: <CustomerPackages /> },
@@ -321,6 +328,7 @@ export const router = createBrowserRouter(
           { path: '/analytics', element: <AnalyticsDashboard /> },
           { path: '/analytics/overdue', element: <OverdueDashboardPage /> },
           { path: '/analytics/devis', element: <QuoteConversionPage /> },
+          { path: '/analytics/achat-assiste', element: <AssistedPurchaseAnalyticsPage /> },
 
           // Reports
           { path: '/reports', element: <ReportsHub /> },

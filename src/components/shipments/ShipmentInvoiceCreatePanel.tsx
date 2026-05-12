@@ -33,7 +33,7 @@ export function ShipmentInvoiceCreatePanel({
   })
   const createInvoice = useCreateInvoice()
 
-  const currency = (currencyHint || appSettings?.currency || 'USD').toUpperCase()
+  const currency = (currencyHint || appSettings?.currency || '').toUpperCase()
   const currencyUi = resolveMoneySymbol({
     currency,
     currency_symbol: String(appSettings?.currency_symbol ?? ''),

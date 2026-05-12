@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { ChevronLeft, Save } from 'lucide-react'
 import api from '@/api/client'
 import { AssistedShoppingForm, type AssistedShoppingFormValues } from '@/components/AssistedShoppingForm'
 import { useAuthStore } from '@/stores/authStore'
@@ -9,7 +10,6 @@ import type { FormDraft } from '@/hooks/useDrafts'
 import { DraftStatusIndicator } from '@/components/drafts/DraftStatusIndicator'
 import { DraftResumeDialog } from '@/components/drafts/DraftResumeDialog'
 import { Button } from '@/components/ui/button'
-import { Save } from 'lucide-react'
 
 const STAFF_ROLES = ['super_admin', 'agency_admin', 'operator'] as const
 
@@ -104,7 +104,7 @@ export default function AssistedShoppingNewPage() {
   }
 
   return (
-    <>
+    <div className="mx-auto max-w-4xl space-y-6">
       <DraftResumeDialog
         draft={existingDraft ?? null}
         open={draftDialogOpen}
@@ -112,29 +112,41 @@ export default function AssistedShoppingNewPage() {
         onDiscard={handleDiscardDraft}
         onOpenChange={setDraftDialogOpen}
       />
+
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" onClick={() => navigate(-1)}>
+          <ChevronLeft className="mr-2 h-4 w-4" /> Retour
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Nouvelle demande d'achat</h1>
+          <div className="flex items-center gap-2">
+            <DraftStatusIndicator lastSavedAt={lastSavedAt} isSaving={isSaving} />
+          </div>
+        </div>
+      </div>
+
       <AssistedShoppingForm
         onSubmit={onSubmit}
         isSubmitting={isSubmitting}
         isStaff={isStaff}
         initialValues={initialValues}
         onValuesChange={handleValuesChange}
-        headerSlot={
-          <DraftStatusIndicator lastSavedAt={lastSavedAt} isSaving={isSaving} />
-        }
+        className="max-w-none"
+        hideHeader
         actionsSlot={
           <Button
             type="button"
             variant="outline"
             size="lg"
-            className="h-12"
+            className="h-11"
             onClick={saveDraftManually}
             disabled={isSaving}
           >
-            <Save className="mr-1 h-4 w-4" />
-            Enregistrer en brouillon
+            <Save className="mr-2 h-4 w-4" />
+            Brouillon
           </Button>
         }
       />
-    </>
+    </div>
   )
 }

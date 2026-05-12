@@ -62,6 +62,8 @@ export type AssistedShoppingFormProps = {
   onValuesChange?: (values: AssistedShoppingFormValues) => void
   headerSlot?: ReactNode
   actionsSlot?: ReactNode
+  /** Masque la bannière bleue (ex. page staff avec titre dans le layout parent). */
+  hideHeader?: boolean
 }
 
 export type WizardClientSearchRow = {
@@ -70,6 +72,8 @@ export type WizardClientSearchRow = {
   name?: string
   email?: string
   phone?: string | null
+  locker_code?: string | null
+  has_portal?: boolean
 }
 
 export type ExtractionState = 'idle' | 'running' | 'done' | 'error'

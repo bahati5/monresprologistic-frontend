@@ -15,7 +15,7 @@ export function ShipLinesCard() {
   const qc = useQueryClient()
   const { data: appSettings } = useAppSettings()
   const { formatMoney } = useFormatMoney()
-  const globalCurrency = String(appSettings?.currency ?? 'USD').toUpperCase()
+  const globalCurrency = String(appSettings?.currency ?? '').toUpperCase()
   const currencyUi = resolveMoneySymbol({
     currency: globalCurrency,
     currency_symbol: String(appSettings?.currency_symbol ?? ''),

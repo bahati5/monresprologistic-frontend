@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useCreateClient } from '@/hooks/useCrm'
 import { usePhoneCountries } from '@/hooks/useSettings'
 import { useWizardCreateRecipient } from '@/hooks/useShipments'
@@ -23,7 +24,9 @@ type Props = {
   mode: ProfileWizardCreateMode
   senderProfileId?: number
   searchHint?: string
-  onCreated: (profileId: number) => void
+  onCreated: (profileId: number, clientName?: string) => void
+  showPortalCheckbox?: boolean
+  createPortalDefault?: boolean
 }
 
 function parseNameHint(hint: string): { first: string; last: string } {
@@ -72,8 +75,10 @@ type InnerProps = {
   mode: ProfileWizardCreateMode
   senderProfileId?: number
   searchHint?: string
-  onCreated: (profileId: number) => void
+  onCreated: (profileId: number, clientName?: string) => void
   onOpenChange: (open: boolean) => void
+  showPortalCheckbox?: boolean
+  createPortalDefault?: boolean
 }
 
 function ProfileWizardCreateForm({
@@ -82,11 +87,14 @@ function ProfileWizardCreateForm({
   searchHint,
   onCreated,
   onOpenChange,
+  showPortalCheckbox = false,
+  createPortalDefault = false,
 }: InnerProps) {
   const initial = useMemo(() => getInitialWizardCreateState(searchHint), [searchHint])
   const createClient = useCreateClient()
   const createRecipient = useWizardCreateRecipient()
   const { data: phoneCountries = [], isLoading: loadingPhoneCountries } = usePhoneCountries()
+  const [portalChecked, setPortalChecked] = useState(createPortalDefault)
 
   const [firstName, setFirstName] = useState(initial.firstName)
   const [lastName, setLastName] = useState(initial.lastName)
@@ -126,6 +134,7 @@ function ProfileWizardCreateForm({
 
   const handleSubmit = () => {
     if (!canSubmit) return
+    const fullName = `${firstName.trim()} ${lastName.trim()}`
     const base = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
@@ -142,12 +151,12 @@ function ProfileWizardCreateForm({
 
     if (mode === 'sender') {
       createClient.mutate(
-        { ...base, create_portal: false },
+        { ...base, create_portal: portalChecked },
         {
           onSuccess: (data: { client?: { id: number } }) => {
             const id = data?.client?.id
             if (id != null) {
-              onCreated(id)
+              onCreated(id, fullName)
               onOpenChange(false)
             }
           },
@@ -160,7 +169,7 @@ function ProfileWizardCreateForm({
           onSuccess: (data: { id?: number }) => {
             const id = data?.id
             if (id != null) {
-              onCreated(id)
+              onCreated(id, fullName)
               onOpenChange(false)
             }
           },
@@ -242,6 +251,18 @@ function ProfileWizardCreateForm({
           />
         </div>
       </div>
+      {showPortalCheckbox && mode === 'sender' && (
+        <div className="flex items-center gap-2 py-2 border-t">
+          <Checkbox
+            id="modal-create-portal"
+            checked={portalChecked}
+            onCheckedChange={(checked) => setPortalChecked(checked === true)}
+          />
+          <Label htmlFor="modal-create-portal" className="text-sm font-medium cursor-pointer">
+            Créer un accès portail (le client recevra un e-mail pour définir son mot de passe)
+          </Label>
+        </div>
+      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Annuler
@@ -261,6 +282,8 @@ export function ProfileWizardCreateModal({
   senderProfileId,
   searchHint,
   onCreated,
+  showPortalCheckbox = false,
+  createPortalDefault = false,
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -273,6 +296,8 @@ export function ProfileWizardCreateModal({
             searchHint={searchHint}
             onCreated={onCreated}
             onOpenChange={onOpenChange}
+            showPortalCheckbox={showPortalCheckbox}
+            createPortalDefault={createPortalDefault}
           />
         ) : null}
       </DialogContent>

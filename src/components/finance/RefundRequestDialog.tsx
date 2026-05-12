@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DraftStatusIndicator } from '@/components/drafts/DraftStatusIndicator'
+import { ISO_4217_CURRENCIES } from '@/lib/iso4217'
 
 type DossierOption = { key: string; label: string }
 
@@ -99,9 +100,9 @@ export function RefundRequestDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="CDF">CDF</SelectItem>
+                  {ISO_4217_CURRENCIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.code} — {c.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

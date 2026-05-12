@@ -3,7 +3,7 @@ import { useFinanceDashboard } from '@/hooks/useFinance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  DollarSign, TrendingUp, CreditCard, Receipt,
+  Coins, TrendingUp, CreditCard, Receipt,
   ArrowUpRight, ArrowDownRight,
   type LucideIcon,
 } from 'lucide-react'
@@ -105,7 +105,7 @@ export default function FinanceDashboardPage() {
         <StatCard
           title="Chiffre d'affaires"
           value={formatMoney(Number(d.total_revenue ?? 0))}
-          icon={DollarSign}
+          icon={Coins}
           trend={d.revenue_trend}
           trendLabel="vs mois dernier"
           color="#0e7490"

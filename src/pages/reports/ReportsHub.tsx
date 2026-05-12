@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  BarChart3, TrendingUp, Package, Truck, Users, DollarSign,
+  BarChart3, TrendingUp, Package, Truck, Users, Coins,
   Download, Calendar, ArrowUpRight, ArrowDownRight, FileText,
 } from 'lucide-react'
 
 const REPORT_SECTIONS = [
   { id: 'shipments', label: 'Expeditions', icon: Package, color: '#3B82F6', description: 'Volume, statuts, delais de livraison' },
-  { id: 'finance', label: 'Finance', icon: DollarSign, color: '#14B8A6', description: 'Revenus, creances, paiements' },
+  { id: 'finance', label: 'Finance', icon: Coins, color: '#14B8A6', description: 'Revenus, creances, paiements' },
   { id: 'pickups', label: 'Ramassages', icon: Truck, color: '#10B981', description: 'Performance des collectes' },
   { id: 'clients', label: 'Clients', icon: Users, color: '#8B5CF6', description: 'Activite, retention, top clients' },
 ]

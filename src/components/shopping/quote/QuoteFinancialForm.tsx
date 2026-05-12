@@ -19,6 +19,7 @@ import { DEFAULT_PAYMENT_METHODS_NOTE } from '@/constants/shopping'
 import { fadeInUp } from '@/lib/animations'
 import { parsePositiveNumber } from '@/lib/shoppingQuoteCalculations'
 import type { AdminQuoteLine, ReadonlyQuoteFinancialDetails } from '@/types/shopping'
+import type { AssistedPurchasePaymentSummary } from '@/lib/assistedPurchaseQuote'
 
 export interface QuoteFinancialFormProps {
   lines: AdminQuoteLine[]
@@ -39,6 +40,7 @@ export interface QuoteFinancialFormProps {
   paymentMethodsNote: string
   onPaymentMethodsNoteChange: (value: string) => void
   quoteSendActions?: ReactNode
+  paymentSummary?: AssistedPurchasePaymentSummary | null
 }
 
 export function QuoteFinancialForm({
@@ -60,6 +62,7 @@ export function QuoteFinancialForm({
   paymentMethodsNote,
   onPaymentMethodsNoteChange,
   quoteSendActions,
+  paymentSummary = null,
 }: QuoteFinancialFormProps) {
   return (
     <div className="space-y-4">
@@ -77,14 +80,15 @@ export function QuoteFinancialForm({
           </div>
         </div>
 
-        <Table>
+        <div className="overflow-x-auto">
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
-              <TableHead className="min-w-[180px] text-xs">Article</TableHead>
-              <TableHead className="w-[90px] text-xs">Lien</TableHead>
-              <TableHead className="w-[60px] text-right text-xs">Qté</TableHead>
-              <TableHead className="w-[120px] text-right text-xs">P.U.</TableHead>
-              <TableHead className="w-[110px] text-right text-xs">Total</TableHead>
+              <TableHead className="w-[45%] text-xs">Article</TableHead>
+              <TableHead className="w-[12%] text-xs">Lien</TableHead>
+              <TableHead className="w-[10%] text-right text-xs">Qté</TableHead>
+              <TableHead className="w-[17%] text-right text-xs">P.U.</TableHead>
+              <TableHead className="w-[16%] text-right text-xs">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -108,9 +112,9 @@ export function QuoteFinancialForm({
                           className="mt-0.5"
                         />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium leading-snug truncate">{line.articleLabel || 'Article'}</p>
+                          <p className="text-sm font-medium leading-snug break-words line-clamp-2">{line.articleLabel || 'Article'}</p>
                           {line.optionsLabel && (
-                            <p className="text-[11px] text-muted-foreground truncate">
+                            <p className="text-[11px] text-muted-foreground break-words line-clamp-1">
                               {line.optionsLabel}
                             </p>
                           )}
@@ -139,7 +143,7 @@ export function QuoteFinancialForm({
                         min={0}
                         step={0.01}
                         disabled={!canEdit}
-                        className="h-7 text-right tabular-nums text-sm max-w-[100px] ml-auto"
+                        className="h-8 min-h-8 py-1.5 text-right tabular-nums text-sm font-medium text-foreground bg-background max-w-[100px] ml-auto"
                         value={unitPrices[String(line.id)] ?? ''}
                         onChange={(e) => onUnitPriceChange(line.id, e.target.value)}
                         placeholder="0"
@@ -155,7 +159,40 @@ export function QuoteFinancialForm({
             )}
           </TableBody>
         </Table>
+        </div>
       </motion.div>
+
+      {paymentSummary && (paymentSummary.rows.length > 0 || paymentSummary.remaining > 0) && (
+        <motion.div variants={fadeInUp} className="glass neo-raised rounded-xl p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-foreground">Encaissements</h2>
+          {paymentSummary.rows.length > 0 && (
+            <ul className="space-y-1 text-[11px] text-muted-foreground max-h-28 overflow-y-auto">
+              {paymentSummary.rows.map((row) => (
+                <li key={row.id} className="flex justify-between gap-2 border-b border-border/20 pb-1">
+                  <span>
+                    {row.created_at
+                      ? new Date(row.created_at).toLocaleString('fr-FR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })
+                      : '—'}
+                    {row.recorded_by_name ? ` · ${row.recorded_by_name}` : ''}
+                  </span>
+                  <span className="font-medium tabular-nums text-foreground shrink-0">{money(row.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex justify-between text-xs gap-2">
+            <span className="text-muted-foreground">Total encaissé</span>
+            <span className="font-semibold tabular-nums">{money(paymentSummary.totalPaid)}</span>
+          </div>
+          <div className="flex justify-between text-xs gap-2">
+            <span className="text-muted-foreground">Solde restant</span>
+            <span className="font-semibold tabular-nums text-[#073763]">{money(paymentSummary.remaining)}</span>
+          </div>
+        </motion.div>
+      )}
 
       {/* Synthèse financière */}
       <motion.div variants={fadeInUp}>
@@ -170,16 +207,31 @@ export function QuoteFinancialForm({
                     <span className="text-muted-foreground text-xs">Sous-total articles</span>
                     <span className="font-medium tabular-nums text-xs">{money(readonlyQuoteDetails.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground text-xs">Frais de service</span>
-                    <span className="font-medium tabular-nums text-xs">{money(readonlyQuoteDetails.serviceFee)}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground text-xs">
-                      Frais bancaires ({readonlyQuoteDetails.bankFeePercentage.toFixed(2).replace('.', ',')}%)
-                    </span>
-                    <span className="font-medium tabular-nums text-xs">{money(readonlyQuoteDetails.bankFeeAmount)}</span>
-                  </div>
+                  {'snapshotLines' in readonlyQuoteDetails && Array.isArray((readonlyQuoteDetails as Record<string, unknown>).snapshotLines) ? (
+                    ((readonlyQuoteDetails as Record<string, unknown>).snapshotLines as { name: string; amount: number; type: string; value: number; is_visible_to_client: boolean }[])
+                      .filter((l) => l.is_visible_to_client)
+                      .map((l, i) => (
+                        <div key={i} className="flex justify-between gap-4">
+                          <span className="text-muted-foreground text-xs">
+                            {l.name}{l.type === 'percentage' ? ` (${l.value} %)` : ''}
+                          </span>
+                          <span className="font-medium tabular-nums text-xs">{money(l.amount)}</span>
+                        </div>
+                      ))
+                  ) : (
+                    <>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">Frais de service</span>
+                        <span className="font-medium tabular-nums text-xs">{money(readonlyQuoteDetails.serviceFee)}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground text-xs">
+                          Frais bancaires ({readonlyQuoteDetails.bankFeePercentage.toFixed(2).replace('.', ',')}%)
+                        </span>
+                        <span className="font-medium tabular-nums text-xs">{money(readonlyQuoteDetails.bankFeeAmount)}</span>
+                      </div>
+                    </>
+                  )}
                   {readonlyQuoteDetails.paymentMethodsNote && (
                     <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-border/40 pt-2">
                       {readonlyQuoteDetails.paymentMethodsNote}

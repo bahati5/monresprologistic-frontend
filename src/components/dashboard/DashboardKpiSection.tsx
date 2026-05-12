@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  Bell, CheckCircle, CreditCard, DollarSign, FileText, Package, Truck, Users,
+  Bell, CheckCircle, CreditCard, Coins, FileText, Package, Truck, Users,
 } from 'lucide-react'
 
 import { KpiCard } from '@/components/dashboard/KpiCard'
@@ -60,7 +60,7 @@ export function DashboardKpiSection({
         <KpiCard
           title="Revenus du mois"
           value={formatMoney(Number(stats.monthly_revenue ?? 0))}
-          icon={DollarSign}
+          icon={Coins}
           color="#14B8A6"
           trend={stats.revenue_trend != null ? Number(stats.revenue_trend) : undefined}
           trendLabel="vs mois dernier"

@@ -31,11 +31,12 @@ export interface ClientCreatePayload {
   name: string
   email: string
   phone?: string
-  password: string
-  password_confirmation: string
+  password?: string
+  password_confirmation?: string
   address?: string
   city?: string
   country?: string
+  create_portal?: boolean
 }
 
 export interface User {

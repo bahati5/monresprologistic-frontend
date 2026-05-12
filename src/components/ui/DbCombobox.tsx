@@ -222,6 +222,8 @@ export type DbComboboxAsyncProps = Omit<DbComboboxProps, 'options' | 'filterQuer
   onFilterQueryChange: (q: string) => void
   searchMinLength?: number
   belowMinText?: string
+  /** Friendly label shown when the selected value is not in the current options list (e.g. after async search clears). */
+  selectedDisplayLabel?: React.ReactNode
 }
 
 /**
@@ -248,11 +250,13 @@ export function DbComboboxAsync({
   createButtonDisabled = false,
   wrapperClassName,
   minLengthForCreate,
+  selectedDisplayLabel,
 }: DbComboboxAsyncProps) {
   const [open, setOpen] = React.useState(false)
   const selected = options.find((o) => normVal(o.value) === normVal(value))
   const display =
     selected?.label ??
+    selectedDisplayLabel ??
     (value !== '' && value != null ? (
       <span className="text-muted-foreground">{String(value)}</span>
     ) : null)

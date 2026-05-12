@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Coins, History, RefreshCw } from 'lucide-react'
 import { getApiErrorMessage } from '@/lib/apiErrors'
+import { useCurrencyCode } from '@/hooks/settings/useBranding'
 
 type ExchangeRateRow = {
   id: number
@@ -21,12 +22,20 @@ type ExchangeRateRow = {
 
 export default function ExchangeRatesTab() {
   const qc = useQueryClient()
-  const [from, setFrom] = useState('EUR')
-  const [to, setTo] = useState('CDF')
+  const appCurrency = useCurrencyCode()
+  const [fromInit, setFromInit] = useState(false)
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   const [rate, setRate] = useState('')
   const [convAmount, setConvAmount] = useState('100')
-  const [convFrom, setConvFrom] = useState('EUR')
-  const [convTo, setConvTo] = useState('CDF')
+  const [convFrom, setConvFrom] = useState('')
+  const [convTo, setConvTo] = useState('')
+
+  if (!fromInit && appCurrency) {
+    setFrom(appCurrency)
+    setConvFrom(appCurrency)
+    setFromInit(true)
+  }
   const [convResult, setConvResult] = useState<string | null>(null)
 
   const { data, isLoading, refetch, isFetching } = useQuery({

@@ -1,4 +1,9 @@
 import type { ReactNode } from 'react'
+import type { QuoteEditDraftSnapshot } from '@/lib/quoteEditDraft'
+import type {
+  AssistedPurchasePaymentSummary,
+  ServerQuoteConfigurationLine,
+} from '@/lib/assistedPurchaseQuote'
 
 export type AdminQuoteLine = {
   id: string | number
@@ -27,7 +32,11 @@ export type AdminShoppingQuotePayload = {
   bankFeeAmount: number
   paymentMethodsNote: string
   total: number
-  lines: { id: string | number; unitPrice: number; lineTotal: number }[]
+  lines: { id: string | number; unitPrice: number; quantity: number; lineTotal: number }[]
+  dynamicLines?: import('@/types/assistedPurchase').ActiveQuoteLine[]
+  estimatedDelivery?: string
+  staffMessage?: string
+  articleAvailabilities?: { id: number; availability_status: string; alternative_note: string | null }[]
 }
 
 export type ReadonlyQuoteFinancialDetails = {
@@ -40,10 +49,20 @@ export type ReadonlyQuoteFinancialDetails = {
 }
 
 export type AssistedQuotePreviewBody = {
-  items: { id: number; unit_price: number }[]
+  items: { id: number; unit_price: number; quantity?: number }[]
   service_fee: number
   bank_fee_percentage: number
   payment_methods_note: string | null
+  lines?: {
+    internal_code: string
+    name: string
+    type: string
+    calculation_base: string | null
+    value: number
+    is_visible_to_client: boolean
+  }[]
+  estimated_delivery?: string | null
+  staff_message?: string | null
 }
 
 export type ShoppingQuoteClientDetail = {
@@ -86,10 +105,40 @@ export type AdminShoppingQuoteViewProps = {
     onResend: () => void | Promise<void>
     isPending: boolean
   } | null
-  markPaidAction?: {
-    onMarkPaid: () => void | Promise<void>
+  recordPaymentAction?: {
+    onOpen: () => void
     isPending: boolean
   } | null
+  /** ordered → arrived_at_hub (poids + photo, API multipart) */
+  markHubReceivedAction?: {
+    onOpen: () => void
+    isPending: boolean
+  } | null
+  /** Encaissements (acomptes) + solde restant */
+  paymentSummary?: AssistedPurchasePaymentSummary | null
+  /** Délai / message client depuis le dernier snapshot (réédition) */
+  revisionHydration?: { estimatedDelivery: string; staffMessage: string } | null
+  /** Lignes dynamiques du dernier snapshot pour préremplir l’éditeur */
+  serverQuoteConfigurationLines?: ServerQuoteConfigurationLine[] | null
+  /** Clé de remontage de l’éditeur de lignes après nouvelle version */
+  lineEditorResetKey?: string
+  /** Historique des envois de devis (snapshots) */
+  quoteSnapshotHistory?: {
+    id: number
+    version: number
+    sent_at: string | null
+    total_primary: string
+    primary_currency: string | null
+    revision_reason: string | null
+    created_at: string | null
+  }[]
+  /** Fil chronologique du dossier (API `dossier_timeline`) */
+  dossierTimeline?: {
+    at: string
+    event: string
+    label: string
+    meta?: string | null
+  }[]
   clientSectionTitle?: string
   convertToShipmentAction?: {
     onConvert: () => void | Promise<void>
@@ -97,11 +146,11 @@ export type AdminShoppingQuoteViewProps = {
   } | null
   convertedShipmentId?: number | null
   paymentProofUrl?: string | null
-  onQuoteDataChange?: (data: {
-    unitPrices: Record<string, string>
-    serviceFee: string
-    bankFeePercentage: string
-    paymentMethodsNote: string
-  }) => void
+  /** Brouillon serveur (GET /drafts) pour cette demande — hydratation au chargement */
+  quoteServerDraftPayload?: Record<string, unknown> | null
+  /** true une fois la requête des brouillons terminée */
+  quoteDraftsQuerySettled?: boolean
+  onQuoteDataChange?: (data: QuoteEditDraftSnapshot) => void
   draftIndicator?: ReactNode
+  pdfDownloadUrl?: string | null
 }
