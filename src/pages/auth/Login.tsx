@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Package, Truck, Globe, Shield } from "lucide-react";
 import { AuthBrandingMark } from "@/components/auth/AuthBrandingMark";
+import { isPortalOnlyClient } from "@/lib/internalAppRoles";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -32,7 +33,7 @@ export default function Login() {
     try {
       await login(email.trim(), password);
       const u = useAuthStore.getState().user;
-      navigate(u?.roles?.includes('client') ? '/portal' : '/dashboard');
+      navigate(isPortalOnlyClient(u) ? '/portal' : '/dashboard');
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(err, "Les identifiants ne correspondent pas."),

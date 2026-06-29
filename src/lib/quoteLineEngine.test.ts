@@ -61,6 +61,7 @@ const baseCurrency: QuoteCurrencySettings = {
   secondary_currency_rate_mode: 'manual',
   secondary_currency_rate: 2800,
   secondary_currency_rate_updated_at: '2024-01-01',
+  scraped_price_to_primary_multiplier: 1,
 }
 
 describe('calculateQuote', () => {

@@ -20,6 +20,37 @@ export function DashboardKpiSection({
   clientExtras,
   formatMoney,
 }: DashboardKpiSectionProps) {
+  if (dashboardType === 'customs') {
+    return (
+      <motion.div variants={fadeInUp} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          title="En transit (douane)"
+          value={Number(stats.in_customs ?? 0)}
+          icon={Package}
+          color="#7c3aed"
+          href="/shipments"
+          delay={0}
+        />
+        <KpiCard
+          title="Dédouanées aujourd'hui"
+          value={Number(stats.cleared_today ?? 0)}
+          icon={CheckCircle}
+          color="#059669"
+          href="/shipments"
+          delay={1}
+        />
+        <KpiCard
+          title="Documents en attente"
+          value={Number(stats.pending_docs ?? 0)}
+          icon={FileText}
+          color="#F59E0B"
+          href="/shipments"
+          delay={2}
+        />
+      </motion.div>
+    )
+  }
+
   if (isStaffDashboard(dashboardType)) {
     return (
       <motion.div variants={fadeInUp} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

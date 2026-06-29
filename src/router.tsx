@@ -8,6 +8,7 @@ import ClientPortalOnly from '@/components/auth/ClientPortalOnly'
 import SidebarLayout from '@/layouts/SidebarLayout'
 import ProtectedRoute from '@/components/rbac/ProtectedRoute'
 import GenericListPage from '@/pages/GenericListPage'
+import NotificationsListPage from '@/pages/notifications/NotificationsListPage'
 
 type ListRow = Record<string, unknown>
 
@@ -189,44 +190,6 @@ function PaymentProofs() {
   )
 }
 
-function Notifications() {
-  return (
-    <GenericListPage
-      title="Notifications"
-      apiPath="/api/notifications"
-      dataKey="notifications"
-      columns={[
-        {
-          key: 'title',
-          label: 'Titre',
-          render: (r: ListRow) => {
-            const data = r['data']
-            const dataTitle =
-              data && typeof data === 'object' && data !== null && 'title' in data
-                ? (data as { title?: unknown }).title
-                : undefined
-            const fallback = r['title']
-            return displayLocalized(dataTitle ?? fallback)
-          },
-        },
-        {
-          key: 'read_at',
-          label: 'Lu',
-          render: (r: ListRow) => (r['read_at'] ? 'Oui' : 'Non'),
-        },
-        {
-          key: 'created_at',
-          label: 'Date',
-          render: (r: ListRow) => {
-            const d = r['created_at']
-            return typeof d === 'string' ? new Date(d).toLocaleDateString('fr-FR') : '—'
-          },
-        },
-      ]}
-    />
-  )
-}
-
 function NotFound() {
   return (
     <div className="flex h-96 flex-col items-center justify-center text-center">
@@ -273,6 +236,7 @@ export const router = createBrowserRouter(
           { path: 'casier', element: <ClientLockerPage /> },
           { path: 'factures', element: <ClientInvoicesPage /> },
           { path: 'paiement', element: <FlexPayPage /> },
+          { path: 'notifications', element: <NotificationsListPage /> },
           { path: 'profil', element: <Profile /> },
           { path: 'sav', element: <SavTicketsPage /> },
           { path: 'sav/new', element: <SavTicketCreatePage /> },
@@ -285,7 +249,7 @@ export const router = createBrowserRouter(
           // ─── Public (auth only) ───
           { path: '/dashboard', element: <Dashboard /> },
           { path: '/profile', element: <Profile /> },
-          { path: '/notifications', element: <Notifications /> },
+          { path: '/notifications', element: <NotificationsListPage /> },
 
           // ─── Shipments (shipments.view / shipments.create) ───
           { path: '/shipments', element: <P permission="shipments.view"><ShipmentsList /></P> },

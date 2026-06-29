@@ -71,11 +71,17 @@ export function useClients(params: Record<string, unknown> = {}) {
   })
 }
 
+function isUsableClientRouteId(v: string | undefined): v is string {
+  const t = v?.trim()
+  if (!t || t === 'undefined' || t === 'null') return false
+  return true
+}
+
 export function useClient(uuid: string | undefined) {
   return useQuery<Client>({
     queryKey: ['clients', uuid],
     queryFn: () => api.get(`/api/clients/${uuid}`).then(r => r.data?.client ?? r.data),
-    enabled: !!uuid,
+    enabled: isUsableClientRouteId(uuid),
   })
 }
 
@@ -93,13 +99,37 @@ export function useCreateClient() {
   })
 }
 
+/** Segment d’URL pour `PATCH /api/clients/{client}` (uuid ou id numérique profil). */
+function clientPatchRouteSegment(vars: { uuid?: string; id?: number }): string | null {
+  if (typeof vars.uuid === 'string') {
+    const u = vars.uuid.trim()
+    if (u && u !== 'undefined' && u !== 'null') return u
+  }
+  if (vars.id != null && Number.isFinite(Number(vars.id)) && Number(vars.id) > 0) {
+    return String(vars.id)
+  }
+  return null
+}
+
 export function useUpdateClient() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ uuid, payload }: { uuid: string; payload: Partial<Client> | Record<string, unknown> }) =>
-      api.patch(`/api/clients/${uuid}`, payload).then(r => r.data),
+    mutationFn: (vars: {
+      uuid?: string
+      id?: number
+      payload: Partial<Client> | Record<string, unknown>
+    }) => {
+      const key = clientPatchRouteSegment(vars)
+      if (!key) {
+        return Promise.reject(new Error('Identifiant client manquant'))
+      }
+      return api.patch(`/api/clients/${key}`, vars.payload).then((r) => r.data)
+    },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['clients', vars.uuid] })
+      const key = clientPatchRouteSegment(vars)
+      if (key) {
+        qc.invalidateQueries({ queryKey: ['clients', key] })
+      }
       qc.invalidateQueries({ queryKey: ['clients'] })
       toast.success('Client mis à jour')
     },
@@ -313,14 +343,15 @@ export function useNotifications(params: Record<string, unknown> = {}) {
   return useQuery<Notification[]>({
     queryKey: ['notifications', params],
     queryFn: () => api.get('/api/notifications', { params }).then(r => r.data?.notifications ?? r.data),
+    refetchOnWindowFocus: true,
   })
 }
 
 export function useUnreadCount() {
   return useQuery<number>({
     queryKey: ['notifications', 'unread-count'],
-    queryFn: () => api.get('/api/notifications/unread-count').then(r => r.data?.count ?? 0),
-    refetchInterval: 30000,
+    queryFn: () => api.get('/api/notifications/unread-count').then((r) => r.data?.count ?? 0),
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -331,6 +362,7 @@ export function useMarkNotificationRead() {
       api.post(`/api/notifications/${uuid}/read`).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
     },
   })
 }
@@ -341,6 +373,7 @@ export function useMarkAllRead() {
     mutationFn: () => api.post('/api/notifications/read-all').then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
       toast.success('Toutes les notifications marquées comme lues')
     },
   })
@@ -353,6 +386,7 @@ export function useDeleteNotification() {
       api.delete(`/api/notifications/${uuid}`).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
     },
   })
 }

@@ -21,6 +21,7 @@ export function QuoteCurrencySection() {
     secondary_currency_rate_mode: 'manual',
     secondary_currency_rate: 0,
     secondary_currency_rate_updated_at: null,
+    scraped_price_to_primary_multiplier: 1,
   })
 
   useEffect(() => {
@@ -55,6 +56,31 @@ export function QuoteCurrencySection() {
               ))}
             </SelectContent>
           </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Prix scrappés → devise du devis</CardTitle>
+          <CardDescription>
+            Le prix lu sur la page marchand est multiplié par ce coefficient pour remplir le prix unitaire (chiffrage)
+            dans votre devise principale. Exemple : article à 10 USD × 1,2 = 12 dans la devise du devis.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label htmlFor="scrape-mult">Coefficient multiplicateur</Label>
+          <Input
+            id="scrape-mult"
+            type="number"
+            min={0.000001}
+            step="any"
+            className="max-w-[200px]"
+            value={form.scraped_price_to_primary_multiplier}
+            onChange={(e) => {
+              const n = Number(e.target.value)
+              set('scraped_price_to_primary_multiplier', Number.isFinite(n) ? n : 1)
+            }}
+          />
         </CardContent>
       </Card>
 

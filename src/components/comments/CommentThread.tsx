@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useAuthStore } from '@/stores/authStore'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
 import { MessageSquare, Send, Lock, Trash2 } from 'lucide-react'
 
 interface CommentThreadProps {
@@ -26,7 +27,7 @@ interface Comment {
 export default function CommentThread({ commentableType, commentableId }: CommentThreadProps) {
   const { user } = useAuthStore()
   const qc = useQueryClient()
-  const isClient = user?.roles?.includes('client')
+  const isClient = isPortalOnlyClient(user)
   const [body, setBody] = useState('')
   const [isInternal, setIsInternal] = useState(false)
 

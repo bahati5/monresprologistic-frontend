@@ -220,6 +220,18 @@ function parsePreference(raw: unknown): PurchaseArticle['preference'] {
   }
 }
 
+function parseItemOptionsJson(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'string') return {}
+  const t = raw.trim()
+  if (t === '' || !t.startsWith('{')) return {}
+  try {
+    const o = JSON.parse(t) as unknown
+    return typeof o === 'object' && o !== null && !Array.isArray(o) ? (o as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
 export function buildPurchaseArticles(p: Record<string, unknown>): PurchaseArticle[] {
   const rawItems = p.items as PurchaseItemRow[] | undefined
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
@@ -252,8 +264,54 @@ export function buildPurchaseArticles(p: Record<string, unknown>): PurchaseArtic
 
   return rawItems.map((it) => {
     const qty = typeof it.quantity === 'number' ? it.quantity : Number(it.quantity) || 1
-    const priceOrig = it.price_displayed != null ? Number(it.price_displayed) : null
-    const priceConv = it.price_converted != null ? Number(it.price_converted) : null
+    const opt = parseItemOptionsJson(it.options)
+
+    const priceOrigFromTop = it.price_displayed != null ? Number(it.price_displayed) : NaN
+    const priceOrigFromOpt = opt.price_displayed != null ? Number(opt.price_displayed) : NaN
+    const priceOrig = Number.isFinite(priceOrigFromTop)
+      ? priceOrigFromTop
+      : Number.isFinite(priceOrigFromOpt)
+        ? priceOrigFromOpt
+        : null
+
+    const priceConvFromTop = it.price_converted != null ? Number(it.price_converted) : NaN
+    const priceConvFromOpt = opt.price_converted != null ? Number(opt.price_converted) : NaN
+    const unitPriceNum = it.unit_price != null && it.unit_price !== '' ? Number(it.unit_price) : NaN
+    let priceConv: number | null = null
+    if (Number.isFinite(priceConvFromTop)) {
+      priceConv = priceConvFromTop
+    } else if (Number.isFinite(priceConvFromOpt)) {
+      priceConv = priceConvFromOpt
+    } else if (Number.isFinite(unitPriceNum)) {
+      priceConv = unitPriceNum
+    }
+
+    const currencyOriginal =
+      typeof it.currency_original === 'string' && it.currency_original.trim() !== ''
+        ? it.currency_original.trim()
+        : typeof opt.currency_original === 'string' && opt.currency_original.trim() !== ''
+          ? String(opt.currency_original).trim()
+          : typeof opt.scraped_currency === 'string' && opt.scraped_currency.trim() !== ''
+            ? String(opt.scraped_currency).trim()
+            : null
+
+    const scrapeFromTop =
+      typeof it.scrape_status === 'string' && ['pending', 'success', 'failed', 'manual'].includes(it.scrape_status)
+        ? it.scrape_status
+        : null
+    const scrapeFromOpt =
+      typeof opt.scrape_status === 'string' && ['pending', 'success', 'failed', 'manual'].includes(opt.scrape_status)
+        ? opt.scrape_status
+        : null
+    const rawScrape = scrapeFromTop ?? scrapeFromOpt ?? 'manual'
+    const scrapeStatus = (
+      ['pending', 'success', 'failed', 'manual'].includes(rawScrape) ? rawScrape : 'manual'
+    ) as PurchaseArticle['scrape_status']
+
+    const rawOptStr = typeof it.options === 'string' ? it.options.trim() : ''
+    const optionsLabel =
+      rawOptStr !== '' && !rawOptStr.startsWith('{') ? (it.options as string) : null
+
     const m = itemMerchantForQuoteLine(it)
 
     return {
@@ -263,9 +321,9 @@ export function buildPurchaseArticles(p: Record<string, unknown>): PurchaseArtic
         (typeof it.name === 'string' && it.name.trim()) ||
         'Article',
       product_url: String(it.url ?? ''),
-      price_original: Number.isFinite(priceOrig) ? priceOrig : null,
-      price_converted: Number.isFinite(priceConv) ? priceConv : null,
-      currency_original: typeof it.currency_original === 'string' ? it.currency_original : null,
+      price_original: priceOrig,
+      price_converted: priceConv,
+      currency_original: currencyOriginal,
       quantity: qty,
       merchant: m
         ? { id: m.id, name: m.name ?? undefined, logo_url: m.logo_url }
@@ -275,12 +333,8 @@ export function buildPurchaseArticles(p: Record<string, unknown>): PurchaseArtic
       availability: parseAvailability(it),
       image_url: typeof it.image_url === 'string' && it.image_url.trim() ? it.image_url.trim() : null,
       is_available: typeof it.is_available === 'boolean' ? it.is_available : null,
-      scrape_status:
-        typeof it.scrape_status === 'string' &&
-        ['pending', 'success', 'failed', 'manual'].includes(it.scrape_status)
-          ? (it.scrape_status as PurchaseArticle['scrape_status'])
-          : 'manual',
-      options_label: typeof it.options === 'string' ? it.options : null,
+      scrape_status: scrapeStatus,
+      options_label: optionsLabel,
     }
   })
 }

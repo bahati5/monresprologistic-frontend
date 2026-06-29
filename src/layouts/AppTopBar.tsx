@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { Bell, Menu, Search, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Bell, Menu, Search, X, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarBreadcrumb } from '@/layouts/SidebarBreadcrumb'
 import type { AuthUser } from '@/types'
+import { useAuthStore } from '@/stores/authStore'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
+import { useUnreadCount } from '@/hooks/useCrm'
 
 export function AppTopBar({
   mobileOpen,
@@ -18,6 +21,17 @@ export function AppTopBar({
   onThemeCycle: () => void
   user: AuthUser | null
 }) {
+  const { logout } = useAuthStore()
+  const navigate = useNavigate()
+  const { data: unreadCount = 0 } = useUnreadCount()
+  const isClient = isPortalOnlyClient(user)
+  const notificationsTo = isClient ? '/portal/notifications' : '/notifications'
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
+  }
+
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-card px-4 lg:px-6 shadow-sm">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onToggleMobile}>
@@ -39,9 +53,14 @@ export function AppTopBar({
         </kbd>
       </button>
 
-      <Link to="/notifications">
+      <Link to={notificationsTo} className="relative inline-flex">
         <Button variant="ghost" size="icon" className="relative">
           <Bell size={18} />
+          {unreadCount > 0 ? (
+            <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          ) : null}
         </Button>
       </Link>
 
@@ -49,12 +68,24 @@ export function AppTopBar({
         {themeIcon}
       </Button>
 
-      <Link to="/profile" className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/20">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="lg:hidden"
+        onClick={() => void handleLogout()}
+        aria-label="Déconnexion"
+        title="Déconnexion"
+      >
+        <LogOut size={18} />
+      </Button>
+
+      <Link to="/profile" className="flex min-w-0 items-center gap-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground ring-2 ring-primary/20">
           {user?.name?.charAt(0).toUpperCase()}
         </div>
-        <div className="hidden lg:block">
-          <p className="text-sm font-medium leading-none">{user?.name}</p>
+        <div className="hidden min-w-0 lg:block">
+          <p className="truncate text-sm font-medium leading-none">{user?.name}</p>
           <p className="text-xs text-muted-foreground">
             {user?.roles?.[0]?.replace('_', ' ') || 'Utilisateur'}
           </p>

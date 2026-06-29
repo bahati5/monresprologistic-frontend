@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation } from 'react-router-dom'
 import {
@@ -773,6 +773,18 @@ function EditRoleDialog({
   const [groupUuids, setGroupUuids] = useState<Set<string>>(() => new Set((role?.groups ?? []).map((g) => g.uuid)))
   const [leftFilter, setLeftFilter] = useState('')
   const [rightFilter, setRightFilter] = useState('')
+
+  useEffect(() => {
+    if (!role) {
+      return
+    }
+    setName(role.name ?? '')
+    setCode(role.code ?? '')
+    setDescription(role.description ?? '')
+    setLevel(typeof role.level === 'number' ? role.level : 0)
+    setDirect(new Set(role.permissions ?? []))
+    setGroupUuids(new Set((role.groups ?? []).map((g) => g.uuid)))
+  }, [role])
 
   const effective = useMemo(
     () => computeEffectivePermissionSet(direct, groupUuids, allGroups),

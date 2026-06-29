@@ -147,8 +147,11 @@ export default function SavTicketDetailPage() {
                 <span className="text-muted-foreground">Client</span>
                 <p className="font-medium">{ticket.client?.name ?? 'Non identifié'}</p>
                 {ticket.client?.phone && <p className="text-xs text-muted-foreground">{ticket.client.phone}</p>}
-                {ticket.client?.id && !isPortalClient && (
-                  <Link to={`/clients/${ticket.client.id}`} className="text-xs text-primary hover:underline">
+                {ticket.client?.profile_id != null && ticket.client.profile_id > 0 && !isPortalClient && (
+                  <Link
+                    to={`/clients/${ticket.client.profile_id}`}
+                    className="text-xs text-primary hover:underline"
+                  >
                     Voir profil
                   </Link>
                 )}

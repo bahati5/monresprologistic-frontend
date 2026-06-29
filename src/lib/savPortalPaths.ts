@@ -1,7 +1,8 @@
 import type { AuthUser } from '@/types'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
 
 export function isPortalClientUser(user: AuthUser | null | undefined): boolean {
-  return Boolean(user?.roles?.includes('client'))
+  return isPortalOnlyClient(user)
 }
 
 /** Base path for SAV list / navigation (portail client vs espace staff). */

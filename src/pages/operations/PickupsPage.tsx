@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Plus, Search, Package } from 'lucide-react'
 import type { PaginatedData } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
+import { isFieldDriverOnly } from '@/lib/internalAppRoles'
 import api from '@/api/client'
 import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -29,7 +30,7 @@ const VIEW_KEY = 'pickups-list-view'
 export default function PickupsPage() {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
-  const isDriver = Boolean(user?.roles?.includes('driver'))
+  const isDriver = isFieldDriverOnly(user)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const { data, isLoading } = usePickups({ page, search: search || undefined })

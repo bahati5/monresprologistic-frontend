@@ -34,7 +34,7 @@ export interface SavTicket {
   priority_color: string
   category_label: string
   sla_remaining_minutes: number | null
-  client?: { id: number; name: string; email?: string; phone?: string }
+  client?: { id: number; name: string; email?: string; phone?: string; profile_id?: number | null }
   assignee?: { id: number; name: string }
   creator?: { id: number; name: string }
   messages?: SavTicketMessage[]

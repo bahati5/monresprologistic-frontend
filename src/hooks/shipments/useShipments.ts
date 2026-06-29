@@ -3,11 +3,15 @@ import api from '@/api/client'
 import type { Shipment, ShipmentListFilters } from '@/types/shipment'
 import type { PaginatedData } from '@/types'
 
-export function useShipments(filters: ShipmentListFilters = {}) {
+export function useShipments(
+  filters: ShipmentListFilters = {},
+  options?: { enabled?: boolean },
+) {
   return useQuery<PaginatedData<Shipment>>({
     queryKey: ['shipments', filters],
     queryFn: () =>
       api.get('/api/shipments', { params: filters }).then((r) => r.data?.shipments ?? r.data),
+    enabled: options?.enabled ?? true,
   })
 }
 

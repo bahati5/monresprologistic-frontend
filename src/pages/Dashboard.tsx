@@ -17,6 +17,7 @@ import { DashboardTodayActivityCard } from '@/components/dashboard/DashboardToda
 import { DashboardSystemAlertsCard } from '@/components/dashboard/DashboardSystemAlertsCard'
 import { DashboardHandoverCard } from '@/components/dashboard/DashboardHandoverCard'
 import { getGreeting, isStaffDashboard } from '@/components/dashboard/dashboardUtils'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
 import { staggerContainer, fadeInUp } from '@/lib/animations'
 import {
   Bell, CreditCard, Truck, Plus, ShoppingBag, HeadphonesIcon, AlertTriangle, Receipt, Package,
@@ -31,7 +32,7 @@ export default function Dashboard() {
   const { formatMoney } = useFormatMoney()
 
   useEffect(() => {
-    if (user?.roles?.includes('client')) {
+    if (isPortalOnlyClient(user)) {
       navigate('/portal', { replace: true })
     }
   }, [user, navigate])
@@ -154,6 +155,17 @@ export default function Dashboard() {
         />
       )}
 
+      {dashboardType === 'customs' && (
+        <DashboardHero
+          title={`${greeting}, ${user?.name?.split(' ')[0] || 'Agent'}`}
+          subtitle="Suivi des expéditions en transit et dédouanement."
+          gradient={['#4c1d95', '#7c3aed'] as const}
+          actions={[
+            { label: 'Voir les expéditions', href: '/shipments', icon: Package },
+          ]}
+        />
+      )}
+
       {dashboardType === 'driver' && (
         <DashboardHero
           title={`Vos taches du jour, ${user?.name?.split(' ')[0] || ''}`}
@@ -174,7 +186,7 @@ export default function Dashboard() {
       {isStaffDashboard(dashboardType) && <DashboardTodayActionsCard actions={todayActions} />}
 
       {/* KPIs principaux */}
-      {isStaffDashboard(dashboardType) && (
+      {(isStaffDashboard(dashboardType) || dashboardType === 'customs') && (
         <DashboardKpiSection
           dashboardType={dashboardType}
           stats={stats}
@@ -210,6 +222,8 @@ export default function Dashboard() {
       )}
 
       {isStaffDashboard(dashboardType) && <DashboardStaffQuickLinks />}
+
+      {dashboardType === 'customs' && <DashboardStaffQuickLinks />}
 
       {(isStaffDashboard(dashboardType) || dashboardType === 'client') && (
         <motion.div variants={fadeInUp}>

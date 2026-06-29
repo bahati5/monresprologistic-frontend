@@ -1,9 +1,24 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useMemo, useState, useCallback } from 'react'
 import { useAuthStore } from '@/stores/authStore'
-import { Package, ShoppingBag, Box, Receipt, User, LayoutDashboard, Bell, CreditCard, HeadphonesIcon, Menu, X } from 'lucide-react'
+import {
+  Package,
+  ShoppingBag,
+  Box,
+  Receipt,
+  User,
+  LayoutDashboard,
+  Bell,
+  CreditCard,
+  HeadphonesIcon,
+  Menu,
+  X,
+  LogOut,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isNavHrefActive, resolveActiveNavHref } from '@/lib/navActiveMatch'
+import { useUnreadCount } from '@/hooks/useCrm'
+import { Button } from '@/components/ui/button'
 
 const clientNav = [
   { href: '/portal', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -11,15 +26,23 @@ const clientNav = [
   { href: '/portal/achats', label: 'Mes achats', icon: ShoppingBag },
   { href: '/portal/casier', label: 'Mon casier', icon: Box },
   { href: '/portal/factures', label: 'Mes factures', icon: Receipt },
+  { href: '/portal/notifications', label: 'Notifications', icon: Bell },
   { href: '/portal/sav', label: 'SAV', icon: HeadphonesIcon },
   { href: '/portal/paiement', label: 'Paiements', icon: CreditCard },
   { href: '/portal/profil', label: 'Mon profil', icon: User },
 ]
 
 export default function ClientPortalLayout() {
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { data: unreadCount = 0 } = useUnreadCount()
+
+  const handleLogout = useCallback(async () => {
+    await logout()
+    navigate('/login')
+  }, [logout, navigate])
 
   const clientNavHrefs = useMemo(() => clientNav.map((i) => i.href), [])
   const activeNavHref = useMemo(
@@ -46,7 +69,7 @@ export default function ClientPortalLayout() {
               : 'border-primary text-primary'
             : display === 'drawer'
               ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
         )}
       >
         <item.icon className={cn('shrink-0', display === 'drawer' ? 'h-5 w-5' : 'h-4 w-4')} />
@@ -73,11 +96,40 @@ export default function ClientPortalLayout() {
               Monrespro
             </Link>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/notifications" className="relative rounded-lg p-2 transition-colors hover:bg-muted" aria-label="Notifications">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <Link
+              to="/portal/notifications"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-muted"
+              aria-label="Notifications"
+            >
               <Bell className="h-5 w-5" />
+              {unreadCount > 0 ? (
+                <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              ) : null}
             </Link>
-            <span className="text-sm text-muted-foreground hidden sm:inline">{user?.name}</span>
+            <span className="hidden max-w-[10rem] truncate text-sm text-muted-foreground sm:inline">{user?.name}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="hidden h-8 gap-1.5 px-2.5 text-xs sm:inline-flex"
+              onClick={() => void handleLogout()}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Déconnexion
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0 sm:hidden"
+              onClick={() => void handleLogout()}
+              aria-label="Déconnexion"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </header>

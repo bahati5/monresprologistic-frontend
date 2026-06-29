@@ -1,8 +1,10 @@
 import type { AuthUser } from '@/types'
+import { hasInternalStaffAppRole } from '@/lib/internalAppRoles'
 
-/** Client portail ou chauffeur : détail expédition en lecture seule (pas les actions staff). */
+/** Client portail ou chauffeur terrain : détail expédition en lecture seule (pas les actions staff). */
 export function isClientOrDriverShipmentViewer(user: AuthUser | null): boolean {
-  return Boolean(user?.roles?.some((r) => r === 'client' || r === 'driver'))
+  if (!user?.roles?.length || hasInternalStaffAppRole(user)) return false
+  return Boolean(user.roles.some((r) => r === 'client' || r === 'driver'))
 }
 
 /**

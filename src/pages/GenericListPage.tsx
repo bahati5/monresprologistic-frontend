@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,29 @@ function cleanParams(params: Record<string, string | number | undefined>): Recor
     out[k] = v
   }
   return out
+}
+
+function DetailNavLink({
+  to,
+  className,
+  children,
+}: {
+  to: string
+  className?: string
+  children: React.ReactNode
+}) {
+  if (/^https?:\/\//i.test(to)) {
+    return (
+      <a href={to} target="_blank" rel="noopener noreferrer" className={className}>
+        {children}
+      </a>
+    )
+  }
+  return (
+    <Link to={to} className={className}>
+      {children}
+    </Link>
+  )
 }
 
 interface GenericListPageProps {
@@ -98,6 +121,7 @@ function GenericListPageInner({
   const { data, isLoading } = useQuery({
     queryKey: [dataKey, apiPath, page, search, extraSerialized],
     queryFn: () => api.get(apiPath, { params: requestParams }).then((r) => r.data),
+    refetchInterval: apiPath.includes('/api/notifications') ? 15_000 : false,
   })
 
   const mergeParams = useCallback(
@@ -211,11 +235,11 @@ function GenericListPageInner({
                         ))}
                         {detailPath && (
                           <td className="px-4 py-3 text-right">
-                            <a href={detailPath(row)}>
+                            <DetailNavLink to={detailPath(row)}>
                               <Button variant="ghost" size="sm">
                                 Voir
                               </Button>
-                            </a>
+                            </DetailNavLink>
                           </td>
                         )}
                       </tr>
@@ -259,11 +283,11 @@ function GenericListPageInner({
                       ))}
                     </dl>
                     {detailPath ? (
-                      <a href={detailPath(row)} className="inline-block pt-2">
+                      <DetailNavLink to={detailPath(row)} className="inline-block pt-2">
                         <Button variant="outline" size="sm">
                           Voir
                         </Button>
-                      </a>
+                      </DetailNavLink>
                     ) : null}
                   </CardContent>
                 </Card>

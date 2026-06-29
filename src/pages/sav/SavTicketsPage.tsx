@@ -80,8 +80,9 @@ export default function SavTicketsPage() {
   const agents = agentsData?.users?.data ?? agentsData?.users ?? []
 
   const tickets = data?.tickets?.data ?? []
-  const categories = data?.categories ?? []
-  const priorities = data?.priorities ?? []
+  const categories = Array.isArray(data?.categories) ? data.categories : []
+  const priorities = Array.isArray(data?.priorities) ? data.priorities : []
+  const agentsList = Array.isArray(agents) ? agents : []
   const counts = data?.counts_by_status ?? {}
   const totalOpen = (counts['open'] ?? 0) + (counts['in_progress'] ?? 0) + (counts['waiting_client'] ?? 0)
   const escalated = counts['escalated'] ?? 0
@@ -97,13 +98,25 @@ export default function SavTicketsPage() {
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-6">
       {/* Header */}
-      <motion.div variants={fadeInUp} className="flex items-center justify-between">
+      <motion.div key="sav-header" variants={fadeInUp} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <HeadphonesIcon className="h-7 w-7 text-primary" />
           <div>
             <h1 className="text-2xl font-bold">SAV — Tickets</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {totalOpen} ticket(s) ouvert(s) · {slaAtRisk > 0 && <span className="text-orange-600">{slaAtRisk} SLA en danger</span>}{slaAtRisk > 0 && ' · '}{escalated > 0 && <span className="text-red-600">{escalated} escaladé(s)</span>}
+              <span>{totalOpen} ticket(s) ouvert(s)</span>
+              {slaAtRisk > 0 && (
+                <>
+                  {' · '}
+                  <span className="text-orange-600">{slaAtRisk} SLA en danger</span>
+                </>
+              )}
+              {escalated > 0 && (
+                <>
+                  {' · '}
+                  <span className="text-red-600">{escalated} escaladé(s)</span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -113,7 +126,7 @@ export default function SavTicketsPage() {
       </motion.div>
 
       {/* Status tabs */}
-      <motion.div variants={fadeInUp} className="flex flex-wrap gap-2">
+      <motion.div key="sav-status-tabs" variants={fadeInUp} className="flex flex-wrap gap-2">
         {STATUS_TABS.map(tab => {
           const count = tab.value ? (counts[tab.value] ?? 0) : Object.values(counts).reduce((s, v) => s + v, 0)
           return (
@@ -131,7 +144,7 @@ export default function SavTicketsPage() {
       </motion.div>
 
       {/* Filters row */}
-      <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-3">
+      <motion.div key="sav-filters" variants={fadeInUp} className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -169,7 +182,7 @@ export default function SavTicketsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous agents</SelectItem>
-            {agents.map((a: { id: number; name: string }) => (
+            {agentsList.map((a: { id: number; name: string }) => (
               <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
             ))}
           </SelectContent>
@@ -200,10 +213,10 @@ export default function SavTicketsPage() {
       ) : tickets.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">Aucun ticket trouvé</CardContent></Card>
       ) : (
-        <motion.div variants={fadeInUp} className="space-y-3">
+        <motion.div key="sav-ticket-list" variants={fadeInUp} className="space-y-3">
           {tickets.map(ticket => (
             <Card
-              key={ticket.id}
+              key={ticket.uuid ?? ticket.id}
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigate(`${savBase}/${ticket.uuid}`)}
             >

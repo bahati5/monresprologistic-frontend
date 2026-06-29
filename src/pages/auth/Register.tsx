@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, Truck, Globe, Shield } from 'lucide-react'
 import { AuthBrandingMark } from '@/components/auth/AuthBrandingMark'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
 import { getApiErrorMessage } from '@/lib/apiError'
 
 export default function Register() {
@@ -37,7 +38,7 @@ export default function Register() {
         passwordConfirmation,
       )
       const u = useAuthStore.getState().user
-      navigate(u?.roles?.includes('client') ? '/portal' : '/dashboard')
+      navigate(isPortalOnlyClient(u) ? '/portal' : '/dashboard')
     } catch (err: unknown) {
       if (isAxiosError(err) && err.response?.status === 422) {
         const body = err.response.data as { errors?: Record<string, string[]> }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import api from '@/api/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -33,6 +33,11 @@ const emptyEditForm = (): ClientEditFormState => ({
   city_id: '',
 })
 
+function isValidClientPageId(raw: string | undefined): raw is string {
+  const t = raw?.trim()
+  return Boolean(t && t !== 'undefined' && t !== 'null')
+}
+
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -43,13 +48,15 @@ export default function ClientDetailPage() {
   const [editForm, setEditForm] = useState<ClientEditFormState>(() => emptyEditForm())
   const [editSaving, setEditSaving] = useState(false)
 
+  const clientPageId = isValidClientPageId(id) ? id : undefined
+
   const { data, isLoading, error } = useQuery<ClientActivityData>({
-    queryKey: ['client-activity', id],
+    queryKey: ['client-activity', clientPageId],
     queryFn: async () => {
-      const res = await axios.get(`/api/clients/${id}/activity`)
+      const res = await api.get(`/api/clients/${clientPageId}/activity`)
       return res.data
     },
-    enabled: !!id,
+    enabled: !!clientPageId,
   })
 
   if (isLoading) {
@@ -126,9 +133,9 @@ export default function ClientDetailPage() {
     }
     setEditSaving(true)
     try {
-      await axios.patch(`/api/clients/${id}`, editForm)
+      await api.patch(`/api/clients/${clientPageId}`, editForm)
       toast.success('Client mis à jour')
-      queryClient.invalidateQueries({ queryKey: ['client-activity', id] })
+      queryClient.invalidateQueries({ queryKey: ['client-activity', clientPageId] })
       queryClient.invalidateQueries({ queryKey: ['clients'] })
       setEditOpen(false)
     } catch (err: unknown) {

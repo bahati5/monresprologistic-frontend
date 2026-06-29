@@ -191,6 +191,8 @@ export interface ShipmentCreatePayload {
 export interface ShipmentListFilters {
   search?: string
   status?: string
+  /** Filtre staff : expéditions liées à ce compte utilisateur client (créateur ou profil expéditeur / destinataire). */
+  user_id?: number
   client_id?: number
   driver_id?: number
   from_date?: string

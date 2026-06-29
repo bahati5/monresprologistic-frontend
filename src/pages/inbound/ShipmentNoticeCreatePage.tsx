@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
 import { useCreateShipmentNotice } from '@/hooks/useInbound'
 import { useCheckExistingDraft, useDraftAutoSave, useDeleteDraft } from '@/hooks/useDrafts'
 import type { FormDraft } from '@/hooks/useDrafts'
@@ -38,7 +39,7 @@ export default function ShipmentNoticeCreatePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user } = useAuthStore()
-  const isClient = user?.roles?.includes('client') ?? false
+  const isClient = isPortalOnlyClient(user)
   const create = useCreateShipmentNotice()
   const deleteDraft = useDeleteDraft()
 

@@ -340,15 +340,20 @@ export function QuoteLineEditor({
 
     const mandatoryLines = activeLines.filter((l) => l.is_mandatory)
     const newLines: ActiveQuoteLine[] = [...mandatoryLines]
+    const usedCodes = new Set(newLines.map((l) => l.internal_code))
 
     for (const tplLine of tpl.lines) {
       const template = allTemplates.find((t) => t.id === tplLine.quote_line_template_id)
       if (!template) continue
-      if (mandatoryLines.some((m) => m.internal_code === template.internal_code)) continue
+      if (usedCodes.has(template.internal_code)) continue
+      usedCodes.add(template.internal_code)
+      // Lignes issues d'un template métier : modifiables / supprimables (les obligatoires système restent ci-dessus).
       newLines.push(
         templateToActiveLine(template, {
+          id: `tpl-${template.id}-app-${newLines.length}-${Date.now()}`,
           display_order: newLines.length + 1,
           value: tplLine.custom_value != null ? String(tplLine.custom_value) : String(template.default_value ?? ''),
+          is_mandatory: false,
         }),
       )
     }

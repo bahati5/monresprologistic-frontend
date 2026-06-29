@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAuthStore } from '@/stores/authStore'
+import { isPortalOnlyClient } from '@/lib/internalAppRoles'
 import { FileDown, PanelRight } from 'lucide-react'
 import { RefundCard } from '@/components/finance/RefundCard'
 import { RefundFilters } from '@/components/finance/RefundFilters'
@@ -148,7 +149,7 @@ function ClientRefundRequestControls({
 export default function RefundsPage() {
   const { user } = useAuthStore()
   const qc = useQueryClient()
-  const isClient = user?.roles?.includes('client')
+  const isClient = isPortalOnlyClient(user)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [rejectId, setRejectId] = useState<number | null>(null)

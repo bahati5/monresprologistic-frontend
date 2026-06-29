@@ -13,6 +13,7 @@ const DEFAULTS: QuoteCurrencySettings = {
   secondary_currency_rate_mode: 'manual',
   secondary_currency_rate: 0,
   secondary_currency_rate_updated_at: null,
+  scraped_price_to_primary_multiplier: 1,
 }
 
 export function useQuoteCurrencySettings() {

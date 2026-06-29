@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { registerSW } from 'virtual:pwa-register'
 import { BrandingSync } from '@/components/BrandingSync'
+import { NotificationRealtimeSync } from '@/components/notifications/NotificationRealtimeSync'
 import { router } from './router'
 import { useAuthStore } from './stores/authStore'
 import { useThemeStore } from './stores/themeStore'
@@ -44,6 +45,7 @@ function AppBootstrap() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <NotificationRealtimeSync />
       <BrandingSync />
       <RouterProvider
         router={router}

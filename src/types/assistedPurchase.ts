@@ -108,6 +108,8 @@ export interface QuoteCurrencySettings {
   secondary_currency_rate_mode: 'manual' | 'automatic'
   secondary_currency_rate: number
   secondary_currency_rate_updated_at: string | null
+  /** Multiplicateur appliqué au prix extrait du site pour obtenir le P.U. en devise principale du devis. */
+  scraped_price_to_primary_multiplier: number
 }
 
 export interface QuoteCalculationResult {
